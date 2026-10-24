@@ -18,7 +18,8 @@ async function post(path, body, timeoutMs = 15000) {
   return res.json();
 }
 
-export const postChat = (body) => post('/api/chat', body);
+export const isDemoPage = DEMO;
+export const postChat = (body) => post('/api/chat', body, 20000); // server Gemini timeout is 15 s
 export const postGeocode = (body, timeoutMs = 6000) => post('/api/geocode', body, timeoutMs);
 export const postSearch = (body) => post('/api/search', DEMO ? { ...body, demo: true } : body, 25000); // server: main + retry, 8 s each
 export const postStickers = (body) => post('/api/stickers', body);

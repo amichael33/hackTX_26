@@ -1,5 +1,5 @@
 import { store, movementEnabled } from './store.js';
-import { postChat, postGeocode, postSearch, postStickers } from './api.js';
+import { isDemoPage, postChat, postGeocode, postSearch, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch } from './ui.js';
@@ -10,7 +10,7 @@ window.store = store; // console debugging
 const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can find stuff in your area?";
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
 const GREETING = 'Hi! Welcome in. What are you shopping for today?';
-const RATE_LIMITED = 'Whoa, one sec!';
+const RATE_LIMITED = 'Whoa, one sec! Ask me again in a moment.';
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
 const scene = document.querySelector('a-scene');
@@ -146,6 +146,7 @@ async function runTurn(text) {
 // --- Search: fetch products while the clerk says "checking the back" ---
 const SEARCH_WAIT = 'Let me check the back...';
 const SEARCH_EMPTY = 'Hmm, nothing matched. Want to try something else?';
+const SEARCH_OFFLINE = "Our back room's offline, so here's our showroom stock!";
 const SEARCH_FAILED = "Hmm, I couldn't reach the back room. Want to try again?";
 
 async function runSearch() {
@@ -154,13 +155,19 @@ async function runSearch() {
     const { query, location } = store.get();
     const waiting = clerkSay(SEARCH_WAIT);
     document.getElementById('clerk')?.emit('spin');
+    let servedDemo = false;
+    let pending = true;
     const searching = postSearch({ query, city: location?.city }).then(
-      (res) => res?.products ?? [],
+      (res) => { servedDemo = res?.demo === true; return res?.products ?? []; },
       (err) => {
         console.warn('search failed', err);
         return err?.status === 429 ? { limited: true } : null; // null = request failed, distinct from an empty result
       },
     );
+    searching.then(() => { pending = false; });
+    waiting.then(() => {
+      if (pending && store.get().phase === 'SEARCHING') store.set({ status: 'thinking' });
+    });
     const [products] = await Promise.all([searching, waiting]);
 
     if (products && products.limited) {
@@ -170,6 +177,7 @@ async function runSearch() {
     }
     if (Array.isArray(products) && products.length) {
       store.set({ products });
+      if (servedDemo && !isDemoPage) await clerkSay(SEARCH_OFFLINE);
       store.setPhase('OPENING');
       return;
     }
@@ -177,7 +185,7 @@ async function runSearch() {
     store.setPhase('CHATTING');
     store.set({ messages: [] }); // next chat starts fresh
   } finally {
-    if (store.get().status !== 'idle') store.set({ status: 'idle' });
+    if (store.get().phase !== 'OPENING' && store.get().status !== 'idle') store.set({ status: 'idle' });
   }
 }
 store.on('phase:SEARCHING', runSearch);
