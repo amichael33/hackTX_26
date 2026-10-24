@@ -75,7 +75,7 @@
     g.beginPath();
     pts.forEach(function (p, k) { if (k) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
     g.closePath();
-    var base = PARCHMENT[(seed >> 3) % PARCHMENT.length];
+    var base = PARCHMENT[(seed >>> 3) % PARCHMENT.length]; // unsigned shift: a hash with the top bit set must not give a negative index
     var grad = g.createRadialGradient(128, 128, 20, 128, 128, 150);
     grad.addColorStop(0, base); grad.addColorStop(0.7, '#d9c186'); grad.addColorStop(1, '#a98a4e');
     g.fillStyle = grad;

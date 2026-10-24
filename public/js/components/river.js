@@ -61,7 +61,7 @@
           var rock = new THREE.Mesh(rockGeo, rockMat);
           rock.scale.set(1 + (k % 3) * 0.3, 0.6, 1 + (k % 2) * 0.4); rock.position.set(cx + 0.25, 0.07, s * (edge + 0.1)); rock.rotation.y = k;
           this.group.add(rock);
-        });
+        }, this); // `this` is the component: the callback uses this.group
       }, this);
       this.owned.push(wGeo, wMat, this.tex, stone, bGeo, reedMat, headMat, rockMat, stemGeo, headGeo, rockGeo);
     },
