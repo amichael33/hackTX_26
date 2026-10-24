@@ -8,7 +8,7 @@ export async function searchShopping({ q, location }, { apiKey, fetchImpl = fetc
   let url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}`;
   if (location) url += `&location=${encodeURIComponent(location)}`;
   url += `&api_key=${encodeURIComponent(apiKey)}`;
-  const res = await fetchImpl(url, { signal: AbortSignal.timeout(10000) });
+  const res = await fetchImpl(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`serpapi ${res.status}`);
   return res.json();
 }

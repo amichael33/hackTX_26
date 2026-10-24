@@ -13,6 +13,7 @@ const demoProducts = JSON.parse(readFileSync(path.join(here, 'data', 'demoProduc
 
 const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PRODUCTS = 30;
+const MAX_RELATED = 6;
 
 // deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, serveStatic?, geocodeTimeoutMs? }
 export function createApp(deps = {}) {
@@ -59,11 +60,20 @@ export function createApp(deps = {}) {
       ]);
       const mainProducts = normalizeShoppingResults(mainJson);
       const seen = new Set();
-      const merged = [];
-      const add = (p) => { if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); } };
-      mainProducts.forEach(add);
-      extraJsons.forEach((j) => normalizeShoppingResults(j, { related: true, startRelevance: mainProducts.length }).forEach(add));
-      const products = assignTiers(merged.slice(0, MAX_PRODUCTS));
+      const dedupe = (list) => list.filter((p) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+      const main = dedupe(mainProducts); // main first, so a main item wins over a duplicate related one
+      // Related relevance continues after the main items, one contiguous run across all extra queries.
+      let nextRelevance = mainProducts.length;
+      const relatedAll = [];
+      for (const j of extraJsons) {
+        const r = normalizeShoppingResults(j, { related: true, startRelevance: nextRelevance });
+        nextRelevance += r.length;
+        relatedAll.push(...r);
+      }
+      // Reserve up to MAX_RELATED slots for related items; main fills the rest up to MAX_PRODUCTS.
+      const relatedKept = dedupe(relatedAll).slice(0, MAX_RELATED);
+      const mainKept = main.slice(0, MAX_PRODUCTS - relatedKept.length);
+      const products = assignTiers([...mainKept, ...relatedKept]);
       cache.set(key, products);
       res.json({ products });
     } catch {

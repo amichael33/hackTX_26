@@ -222,3 +222,17 @@ test('route: extra_queries fan out, marked related, main results first', async (
   assert.deepEqual(r.json.products.map((p) => p.related), [false, true, true]);
   assert.equal(r.json.products[0].title, Q.query);
 });
+
+test('route: 40 main + 5 related -> 30 products with 5 related and 25 main', async () => {
+  const relatedItems = { shopping_results: Array.from({ length: 5 }, (_, i) => ({
+    title: 'R' + i, product_id: 'rel' + i, extracted_price: 15 + i, price: '$' + (15 + i), product_link: 'https://r', source: 's',
+  })) };
+  const f = fakeFetch((url) => (new URL(url).searchParams.get('q') === 'keycaps' ? ok(relatedItems) : ok(forty)));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const r = await postSearch(app, { query: { ...Q, extra_queries: ['keycaps'] }, city: CITY });
+  assert.equal(r.json.products.length, 30);
+  assert.equal(r.json.products.filter((p) => p.related).length, 5);
+  assert.equal(r.json.products.filter((p) => !p.related).length, 25);
+  const related = r.json.products.filter((p) => p.related);
+  assert.ok(related.every((p) => p.relevance >= 40), 'related relevance continues after main');
+});

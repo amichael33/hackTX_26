@@ -13,7 +13,7 @@ async function post(path, body, timeoutMs = 15000) {
 
 export const postChat = (body) => post('/api/chat', body);
 export const postGeocode = (body, timeoutMs = 6000) => post('/api/geocode', body, timeoutMs);
-export const postSearch = (body) => post('/api/search', body);
+export const postSearch = (body) => post('/api/search', body, 25000); // server: main + retry, 8 s each
 export const postStickers = (body) => post('/api/stickers', body);
 
 export const imgUrl = (u) => '/api/img?u=' + encodeURIComponent(u);
