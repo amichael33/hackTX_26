@@ -157,19 +157,19 @@ async function runSearch() {
       (res) => res?.products ?? [],
       (err) => {
         console.warn('search failed', err);
-        return err?.status === 429 ? 'limited' : null; // null = request failed, distinct from an empty result
+        return err?.status === 429 ? { limited: true } : null; // null = request failed, distinct from an empty result
       },
     );
     const [products] = await Promise.all([searching, waiting]);
 
-    if (products?.length) {
-      store.set({ products });
-      store.setPhase('OPENING');
-      return;
-    }
-    if (products === 'limited') {
+    if (products && products.limited) {
       store.setPhase('CHATTING'); // keep the conversation so the player can just ask again
       await clerkSay(RATE_LIMITED);
+      return;
+    }
+    if (Array.isArray(products) && products.length) {
+      store.set({ products });
+      store.setPhase('OPENING');
       return;
     }
     await clerkSay(products === null ? SEARCH_FAILED : SEARCH_EMPTY);
