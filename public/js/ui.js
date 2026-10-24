@@ -105,7 +105,7 @@ chatForm.addEventListener('submit', (e) => {
   if (!text) return;
   if (!submitHandler) return;
   // The handler returns false when it rejects the submit (busy / wrong phase): keep the text.
-  if (submitHandler(text) !== false) chatInput.value = '';
+  if (submitHandler(text) !== false) { chatInput.value = ''; micBase = ''; recognizer?.stop(); }
 });
 
 skipBtn.addEventListener('click', skip);
@@ -188,10 +188,14 @@ function renderMic(state) {
   const busy = state.status === 'speaking' || state.status === 'thinking' || state.phase !== 'CHATTING';
   micBtn.disabled = busy;
   micBtn.classList.toggle('listening', state.status === 'listening');
-  if (state.status === 'speaking' && recognizer) recognizer.stop();
+  if (state.status !== 'listening') {
+    micBase = '';
+    recognizer?.stop(); // no-op unless still running
+  }
 }
 
 function micFill(text) {
+  if (store.get().status !== 'listening') return; // drop late transcripts (submitted / speaking / thinking)
   chatInput.value = micBase && text ? `${micBase} ${text}` : (micBase || text);
 }
 
