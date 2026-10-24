@@ -68,11 +68,11 @@ test('back-wall trigger line between units stays reachable', () => {
   assert.ok(p.z <= -6.2);
 });
 
-test('OBSTACLES holds all 11 shelf footprints, matching SHELF_UNITS, plus the 4 fixtures', () => {
+test('OBSTACLES holds all 9 shelf footprints, matching SHELF_UNITS, plus the 4 fixtures', () => {
   const r3 = (n) => Math.round(n * 1000) / 1000;
   const units = Object.values(SHELF_UNITS).flat();
-  assert.equal(units.length, 11);
-  assert.equal(OBSTACLES.length, 11 + 4);
+  assert.equal(units.length, 9);
+  assert.equal(OBSTACLES.length, 9 + 4);
   for (const u of units) {
     const quarter = Math.abs(u.rotY) === 90;
     const hx = quarter ? 0.25 : 1;

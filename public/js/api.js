@@ -22,7 +22,7 @@ export const isDemoPage = DEMO;
 export const postChat = (body) => post('/api/chat', body, 20000); // server Gemini timeout is 15 s
 export const postGeocode = (body, timeoutMs = 6000) => post('/api/geocode', body, timeoutMs);
 export const postSearch = (body) => post('/api/search', DEMO ? { ...body, demo: true } : body, 25000); // server: main + retry, 8 s each
-export const postSimilar = (body) => post('/api/similar', DEMO ? { ...body, demo: true } : body, 25000);
+export const postIdeas = (body) => post('/api/ideas', DEMO ? { ...body, demo: true } : body, 20000); // Gemini only, no SerpApi
 export const postStickers = (body) => post('/api/stickers', body);
 
 export const imgUrl = (u) => '/api/img?u=' + encodeURIComponent(u);

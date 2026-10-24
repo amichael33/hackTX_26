@@ -17,8 +17,6 @@
     { minX: 6.95, maxX: 7.45, minZ: 4, maxZ: 6 },
     // back (z -9.2, rotY 0)
     { minX: -5, maxX: -3, minZ: -9.45, maxZ: -8.95 },
-    { minX: -1, maxX: 1, minZ: -9.45, maxZ: -8.95 },
-    { minX: 3, maxX: 5, minZ: -9.45, maxZ: -8.95 },
     // center (z 0, rotY 0)
     { minX: -4, maxX: -2, minZ: -0.25, maxZ: 0.25 },
     { minX: 2, maxX: 4, minZ: -0.25, maxZ: 0.25 },

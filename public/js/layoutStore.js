@@ -9,7 +9,7 @@ const ROW_ORDER = [1, 2, 0]; // eye level first, then top, then bottom
 export const SHELF_UNITS = {
   left: [-5, 0, 5].map((z) => ({ x: -7.2, z, rotY: 90 })),
   right: [-5, 0, 5].map((z) => ({ x: 7.2, z, rotY: -90 })),
-  back: [-4, 0, 4].map((x) => ({ x, z: -9.2, rotY: 0 })),
+  back: [-4].map((x) => ({ x, z: -9.2, rotY: 0 })), // the rest of the back wall is the "Try Next" corkboard
   center: [-3, 3].map((x) => ({ x, z: 0, rotY: 0 })),
 };
 const PER_ROW = { left: 2, right: 2, back: 2, center: 4 };
@@ -43,14 +43,10 @@ export const ZONES = {
     slots: [-0.75, -0.25, 0.25, 0.75].map((x) => ({ position: { x, y: r3(ISLAND_Y), z: 0 }, rotation: { x: 0, y: 0, z: 0 } })),
   },
 };
-// The back wall: the left unit holds "You Might Also Need"; the other two hold lazily loaded "Similar Finds".
-for (const [z, slots] of [
-  ['center', shelfSlots('center')],
-  ['back', shelfSlots('back', SHELF_UNITS.back.slice(0, 1))],
-  ['similar', shelfSlots('back', SHELF_UNITS.back.slice(1))],
-  ['left', shelfSlots('left')],
-  ['right', shelfSlots('right')],
-]) ZONES[z] = { capacity: slots.length, slots };
+for (const z of ['center', 'back', 'left', 'right']) {
+  const slots = shelfSlots(z);
+  ZONES[z] = { capacity: slots.length, slots };
+}
 
 const SPILL_ORDER = ['center', 'back', 'left', 'right'];
 const byRelevance = (a, b) => a.relevance - b.relevance;
@@ -82,13 +78,4 @@ export function layoutStore(products, { min_price = null, max_price = null } = {
   place('island', island);
   for (const z of SPILL_ORDER) place(z, assigned[z]);
   return slots;
-}
-
-// Similar Finds: filled later, on demand; layoutStore never places products here.
-export function layoutSimilar(products) {
-  if (!products?.length) return [];
-  return [...products].sort(byRelevance).slice(0, ZONES.similar.capacity).map((product, i) => {
-    const s = ZONES.similar.slots[i];
-    return { product, zone: 'similar', position: { ...s.position }, rotation: { ...s.rotation } };
-  });
 }

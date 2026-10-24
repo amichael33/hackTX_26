@@ -11,6 +11,7 @@
   <script src="js/components/desk.js"></script>
   <script src="js/components/clerk.js"></script>
   <script src="js/components/smoke.js"></script>
+  <script src="js/components/corkboard.js"></script>
   <script src="js/collide.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
@@ -57,8 +58,9 @@
       <a-entity shelf="width:2; rows:3" position="7.2 0 5" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
       <!-- back wall, facing +z -->
       <a-entity shelf="width:2; rows:3" position="-4 0 -9.2"><a-entity zone-banner="text:You Might Also Need; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="0 0 -9.2"><a-entity id="banner-similar-1" zone-banner="text:Similar Finds; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="4 0 -9.2"><a-entity id="banner-similar-2" zone-banner="text:Similar Finds; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <!-- the rest of the back wall: a corkboard of post-it search ideas, filled when the player walks back -->
+      <a-entity id="corkboard" corkboard="width:6; height:2.2" position="1 1.55 -9.97"></a-entity>
+      <a-entity id="banner-ideas" zone-banner="text:Try Next; width:2.4" position="1 3.0 -9.9"></a-entity>
       <!-- center units -->
       <a-entity shelf="width:2; rows:3" position="-3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>
       <a-entity shelf="width:2; rows:3" position="3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>

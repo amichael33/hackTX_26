@@ -13,7 +13,7 @@ Built at hackTX 26.
 - **A low-poly store in 3D.** Walk around with WASD. The best matches sit on the island, budget picks on the left wall, premium on the right, and related items on the back wall.
 - **Retailer-colored boxes.** Target is red, Walmart is blue, Amazon is orange, and so on. Unknown stores get a color of their own. Product photos have their background removed and sit on the box.
 - **Funny price stickers.** Gemini writes a 4-word joke for each price, stuck on the box.
-- **Similar Finds.** Walk to the back wall and two more shelves fill with alternatives Gemini suggests.
+- **Try Next corkboard.** Walk to the back wall and post-it notes pop onto a corkboard with follow-up searches Gemini suggests (a gaming mouse gets "mouse pad", "keyboard", "wrist rest"...). It only calls Gemini, never SerpApi.
 - **Past searches.** Your last 10 searches are saved in the browser. Replaying one makes no API calls.
 - **Skippable location.** Share GPS, type a city or ZIP, or skip (Austin is the default).
 
@@ -31,7 +31,7 @@ Open http://localhost:3000.
 **With keys**, create `server/.env`:
 
 ```
-GEMINI_API_KEY=...        # chat, stickers, Similar Finds
+GEMINI_API_KEY=...        # chat, stickers, Try Next post-its
 GEMINI_MODEL=...          # optional, default gemini-3.5-flash-lite
 SERPAPI_KEY=...           # Google Shopping + Amazon
 DEMO_MODE=0               # 1 = always serve demo products
@@ -61,7 +61,7 @@ The server reads `.env` only when it starts, so restart it after any change.
  │ chat UI, mic, TTS        │ ── /api/chat ──▶ │ clerk (LLM)   │ ──────────────▶ Gemini
  │ state machine            │ ── /api/search ─▶│ search + cache│ ──────────────▶ SerpApi (Google Shopping + Amazon)
  │ 3D store + product boxes │ ── /api/stickers▶│ sticker copy  │ ──────────────▶ Gemini
- │ Similar Finds, replay    │ ── /api/similar ▶│ similar finds │ ──────────────▶ Gemini + SerpApi
+ │ corkboard, replay        │ ── /api/ideas ──▶│ search ideas  │ ──────────────▶ Gemini
  └──────────────────────────┘ ── /api/geocode ▶│ geocode, img  │ ──────────────▶ OpenStreetMap Nominatim
                               ── /api/img ────▶└───────────────┘
 ```
@@ -82,7 +82,7 @@ The page moves through phases: `INTRO → LOCATION → CHATTING → SEARCHING �
 | `POST /api/chat` | One clerk turn: reply plus search query when ready | 30 |
 | `POST /api/search` | Google Shopping + Amazon products for a query | 10 |
 | `POST /api/stickers` | Funny sticker text for a list of products | 30 |
-| `POST /api/similar` | Alternative products for the back wall | 10 |
+| `POST /api/ideas` | Follow-up search ideas for the corkboard (Gemini only) | 10 |
 | `POST /api/geocode` | GPS coordinates to a city name | 10 |
 | `GET /api/img?u=` | Image proxy for product thumbnails (allowlisted hosts only) | 300 |
 
@@ -102,7 +102,7 @@ public/            static site (index.html, css/ui.css)
 server/
   index.js         entry: loads .env, wires keys into the app
   app.js           Express app and all routes
-  lib/             clerk, serp, similar, stickers, geocode, llm, cache
+  lib/             clerk, serp, ideas, stickers, geocode, llm, cache
   data/            demo products
 test/              node:test suites
 scripts/prewarm.js caches the demo queries (uses real SerpApi credits)
@@ -125,7 +125,7 @@ Pure logic (state, layout, tiers, cutouts, saved searches, store colors) and eve
 
 - **The shopping cart is switched off.** The code is all there; set `CART_ENABLED = true` in `public/js/main.js` to bring it back.
 - **Google Shopping has very little Amazon.** That's why Amazon comes from its own SerpApi engine.
-- **Each search uses 2 SerpApi credits** (Google Shopping plus Amazon), and more with related searches. Results are cached for 6 hours. Set `AMAZON_RESULTS=0` to save credits.
+- **Only Bob's search uses SerpApi** (the corkboard and everything else is Gemini or free). Each search uses 2 credits (Google Shopping plus Amazon), and more with related searches. Results are cached for 6 hours. Set `AMAZON_RESULTS=0` to save credits.
 - **Demo stock fallback.** With no `SERPAPI_KEY`, in `DEMO_MODE`, or if SerpApi fails, you get built-in demo products, and Bob says so.
 - **"Near you" means location-biased search results,** not live store inventory.
 - **Desktop only.** No mobile controls.
@@ -136,6 +136,6 @@ Pure logic (state, layout, tiers, cutouts, saved searches, store colors) and eve
 - Turn the shopping cart back on and polish it.
 - Live store inventory and pickup times.
 - Mobile controls.
-- Amazon results in Similar Finds.
+- Make the post-its clickable so Bob searches for them.
 - Multiplayer: browse the store with a friend.
 - More brand colors and logos on the boxes.

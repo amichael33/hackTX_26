@@ -7,7 +7,7 @@ import { chatTurn } from './lib/clerk.js';
 import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
 import { searchShopping, searchAmazon, normalizeAmazonResults, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
 import { generateStickers } from './lib/stickers.js';
-import { generateSimilarQueries } from './lib/similar.js';
+import { generateIdeas } from './lib/ideas.js';
 import { createCache } from './lib/cache.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +18,6 @@ const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PRODUCTS = 60; // what goes on the shelves (the store holds 70)
 const MAX_RELATED = 12;
 const MAX_EXTRAS = 40;   // leftovers kept back for future features, never shown on the shelves
-const MAX_SIMILAR = 12;
 const MAX_AMAZON = 16; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
 
 function pluralize(w) {
@@ -39,7 +38,7 @@ export function createApp(deps = {}) {
   const chatLimit = limit(30);
   const stickersLimit = limit(30);
   const searchLimit = limit(10);
-  const similarLimit = limit(10);
+  const ideasLimit = limit(10);
   const geocodeLimit = limit(10);
   const imgLimit = limit(300);
   app.use(express.json({ limit: '50kb' }));
@@ -151,36 +150,15 @@ export function createApp(deps = {}) {
     }
   });
 
-  // Similar Finds: 2 LLM-suggested queries, run in parallel, minus what the shopper already has.
-  app.post('/api/similar', similarLimit, async (req, res) => {
+  // "Try Next" post-its on the back wall: follow-up search ideas from Gemini. Never touches SerpApi.
+  const DEMO_IDEAS = ['Mouse pad', 'Wrist rest', 'Keyboard', 'Headset', 'Webcam', 'Laptop stand', 'USB hub', 'Desk lamp'];
+  app.post('/api/ideas', ideasLimit, async (req, res) => {
     const query = req.body?.query ?? {};
-    const city = req.body?.city || undefined;
     if (!query.query) return res.status(400).json({ error: 'missing query' });
-    const exclude = new Set((Array.isArray(req.body?.exclude) ? req.body.exclude : []).slice(0, 100).map(String));
+    if (deps.demoMode || req.body?.demo === true || !deps.llm) return res.json({ ideas: DEMO_IDEAS, demo: true });
     const titles = (Array.isArray(req.body?.titles) ? req.body.titles : []).slice(0, 5)
       .filter((t) => typeof t === 'string').map((t) => t.slice(0, 120));
-    const demo = () => res.json({
-      products: demoProducts.filter((p) => !exclude.has(p.id)).slice(0, MAX_SIMILAR).map((p) => ({ ...p, similar: true, related: false })),
-      queries: [], demo: true,
-    });
-    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return demo();
-
-    const queries = await generateSimilarQueries({ query, titles }, deps.llm);
-    if (!queries.length) return res.json({ products: [], queries: [] });
-    const results = await Promise.allSettled(queries.map((q) => runQuery(q, city)));
-    if (results.every((r) => r.status === 'rejected')) return demo();
-    const seen = new Set();
-    const merged = [];
-    let relevance = 0;
-    for (const r of results) {
-      if (r.status !== 'fulfilled') continue;
-      for (const p of normalizeShoppingResults(r.value)) {
-        if (exclude.has(p.id) || seen.has(p.id)) continue;
-        seen.add(p.id);
-        merged.push({ ...p, similar: true, related: false, relevance: relevance++ });
-      }
-    }
-    res.json({ products: assignTiers(merged.slice(0, MAX_SIMILAR)), queries });
+    res.json({ ideas: await generateIdeas({ query, titles }, deps.llm) });
   });
 
   app.post('/api/chat', chatLimit, async (req, res) => {
