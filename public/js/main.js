@@ -2,10 +2,15 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart } from './ui.js';
+import { createCart } from './cart.js';
 import { layoutStore } from './layoutStore.js';
 
 window.store = store; // console debugging
+
+const cart = createCart();
+let cardProduct = null; // the product the card is showing, or null
+let peeked = false; // the widget auto-expands once per session, on the first add
 
 const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can find stuff in your area?";
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
@@ -254,8 +259,29 @@ store.on('phase:OPENING', () => { runOpening().catch((err) => console.error(err)
 
 document.querySelector('a-scene').addEventListener('product-selected', (e) => {
   const p = store.get().products.find((x) => x.id === e.detail?.productId);
-  if (p) showProductCard(p);
+  if (!p) return;
+  cardProduct = p;
+  setCardInCart(cart.has(p.id)); // opening the card always refreshes the button
+  showProductCard(p);
 });
+
+onCardCart(() => {
+  const p = cardProduct;
+  if (!p) return;
+  if (cart.has(p.id)) cart.remove(p.id);
+  else if (cart.add(p) && !peeked) { peeked = true; peekCart(); }
+  setCardInCart(cart.has(p.id));
+});
+onCartRemove((id) => { cart.remove(id); });
+
+// Re-render the widget on every change (and once at boot). Task 13's 3D cart listens for cart-changed.
+function onCartChanged() {
+  renderCart(cart.items(), cart.total());
+  if (cardProduct) setCardInCart(cart.has(cardProduct.id));
+  scene.emit('cart-changed', { items: cart.items() });
+}
+cart.on('change', onCartChanged);
+onCartChanged();
 
 // Returns false when the submit is ignored so the UI keeps the typed text.
 function handlePlayerSubmit(raw) {
@@ -288,6 +314,7 @@ onNewSearch(() => {
   stickerTexts.clear();
   document.getElementById('shelves').setAttribute('visible', 'false');
   hideProductCard();
+  cardProduct = null;
   store.set({ products: [], query: null, messages: [] });
   say('What else can I find for you?').catch((err) => console.error(err));
 });

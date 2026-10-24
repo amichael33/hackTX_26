@@ -2,6 +2,7 @@
 import { store } from './store.js';
 import { speak, cancelSpeech, createRecognizer } from './voice.js';
 import { formatPrice } from './text.js';
+import { imgUrl } from './api.js';
 
 const CHAR_MS = 35;
 
@@ -26,6 +27,7 @@ const typeBtn = $('type-loc-btn');
 const locForm = $('location-form');
 const locInput = $('location-input');
 const locSubmit = $('location-submit');
+const cartWidget = $('cart-widget');
 
 let current = null; // { text, timer, typeDone, speechDone, resolve }
 let submitHandler = null;
@@ -175,6 +177,7 @@ function renderPhase(state) {
   const chatting = state.phase === 'CHATTING';
   chatBar.hidden = state.phase === 'INTRO';
   logEl.hidden = state.phase === 'INTRO';
+  cartWidget.hidden = state.phase === 'INTRO' || state.phase === 'LOCATION';
   if (!chatting && document.activeElement === chatInput) chatInput.blur(); // disabled inputs may not fire blur
   if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
   locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
@@ -257,6 +260,16 @@ const cardPrice = $('card-price');
 const cardSource = $('card-source');
 const cardRating = $('card-rating');
 const cardBuy = $('card-buy');
+const cardCart = $('card-cart');
+
+// Card button state: "Add to cart" (primary) or "In cart ✓ · Remove" (secondary).
+export function setCardInCart(inCart) {
+  cardCart.textContent = inCart ? 'In cart ✓ · Remove' : 'Add to cart';
+  cardCart.classList.toggle('in-cart', !!inCart);
+}
+export function onCardCart(fn) {
+  cardCart.addEventListener('click', () => fn());
+}
 
 export function showProductCard(p) {
   cardTitle.textContent = p.title ?? '';
@@ -285,3 +298,94 @@ export function hideProductCard() {
 
 $('card-close').addEventListener('click', hideProductCard);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideProductCard(); });
+
+// --- Cart widget (right edge) ---
+const cartTab = $('cart-tab');
+const cartCount = $('cart-count');
+const cartList = $('cart-list');
+const cartEmpty = $('cart-empty');
+const cartFooter = $('cart-footer');
+const tabCart = $('tab-cart');
+const tabSearches = $('tab-searches');
+const cartPane = $('cart-pane');
+const searchesPane = $('searches-pane');
+let removeHandler = null;
+let peekTimer = null;
+
+function setCartExpanded(open) {
+  cartWidget.classList.toggle('collapsed', !open);
+  cartTab.setAttribute('aria-expanded', String(open));
+}
+cartTab.addEventListener('click', () => {
+  clearTimeout(peekTimer); // a manual toggle cancels the auto-collapse
+  setCartExpanded(cartWidget.classList.contains('collapsed'));
+});
+
+// Opens the panel for 2 s (first add of a session), then collapses it again.
+export function peekCart() {
+  setCartExpanded(true);
+  clearTimeout(peekTimer);
+  peekTimer = setTimeout(() => setCartExpanded(false), 2000);
+}
+
+export function showWidgetTab(name) {
+  const cartOn = name !== 'searches';
+  cartPane.hidden = !cartOn;
+  searchesPane.hidden = cartOn;
+  tabCart.setAttribute('aria-selected', String(cartOn));
+  tabSearches.setAttribute('aria-selected', String(!cartOn));
+}
+tabCart.addEventListener('click', () => showWidgetTab('cart'));
+tabSearches.addEventListener('click', () => showWidgetTab('searches'));
+
+export function onCartRemove(fn) {
+  removeHandler = fn;
+}
+
+export function renderCart(items, total) {
+  cartCount.textContent = String(items.length);
+  cartList.textContent = '';
+  for (const it of items) {
+    const li = document.createElement('li');
+    let thumb;
+    if (it.thumbnail) {
+      thumb = document.createElement('img');
+      thumb.src = imgUrl(it.thumbnail);
+      thumb.alt = '';
+      thumb.loading = 'lazy';
+    } else {
+      thumb = document.createElement('div');
+    }
+    thumb.className = 'cart-thumb';
+    const info = document.createElement('div');
+    info.className = 'cart-info';
+    const title = document.createElement('div');
+    title.className = 'cart-title';
+    title.textContent = it.title ?? '';
+    const price = document.createElement('div');
+    price.className = 'cart-price';
+    price.textContent = formatPrice(it.extracted_price);
+    info.append(title, price);
+    li.append(thumb, info);
+    if (typeof it.link === 'string' && /^https?:\/\//i.test(it.link)) {
+      const buy = document.createElement('a');
+      buy.className = 'cart-buy';
+      buy.href = it.link;
+      buy.target = '_blank';
+      buy.rel = 'noopener';
+      buy.textContent = 'Buy';
+      li.append(buy);
+    }
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'cart-remove';
+    rm.setAttribute('aria-label', 'Remove from cart');
+    rm.textContent = '×';
+    rm.addEventListener('click', () => removeHandler?.(it.id));
+    li.append(rm);
+    cartList.append(li);
+  }
+  cartEmpty.hidden = items.length > 0;
+  cartFooter.hidden = items.length === 0;
+  cartFooter.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${formatPrice(total)}`;
+}

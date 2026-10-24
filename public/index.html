@@ -91,6 +91,24 @@
     <ul id="chat-log-list" aria-live="polite"></ul>
   </aside>
 
+  <aside id="cart-widget" class="collapsed" hidden>
+    <button id="cart-tab" type="button" aria-expanded="false" aria-controls="cart-panel" aria-label="Toggle cart"><span aria-hidden="true">🛒</span> <span id="cart-count">0</span></button>
+    <div id="cart-panel">
+      <div id="cart-tabs" role="tablist">
+        <button id="tab-cart" type="button" role="tab" aria-selected="true">Cart</button>
+        <button id="tab-searches" type="button" role="tab" aria-selected="false">Searches</button>
+      </div>
+      <div id="cart-pane">
+        <ul id="cart-list"></ul>
+        <p id="cart-empty">Click a product and press Add to cart.</p>
+        <p id="cart-footer" hidden></p>
+      </div>
+      <div id="searches-pane" hidden>
+        <p id="searches-empty">No past searches yet.</p>
+      </div>
+    </div>
+  </aside>
+
   <div id="hud">
     <div id="subtitle" hidden>
       <p id="subtitle-text" aria-live="polite"></p>
@@ -115,7 +133,10 @@
     <p id="card-price"></p>
     <p id="card-source"></p>
     <p id="card-rating"></p>
-    <a id="card-buy" href="#" target="_blank" rel="noopener" hidden>Buy</a>
+    <div id="card-actions">
+      <button id="card-cart" type="button">Add to cart</button>
+      <a id="card-buy" href="#" target="_blank" rel="noopener" hidden>Buy</a>
+    </div>
   </div>
 </body>
 </html>
