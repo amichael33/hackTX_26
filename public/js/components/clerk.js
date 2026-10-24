@@ -49,10 +49,10 @@
       c.fillText('Bob', 128, 84);
       this.tagTex = new THREE.CanvasTexture(tagCanvas);
       if (THREE.SRGBColorSpace) this.tagTex.colorSpace = THREE.SRGBColorSpace;
-      this.tagGeo = new THREE.PlaneGeometry(0.3, 0.15);
+      this.tagGeo = new THREE.PlaneGeometry(0.22, 0.11);
       this.tagMat = new THREE.MeshBasicMaterial({ map: this.tagTex, toneMapped: false });
       var tag = new THREE.Mesh(this.tagGeo, this.tagMat);
-      tag.position.set(-0.1, 1.15, 0.268);
+      tag.position.set(-0.08, 1.15, 0.29);
       this.body.object3D.add(tag);
       // One-shot celebratory spin, triggered by emitting `spin` on the clerk entity.
       this.spinFrom = -1;
