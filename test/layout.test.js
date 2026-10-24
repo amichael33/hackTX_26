@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layoutStore } from '../public/js/layoutStore.js';
+import { layoutStore, layoutSimilar, ZONES } from '../public/js/layoutStore.js';
 
 const mk = (id, price, tier, relevance, related = false) => ({
   id, title: id, price: `$${price}`, extracted_price: price, rating: null, source: 's',
@@ -57,6 +57,30 @@ test('30 budget products are all placed with unique positions', () => {
 test('products that fit nowhere are dropped', () => {
   const ps = Array.from({ length: 100 }, (_, i) => mk('d' + i, 5, 'mid', i));
   const slots = layoutStore(ps, {});
-  assert.equal(slots.length, 82);
-  assert.equal(new Set(slots.map(key)).size, 82);
+  assert.equal(slots.length, 70);
+  assert.equal(new Set(slots.map(key)).size, 70);
+});
+
+test('layoutStore never uses the similar zone; back holds at most 6', () => {
+  const tiers = ['budget', 'mid', 'premium'];
+  const ps = Array.from({ length: 30 }, (_, i) => mk('s' + i, 10 + i, tiers[i % 3], i, i >= 20));
+  const slots = layoutStore(ps, {});
+  assert.equal(slots.length, 30);
+  assert.ok(!slots.some((s) => s.zone === 'similar'));
+  assert.ok(slots.filter((s) => s.zone === 'back').length <= 6);
+  assert.equal(ZONES.back.capacity, 6);
+  assert.equal(ZONES.similar.capacity, 12);
+});
+
+test('layoutSimilar caps at 12, back wall right of x=-1, unique positions', () => {
+  const ps = Array.from({ length: 15 }, (_, i) => mk('y' + i, 10, 'mid', i));
+  const slots = layoutSimilar(ps);
+  assert.equal(slots.length, 12);
+  assert.equal(new Set(slots.map(key)).size, 12);
+  for (const s of slots) {
+    assert.equal(s.zone, 'similar');
+    assert.ok(s.position.x > -1);
+    assert.ok(s.position.z < -8);
+  }
+  assert.deepEqual(layoutSimilar([]), []);
 });

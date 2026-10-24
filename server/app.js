@@ -7,6 +7,7 @@ import { chatTurn } from './lib/clerk.js';
 import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
 import { searchShopping, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
 import { generateStickers } from './lib/stickers.js';
+import { generateSimilarQueries } from './lib/similar.js';
 import { createCache } from './lib/cache.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +17,7 @@ const demoProducts = JSON.parse(readFileSync(path.join(here, 'data', 'demoProduc
 const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PRODUCTS = 30;
 const MAX_RELATED = 6;
+const MAX_SIMILAR = 12;
 
 // deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, serveStatic?, geocodeTimeoutMs? }
 export function createApp(deps = {}) {
@@ -29,6 +31,7 @@ export function createApp(deps = {}) {
   const chatLimit = limit(30);
   const stickersLimit = limit(30);
   const searchLimit = limit(10);
+  const similarLimit = limit(10);
   const geocodeLimit = limit(10);
   const imgLimit = limit(300);
   app.use(express.json({ limit: '50kb' }));
@@ -98,6 +101,38 @@ export function createApp(deps = {}) {
       console.warn('search failed:', err.message);
       res.json({ products: demoProducts, demo: true });
     }
+  });
+
+  // Similar Finds: 2 LLM-suggested queries, run in parallel, minus what the shopper already has.
+  app.post('/api/similar', similarLimit, async (req, res) => {
+    const query = req.body?.query ?? {};
+    const city = req.body?.city || undefined;
+    if (!query.query) return res.status(400).json({ error: 'missing query' });
+    const exclude = new Set((Array.isArray(req.body?.exclude) ? req.body.exclude : []).slice(0, 100).map(String));
+    const titles = (Array.isArray(req.body?.titles) ? req.body.titles : []).slice(0, 5)
+      .filter((t) => typeof t === 'string').map((t) => t.slice(0, 120));
+    const demo = () => res.json({
+      products: demoProducts.filter((p) => !exclude.has(p.id)).slice(0, MAX_SIMILAR).map((p) => ({ ...p, similar: true, related: false })),
+      queries: [], demo: true,
+    });
+    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return demo();
+
+    const queries = await generateSimilarQueries({ query, titles }, deps.llm);
+    if (!queries.length) return res.json({ products: [], queries: [] });
+    const results = await Promise.allSettled(queries.map((q) => runQuery(q, city)));
+    if (results.every((r) => r.status === 'rejected')) return demo();
+    const seen = new Set();
+    const merged = [];
+    let relevance = 0;
+    for (const r of results) {
+      if (r.status !== 'fulfilled') continue;
+      for (const p of normalizeShoppingResults(r.value)) {
+        if (exclude.has(p.id) || seen.has(p.id)) continue;
+        seen.add(p.id);
+        merged.push({ ...p, similar: true, related: false, relevance: relevance++ });
+      }
+    }
+    res.json({ products: assignTiers(merged.slice(0, MAX_SIMILAR)), queries });
   });
 
   app.post('/api/chat', chatLimit, async (req, res) => {
