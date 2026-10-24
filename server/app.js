@@ -8,11 +8,16 @@ import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
 import { searchShopping, searchAmazon, normalizeAmazonResults, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
 import { generateStickers } from './lib/stickers.js';
 import { generateIdeas } from './lib/ideas.js';
+import { isApparelTitle } from '../public/js/category.js';
 import { createCache } from './lib/cache.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, '..', 'public');
 const demoProducts = JSON.parse(readFileSync(path.join(here, 'data', 'demoProducts.json'), 'utf8'));
+// Demo garments (drawn SVGs, see scripts/make-demo-clothes.mjs) for a clothing search, so clothing mode can be shown without credits.
+const demoClothes = JSON.parse(readFileSync(path.join(here, 'data', 'demoClothes.json'), 'utf8'));
+const isClothingQuery = (q) => q?.is_clothing === true || isApparelTitle(q?.query);
+const demoFor = (q) => (isClothingQuery(q) ? demoClothes : demoProducts);
 
 const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PRODUCTS = 60; // what goes on the shelves (the store holds 70)
@@ -105,7 +110,7 @@ export function createApp(deps = {}) {
     const query = req.body?.query ?? {};
     const city = req.body?.city || undefined;
     if (!query.query) return res.status(400).json({ error: 'missing query' });
-    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoProducts, demo: true });
+    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoFor(query), demo: true });
 
     try {
       const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2);
@@ -146,16 +151,17 @@ export function createApp(deps = {}) {
       res.json({ products, extras: leftovers });
     } catch (err) {
       console.warn('search failed:', err.message);
-      res.json({ products: demoProducts, demo: true });
+      res.json({ products: demoFor(query), demo: true });
     }
   });
 
   // "Try Next" post-its on the back wall: follow-up search ideas from Gemini. Never touches SerpApi.
   const DEMO_IDEAS = ['Mouse pad', 'Wrist rest', 'Keyboard', 'Headset', 'Webcam', 'Laptop stand', 'USB hub', 'Desk lamp'];
+  const DEMO_IDEAS_CLOTHES = ['Belt', 'Scarf', 'Beanie', 'Socks', 'Sunglasses', 'Tote bag', 'Gloves', 'Watch'];
   app.post('/api/ideas', ideasLimit, async (req, res) => {
     const query = req.body?.query ?? {};
     if (!query.query) return res.status(400).json({ error: 'missing query' });
-    if (deps.demoMode || req.body?.demo === true || !deps.llm) return res.json({ ideas: DEMO_IDEAS, demo: true });
+    if (deps.demoMode || req.body?.demo === true || !deps.llm) return res.json({ ideas: isClothingQuery(query) ? DEMO_IDEAS_CLOTHES : DEMO_IDEAS, demo: true });
     const titles = (Array.isArray(req.body?.titles) ? req.body.titles : []).slice(0, 5)
       .filter((t) => typeof t === 'string').map((t) => t.slice(0, 120));
     res.json({ ideas: await generateIdeas({ query, titles }, deps.llm) });

@@ -7,8 +7,10 @@ import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
 import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
+import { isClothingSearch } from './category.js';
+import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
-import { applyMap } from './sceneMap.js';
+import { applyMap, buildShelves } from './sceneMap.js';
 import { safeLocalStorage } from './storage.js';
 
 window.store = store; // console debugging
@@ -199,8 +201,8 @@ async function runTurn(text) {
 
   await say(res.reply_to_player);
   if (res.ready) {
-    const { query, min_price, max_price, preferences, extra_queries } = res;
-    store.set({ query: { query, min_price, max_price, preferences, extra_queries } });
+    const { query, min_price, max_price, preferences, extra_queries, is_clothing } = res;
+    store.set({ query: { query, min_price, max_price, preferences, extra_queries, is_clothing } });
     store.setPhase('SEARCHING');
   }
 }
@@ -314,6 +316,63 @@ let ideasTriggeredRun = -1; // the openingRun that already pinned its post-its
 let ideasPoll = null;
 function stopIdeasPoll() { clearInterval(ideasPoll); ideasPoll = null; }
 
+// --- Clothing mode: for a clothing search the shelves become hanging rails and the products hang on them ---
+let clothesMode = false;
+function setClothesMode(on) {
+  if (on === clothesMode) return;
+  clothesMode = on;
+  buildShelves(getMap(mapId), { clothes: on, visible: true });
+}
+
+// World position of a point on a rail (lx along the rail, y up): rails are rotated about y like shelf units.
+function railPoint(rail, lx, y) {
+  const th = (rail.rotation.y * Math.PI) / 180;
+  return { x: rail.position.x + lx * Math.cos(th), y, z: rail.position.z - lx * Math.sin(th) };
+}
+
+const whenLoaded = (el) => new Promise((r) => (el.hasLoaded ? r() : el.addEventListener('loaded', r, { once: true })));
+
+// Builds every rail with its (hidden) garments, then reveals them wave by wave, a puff of smoke for each.
+async function spawnClothes(container, rails, live) {
+  const built = [];
+  for (const rail of rails) {
+    const re = document.createElement('a-entity');
+    re.setAttribute('clothes-rail', { kind: rail.kind, count: rail.items.length });
+    re.setAttribute('position', `${rail.position.x} ${rail.position.y} ${rail.position.z}`);
+    re.setAttribute('rotation', `0 ${rail.rotation.y} 0`);
+    container.appendChild(re);
+    built.push({ rail, re });
+  }
+  for (const { re } of built) await whenLoaded(re);
+  for (const { rail, re } of built) {
+    const comp = re.components['clothes-rail'];
+    rail.items.forEach((p, i) => {
+      const g = document.createElement('a-entity');
+      g.setAttribute('product-box', {
+        productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
+        sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+      });
+      g.setAttribute('position', `0 ${RAIL_Y - rail.position.y} 0`);
+      re.appendChild(g);
+      boxEls.set(p.id, g);
+      comp.addGarment(g, i);
+    });
+    rail.comp = comp;
+  }
+  // Hangers beyond the first window wait on the rail, ready for the player to flip to them.
+  for (const { rail } of built) rail.items.forEach((_, i) => { if (i >= RAIL_WINDOW) rail.comp.reveal(i); });
+  for (let w = 0; w < RAIL_WINDOW; w++) {
+    if (!live()) return;
+    for (const { rail } of built) {
+      if (w >= rail.items.length) continue;
+      rail.comp.reveal(w);
+      const at = railPoint(rail, hangerX(w + (rail.items.length < RAIL_WINDOW ? -(RAIL_WINDOW - rail.items.length) / 2 : 0), 0), RAIL_Y - 0.4);
+      puff(at.x, at.y, at.z, { size: 0.8, count: 4, life: 1100 });
+    }
+    await sleep(150);
+  }
+}
+
 let openingRun = 0; // run token: bumped by every opening and every reset so stale async work bails out
 
 async function runOpening() {
@@ -329,6 +388,8 @@ async function runOpening() {
   while (container.firstChild) container.removeChild(container.firstChild);
   boxEls.clear();
   stickerTexts.clear();
+  const clothes = isClothingSearch(query, products);
+  setClothesMode(clothes);
   let saved = null;
   if (replay) {
     for (const [id, text] of Object.entries(replay.stickers ?? {})) if (typeof text === 'string' && text) stickerTexts.set(id, text);
@@ -350,13 +411,17 @@ async function runOpening() {
     })
     .catch(() => { /* keep fallbacks */ });
   try {
-    const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
+    const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null };
     smokeOverShelves();
     await sleep(SHELVES_SMOKE_MS); // let the cloud build before the products appear in it
-    for (const slot of slots) {
-      if (!live()) return;
-      try { spawnBox(container, slot); } catch (err) { console.error(err); }
-      await sleep(SPAWN_MS);
+    if (clothes) {
+      await spawnClothes(container, layoutClothes(products, opts), live);
+    } else {
+      for (const slot of layoutStore(products, opts)) {
+        if (!live()) return;
+        try { spawnBox(container, slot); } catch (err) { console.error(err); }
+        await sleep(SPAWN_MS);
+      }
     }
   } finally {
     if (live()) store.setPhase('BROWSING');
@@ -457,6 +522,7 @@ function resetStore({ silent = false } = {}) {
   while (container.firstChild) container.removeChild(container.firstChild);
   boxEls.clear();
   stickerTexts.clear();
+  setClothesMode(false);
   document.getElementById('shelves').setAttribute('visible', 'false');
   hideProductCard();
   cardProduct = null;

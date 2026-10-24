@@ -15,6 +15,7 @@ export const CLERK_SCHEMA = {
     max_price: { type: 'number', nullable: true, description: 'Maximum price in dollars, or null.' },
     preferences: { type: 'array', items: { type: 'string' }, description: 'Short preference keywords such as wireless or quiet.' },
     extra_queries: { type: 'array', items: { type: 'string' }, description: '0-2 related categories or accessories for a You might also need shelf (keyboard -> keycaps, wrist rest). Never the main query or a rewording of it.' },
+    is_clothing: { type: 'boolean', description: 'True when the shopper wants clothing that hangs on a rack (shirts, hoodies, jackets, pants, dresses, sweaters...). False for shoes, bags, accessories and everything else.' },
     reply_to_player: { type: 'string', description: '1-2 short sentences. If ready is true: a one-sentence handoff with no question.' },
   },
   required: ['reply_to_player', 'ready'],
@@ -67,6 +68,7 @@ function normalize(raw) {
     max_price: num(r.max_price),
     preferences: strings(r.preferences),
     extra_queries: relatedQueries(r.extra_queries, query),
+    is_clothing: r.is_clothing === true,
     reply_to_player: reply,
   };
 }

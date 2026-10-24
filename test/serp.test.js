@@ -302,3 +302,19 @@ test('route: demo products carry demo:true (fetch failure, missing key, demoMode
   assert.equal((await postSearch(createApp({}), { query: Q })).json.demo, true);
   assert.equal((await postSearch(createApp({ serpApiKey: 'k', demoMode: true }), { query: Q })).json.demo, true);
 });
+
+test('route: a clothing demo search serves demo garments with drawn thumbnails; other searches keep the electronics demo', async () => {
+  const f = fakeFetch(() => ok(forty));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const clothes = await postSearch(app, { query: { ...Q, query: 'blue hoodie' }, city: CITY, demo: true });
+  assert.equal(clothes.json.demo, true);
+  assert.ok(clothes.json.products.length >= 24);
+  assert.ok(clothes.json.products.every((p) => p.thumbnail.startsWith('data:image/svg+xml') && p.tier && typeof p.extracted_price === 'number'));
+  assert.ok(clothes.json.products.some((p) => p.related));
+  assert.equal(new Set(clothes.json.products.map((p) => p.id)).size, clothes.json.products.length);
+  const flagged = await postSearch(app, { query: { ...Q, query: 'something', is_clothing: true }, city: CITY, demo: true });
+  assert.deepEqual(flagged.json.products.map((p) => p.id), clothes.json.products.map((p) => p.id));
+  const kb = await postSearch(app, { query: Q, city: CITY, demo: true });
+  assert.deepEqual(kb.json.products, demo);
+  assert.equal(f.calls.length, 0);
+});

@@ -15,6 +15,7 @@ Built at hackTX 26.
 - **Funny price stickers.** Gemini writes a 4-word joke for each price, stuck on the box.
 - **Try Next corkboard.** Walk to the back wall and post-it notes pop onto a corkboard with follow-up searches Gemini suggests (a gaming mouse gets "mouse pad", "keyboard", "wrist rest"...). It only calls Gemini, never SerpApi.
 - **Past searches.** Your last 10 searches are saved in the browser. Replaying one makes no API calls.
+- **Clothing mode.** Search for clothes and the shelves turn into hanging rails: each product is a garment on a hanger (hanger color = the retailer), photo backgrounds removed, price sticker on the garment. A rail holds more than fits in view, so arrow buttons at its ends slide the hangers along. Gemini flags clothing searches (`is_clothing`), with garment words in the product titles as a backup; no extra API calls. Try `?demo=1` and ask for a hoodie: demo mode serves drawn demo garments (`scripts/make-demo-clothes.mjs`).
 - **Pick your store.** The start screen has a map picker (Classic Store, Cozy Boutique, Big Box Warehouse, Castle Great Hall). Each map has its own shelf styles and Bob wears a different outfit in each. The choice is remembered. Each map is just data in `public/js/maps.js`: add an entry and it shows up in the picker.
 - **Skippable location.** Share GPS, type a city or ZIP, or skip (Austin is the default).
 

@@ -1,5 +1,7 @@
 /* Classic script: `product-box` component. A brand-colored cube with the product photo (or its background-removed
-   cutout) on its +z face and the comic price sticker stuck on the same face. */
+   cutout) on its +z face and the comic price sticker stuck on the same face.
+   kind:garment turns it into a hanging garment instead: a hanger in the brand color and the cutout hanging from it
+   (origin = the rail the hook sits on), with the sticker on the garment. The click target stays a (clear) box. */
 (function () {
   var geoCache = {}; // size -> BoxGeometry, shared by every box
   var matCache = {}; // color -> MeshStandardMaterial
@@ -14,11 +16,35 @@
   function boxMat(color) {
     return matCache[color] || (matCache[color] = new THREE.MeshStandardMaterial({ color: color, flatShading: true }));
   }
+  // Product photos go through the image proxy; data: URLs (the demo garments) are used as they are.
+  function imageUrl(thumb) {
+    return String(thumb).indexOf('data:') === 0 ? thumb : '/api/img?u=' + encodeURIComponent(thumb);
+  }
+  var clearMat = null;
+  function hitMat() {
+    return clearMat || (clearMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  }
+  var GW = 0.46, GH = 0.66, HANGER_DROP = 0.075; // garment fits GW x GH, hangs HANGER_DROP below the rail
+
   function hashSeed(str) {
     var h = 5381;
     str = String(str);
     for (var i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
     return h >>> 0;
+  }
+
+  // A plain T-shirt shape in the retailer's color, for a garment whose photo is missing or fails to load.
+  function silhouette(color) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var g = c.getContext('2d');
+    var pts = [[34, 10], [52, 10], [64, 24], [76, 10], [94, 10], [124, 40], [106, 62], [94, 52], [94, 120], [34, 120], [34, 52], [22, 62], [4, 40]];
+    g.fillStyle = color;
+    g.beginPath();
+    pts.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    g.closePath();
+    g.fill();
+    return { canvas: c, aspect: 1 };
   }
 
   AFRAME.registerComponent('product-box', {
@@ -27,6 +53,7 @@
       thumb: { type: 'string', default: '' },
       color: { type: 'color', default: '#2196f3' },
       size: { default: 0.3 },
+      kind: { default: 'box', oneOf: ['box', 'garment'] },
       sticker: { type: 'string', default: '' },
       price: { type: 'string', default: '' }
     },
@@ -50,7 +77,7 @@
     update: function (old) {
       if (!old || old.size === undefined) return; // first call: init already built
       var d = this.data;
-      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb) {
+      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb || old.kind !== d.kind) {
         this.clear();
         this.build();
       } else if (this.stickerMesh && (old.sticker !== d.sticker || old.price !== d.price)) {
@@ -84,16 +111,22 @@
         this.el.removeObject3D('thumb');
         this.plane = null;
       }
+      if (this.hanger) {
+        this.hanger.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        this.el.removeObject3D('hanger');
+        this.hanger = null;
+      }
       if (this.mesh) { this.el.removeObject3D('mesh'); this.mesh = null; }
     },
     build: function () {
       var d = this.data, self = this;
       var buildId = ++this.buildId;
+      if (d.kind === 'garment') { this.buildGarment(buildId); return; }
       this.mesh = new THREE.Mesh(boxGeo(d.size), boxMat(d.color));
       this.el.setObject3D('mesh', this.mesh);
       this.buildSticker();
       if (!d.thumb) return;
-      var url = '/api/img?u=' + encodeURIComponent(d.thumb);
+      var url = imageUrl(d.thumb);
       var img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = function () {
@@ -160,6 +193,68 @@
       }, undefined, function () {
         if (self.buildId === buildId) self.plane = null;
       });
+    },
+    // --- hanging garment ---
+    buildGarment: function (buildId) {
+      var d = this.data, self = this;
+      // Click target: a clear box around the garment, resized once the photo's shape is known.
+      this.mesh = new THREE.Mesh(boxGeo(1), hitMat());
+      this.mesh.scale.set(GW, GH, 0.1);
+      this.mesh.position.set(0, -HANGER_DROP - GH / 2, 0);
+      this.el.setObject3D('mesh', this.mesh);
+      // Hanger: a hook over the rail and a roof-shaped shoulder bar in the retailer's color.
+      var g = new THREE.Group();
+      var m = boxMat(d.color);
+      var hook = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.07, 5), m);
+      hook.position.y = 0.0;
+      var left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.012), m);
+      left.position.set(-0.095, -0.065, 0); left.rotation.z = 0.32;
+      var right = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.012), m);
+      right.position.set(0.095, -0.065, 0); right.rotation.z = -0.32;
+      g.add(hook, left, right);
+      this.hanger = g;
+      this.el.setObject3D('hanger', g);
+      this.buildSticker();
+      this.placeGarmentSticker(GW, GH);
+      var show = function (cut) { self.buildGarmentPlane(cut); };
+      if (!d.thumb) { show(silhouette(d.color)); return; }
+      var url = imageUrl(d.thumb);
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        if (self.buildId !== buildId || !self.mesh) return;
+        var cut = null;
+        try { cut = self.makeCutout(img); } catch (e) { cut = null; }
+        if (!cut) { // a photo with its own background: use it whole
+          var c = document.createElement('canvas');
+          c.width = img.naturalWidth || 128; c.height = img.naturalHeight || 128;
+          c.getContext('2d').drawImage(img, 0, 0);
+          cut = { canvas: c, aspect: c.width / c.height };
+        }
+        show(cut);
+      };
+      img.onerror = function () { if (self.buildId === buildId && self.mesh) show(silhouette(d.color)); };
+      img.src = url;
+    },
+    // The garment image (double-sided, transparent around the cutout) hangs from the hanger, top edge under the shoulder bar.
+    buildGarmentPlane: function (cut) {
+      var pw, ph;
+      if (cut.aspect >= GW / GH) { pw = GW; ph = GW / cut.aspect; } else { ph = GH; pw = GH * cut.aspect; }
+      var tex = new THREE.CanvasTexture(cut.canvas);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+      var plane = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
+      plane.position.set(0, -HANGER_DROP - ph / 2, 0);
+      if (this.plane) this.el.removeObject3D('thumb');
+      this.plane = plane;
+      this.el.setObject3D('thumb', plane);
+      this.mesh.scale.set(pw, ph, 0.1);
+      this.mesh.position.set(0, -HANGER_DROP - ph / 2, 0);
+      this.placeGarmentSticker(pw, ph);
+    },
+    placeGarmentSticker: function (pw, ph) {
+      if (!this.stickerMesh) return;
+      this.stickerMesh.position.set(pw * 0.22, -HANGER_DROP - ph * 0.72, 0.02);
     },
     buildSticker: function () {
       var d = this.data;

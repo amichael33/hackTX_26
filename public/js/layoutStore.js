@@ -61,14 +61,15 @@ setMap(getMap(DEFAULT_MAP_ID));
 const SPILL_ORDER = ['center', 'back', 'left', 'right'];
 const byRelevance = (a, b) => a.relevance - b.relevance;
 
-export function layoutStore(products, { min_price = null, max_price = null } = {}) {
-  if (!products?.length) return [];
+// Decides which zone each product goes to: the island gets the best in-budget matches, then every product goes to the zone
+// for its tier (related -> back) and spills into the next zone with room. `capacity` is zone -> how many fit.
+export function assignZones(products, { min_price = null, max_price = null } = {}, capacity = {}) {
   const lo = min_price ?? 0, hi = max_price ?? Infinity;
   const sorted = [...products].sort(byRelevance);
 
   const candidates = sorted.filter((p) => !p.related);
   const inBudget = candidates.filter((p) => p.extracted_price >= lo && p.extracted_price <= hi);
-  const island = (inBudget.length ? inBudget : candidates).slice(0, ZONES.island.capacity);
+  const island = (inBudget.length ? inBudget : candidates).slice(0, capacity.island ?? ZONES.island.capacity);
   const islandIds = new Set(island.map((p) => p.id));
 
   const zoneOf = (p) => (p.related ? 'back' : p.tier === 'budget' ? 'left' : p.tier === 'premium' ? 'right' : 'center');
@@ -76,16 +77,23 @@ export function layoutStore(products, { min_price = null, max_price = null } = {
   for (const p of sorted) {
     if (islandIds.has(p.id)) continue;
     const own = zoneOf(p);
-    const target = [own, ...SPILL_ORDER].find((z) => assigned[z].length < ZONES[z].capacity);
+    const target = [own, ...SPILL_ORDER].find((z) => assigned[z].length < (capacity[z] ?? ZONES[z].capacity));
     if (target) assigned[target].push(p);
   }
+  for (const z of SPILL_ORDER) assigned[z].sort(byRelevance);
+  island.sort(byRelevance);
+  return { island, ...assigned };
+}
 
+export function layoutStore(products, opts = {}) {
+  if (!products?.length) return [];
+  const zones = assignZones(products, opts);
   const slots = [];
-  const place = (zone, list) => list.sort(byRelevance).forEach((product, i) => {
+  const place = (zone, list) => list.forEach((product, i) => {
     const s = ZONES[zone].slots[i];
     slots.push({ product, zone, position: { ...s.position }, rotation: { ...s.rotation } });
   });
-  place('island', island);
-  for (const z of SPILL_ORDER) place(z, assigned[z]);
+  place('island', zones.island);
+  for (const z of SPILL_ORDER) place(z, zones[z]);
   return slots;
 }

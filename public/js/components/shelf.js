@@ -4,7 +4,7 @@
   AFRAME.registerComponent('shelf', {
     schema: {
       width: { default: 2 }, rows: { default: 3 }, depth: { default: 0.5 }, rowHeight: { default: 0.6 },
-      style: { default: 'oak', oneOf: ['oak', 'cubby', 'rack', 'timber'] }
+      style: { default: 'oak', oneOf: ['oak', 'cubby', 'rack', 'timber', 'rail'] }
     },
     init: function () { this.built = []; this.build(); },
     update: function (old) {
@@ -53,6 +53,22 @@
         });
         plank(inner, '#a3a9b1', d.depth - 2 * p, 0);
         for (i = 1; i <= d.rows; i++) this.box([0, i * d.rowHeight - 0.03, d.depth / 2 - 0.015 + 0.002], [inner, 0.06, 0.03], '#e8742a');
+      } else if (d.style === 'rail') {
+        // Clothing rail: two steel posts, a hanging bar at hanger height and feet. Garments hang from the bar (clothes-rail).
+        var rp = 0.03, barY = 1.66;
+        [-1, 1].forEach(function (sx) {
+          self.box([sx * (d.width / 2 - 0.05), 0.87, 0], [rp, 1.74, rp], '#555a60');            // post
+          self.box([sx * (d.width / 2 - 0.05), 0.015, 0], [0.1, 0.03, d.depth - 0.1], '#3d4146'); // foot
+        });
+        var bar = document.createElement('a-cylinder');
+        bar.setAttribute('position', '0 ' + barY + ' 0');
+        bar.setAttribute('rotation', '0 0 90');
+        bar.setAttribute('radius', 0.012);
+        bar.setAttribute('height', d.width - 0.1 - rp);
+        bar.setAttribute('segments-radial', 8);
+        bar.setAttribute('material', { color: '#9aa0a8', flatShading: true, roughness: 0.5, metalness: 0.4 });
+        this.el.appendChild(bar);
+        this.built.push(bar);
       } else if (d.style === 'timber') {
         // Rustic timber frame: heavy dark posts, thick planks, a top lintel and a plank back.
         var tp = 0.08;

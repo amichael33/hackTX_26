@@ -41,7 +41,7 @@ test('llm throws with no user text returns fallback', async () => {
   const r = await chatTurn({ messages: [], location: loc }, llm);
   assert.deepEqual(r, {
     ready: false, reply_to_player: FALLBACK, query: '',
-    min_price: null, max_price: null, preferences: [], extra_queries: [],
+    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false,
   });
 });
 
@@ -50,7 +50,7 @@ test('llm throws with a user message -> ready with last user text as query', asy
   const r = await chatTurn({ messages: [u('hi'), c('what?'), u('  pink workout tops  ')], location: loc }, llm);
   assert.deepEqual(r, {
     ready: true, reply_to_player: 'Great, let me pull some options for you!', query: 'pink workout tops',
-    min_price: null, max_price: null, preferences: [], extra_queries: [],
+    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false,
   });
 });
 
