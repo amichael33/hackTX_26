@@ -1,5 +1,64 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Store</title></head>
-<body><h1>Store coming soon</h1></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-Poly Store</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="js/components/room.js"></script>
+  <script src="js/components/shelf.js"></script>
+  <script src="js/components/rack.js"></script>
+  <script src="js/components/desk.js"></script>
+  <script src="js/components/clerk.js"></script>
+  <script src="js/components/bounds.js"></script>
+  <link rel="stylesheet" href="css/ui.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <a-scene vr-mode-ui="enabled:false" renderer="colorManagement:true">
+    <a-entity light="type:hemisphere; color:#ffffff; groundColor:#8a7a6a; intensity:0.9"></a-entity>
+    <a-entity light="type:point; color:#fff4e0; intensity:0.6; distance:30" position="0 3.5 0"></a-entity>
+    <a-entity light="type:point; color:#fff4e0; intensity:0.5; distance:20" position="0 3.5 6"></a-entity>
+
+    <a-entity room="width:16; depth:20; height:4"></a-entity>
+
+    <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
+    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
+      <a-entity camera cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+    </a-entity>
+
+    <a-entity id="desk" desk position="0 0 6.5"></a-entity>
+    <a-entity id="clerk" clerk="state: idle" position="0 0 5.8"></a-entity>
+
+    <a-entity id="shelves" visible="false">
+      <!-- left wall, facing +x -->
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 -5" rotation="0 90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 0" rotation="0 90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 5" rotation="0 90 0"></a-entity>
+      <!-- right wall, facing -x -->
+      <a-entity shelf="width:2; rows:3" position="7.2 0 -5" rotation="0 -90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="7.2 0 0" rotation="0 -90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="7.2 0 5" rotation="0 -90 0"></a-entity>
+      <!-- back wall, facing +z -->
+      <a-entity shelf="width:2; rows:3" position="-4 0 -9.2"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="0 0 -9.2"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="4 0 -9.2"></a-entity>
+      <a-entity rack="width:1.5" position="-6 0 -8"></a-entity>
+      <!-- center units -->
+      <a-entity shelf="width:2; rows:3" position="-3 0 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="3 0 0"></a-entity>
+      <!-- island -->
+      <a-entity id="island" position="0 0 0">
+        <a-box position="0 0.75 0" width="2" height="0.1" depth="1.2" material="color:#c9a27a; flatShading:true"></a-box>
+        <a-box position="0 0.35 0" width="1.6" height="0.7" depth="0.9" material="color:#8a5a3c; flatShading:true"></a-box>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <div id="intro">
+    <h1>Welcome to the Store</h1>
+    <p>Chat with our clerk, then browse shelves stocked just for you.</p>
+    <button id="enter-btn" type="button">Enter store</button>
+  </div>
+</body>
 </html>
