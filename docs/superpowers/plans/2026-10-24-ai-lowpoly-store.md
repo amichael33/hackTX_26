@@ -375,3 +375,56 @@ API contracts (JSON in, JSON out):
 - [ ] **Step 3: Polish:** ambient loop (≤ 1 MB, starts on Enter, follows the mute toggle), a warmer lighting pass, and an Esc hint. Check that the total page weight is < 20 MB in DevTools Network.
 - [ ] **Step 4: Deploy:** `git pull && npm ci && pm2 restart store` on the VPS. Then run the full flow on the real domain on the **demo laptop**: GPS prompt over HTTPS, voice picked, mic works, stickers show. Record a backup video of a full run.
 - [ ] **Step 5: Commit** `feat: rate limits, demo mode, re-search, polish`
+
+---
+
+### Task 11: Apple-store visual redesign + banner signs (user request)
+
+**Files:** Create `public/js/components/zone-banner.js`, `test/scene-geometry.test.js`. Modify `public/index.html`, `public/js/components/{room,shelf,desk}.js`, `public/js/main.js` (remove the old `a-text` zone signs; change the box colors), `public/css/ui.css`.
+
+**Interfaces:**
+- Consumes: `SHELF_UNITS` and the slot geometry in `public/js/layoutStore.js` (R17). Those numbers must not change.
+- Produces: `zone-banner` component (a classic script, R7), with schema `{ text: string, width: number (default 2), height: number (default 0.26) }`.
+  - It builds a slim panel box `width × height × 0.04`, colored `#fbfbfd`, with a 0.012 dark edge strip `#1d1d1f` along its bottom.
+  - On the panel's +z face it puts a canvas-texture plane at `z = 0.021`. The canvas is 1024×128, with `text` centered in `600 28px "Inter", -apple-system, "Segoe UI", sans-serif`, scaled to fill about 60% of the height, letter-spacing about 0.5px, color `#1d1d1f`. It is drawn after `document.fonts.load('600 28px Inter')`, raced with a 2 s timeout.
+  - The texture uses `SRGBColorSpace` and anisotropy 8.
+  - `remove()` disposes everything.
+
+**Design (exact values):**
+
+| Element | Material / color |
+|---|---|
+| Floor | `#e9e7e3` matte, with a subtle large-tile look: thin `#dcd9d3` lines every 2 m (planes 0.002 above the floor, 0.01 wide) |
+| Walls | `#f5f5f7`. The back wall gets a feature panel of light oak `#d9bf98`, 12 × 2.6, centered behind the back shelves at y 1.5, 0.02 in front of the wall |
+| Ceiling | `#ffffff`, with 3 long emissive light-panel strips: planes 12 × 0.5, `emissive #ffffff`, `emissiveIntensity 0.8`, at y = height − 0.01 and x = −4, 0, 4, running along z (visual only, **no new light entities**) |
+| Shelf units | uprights and back panel `#f5f5f7` matte; planks light oak `#d9bf98`; uprights 0.03 thick (was 0.05). **Keep** width 2, rows 3, rowHeight 0.6, depth 0.5, plank thickness 0.05, and the plank-top heights 0.05 / 0.65 / 1.25 |
+| Island | tabletop light oak `#d9bf98`, 2 × 0.06 × 1.2, top surface stays at y **0.80**; base `#f5f5f7`, slimmer (1.4 × 0.74 × 0.7) |
+| Desk | light oak top `#d9bf98`, white `#fbfbfd` front panels, a dark `#1d1d1f` slim register screen |
+| Rack | removed from the scene (the component file stays) |
+| Product fallback boxes | all tiers `#fbfbfd` (Apple-white packaging); `TIER_COLORS` becomes one constant. The banners carry the zone cue |
+| Lights | the three light entities and the disco ball stay **unchanged** (R25) |
+
+**Banners:**
+- **Wall units:** every wall unit gets a `zone-banner` mounted on its top, centered at unit-local `(0, 2.0, 0.02)`, width 2, facing out with the unit. Make it a child entity of the shelf unit in `index.html`, inside `#shelves`, so it appears when the store opens.
+  - Left: `Budget Picks`. Right: `Premium`. Back: `You Might Also Need`. The two center units: `More Like This`.
+- **Island:** one suspended banner, `Best Matches`, width 1.6, at world `(0, 1.75, 0)` facing +z. Hang it with two thin `#1d1d1f` wires (cylinders, radius 0.004) from y 4.0 down to the banner's top corners.
+- `main.js` stops creating `a-text` zone signs. Remove the creation and cleanup code; banners show and hide with `#shelves`.
+- Index.html adds the Google Font `Inter:wght@500;600`.
+
+**Overlays (`ui.css`, Apple style):**
+- Font stack `"Inter", -apple-system, "Segoe UI", sans-serif`, text `#1d1d1f`.
+- Panels (chat bar, subtitle, chat log, card, location panel, intro card) use `rgba(255,255,255,0.78)` with `backdrop-filter: blur(20px) saturate(180%)`, `border-radius: 18px`, `box-shadow: 0 8px 30px rgba(0,0,0,0.12)`, and no hard borders.
+- Primary buttons are `#0071e3` with white text, a 980px radius (pill), and `#0077ed` on hover. Secondary buttons are `#e8e8ed` with `#1d1d1f` text.
+- The intro title is 600 weight with tight letter-spacing, `-0.02em`.
+- Keep every existing id, `hidden` behavior, and layout position.
+
+- [ ] **Step 1: Failing test** `test/scene-geometry.test.js`: read `public/index.html` as text and extract every `shelf="..."` entity's `position` and `rotation`. Assert that the set of `{x, z, rotY}` deep-equals `SHELF_UNITS` from `layoutStore.js` (same positions and rotations, any order), and that every shelf has `width:2; rows:3`. Also assert that `#island`'s top surface is at y 0.80. Parse the tabletop box's `position.y + height/2`.
+- [ ] **Step 2:** Run `npm test`. Expected: PASS for geometry already (this is a guard test, so seeing it pass first is expected). Then temporarily change one shelf x in a scratch copy to confirm it would FAIL. Report that.
+- [ ] **Step 3:** Implement the design, the banners, and the overlays.
+- [ ] **Step 4:** `npm test` passes, `node --check` passes on the changed browser files, and the assets curl 200. **Manual check:**
+  - the store reads as bright white/oak/stone;
+  - the banners are crisp and readable from mid-room, sitting on top of each shelf unit, with the island banner hanging;
+  - products still sit on the planks;
+  - stickers and the disco ball are unchanged;
+  - the overlays look like frosted Apple panels.
+- [ ] **Step 5: Commit** `feat: apple-store look and banner signs`
