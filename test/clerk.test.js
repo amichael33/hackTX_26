@@ -66,6 +66,20 @@ test('normalizes fields', async () => {
   assert.equal(r.min_price, null);
 });
 
+test('ready reply with a question is replaced by handoff', async () => {
+  const r = await chatTurn({ messages: [u('x')], location: loc }, fakeLlm({ ready: true, query: 'keyboard', reply_to_player: 'Wired or wireless?' }));
+  assert.equal(r.ready, true);
+  assert.equal(r.reply_to_player, 'Great, let me pull some options for you!');
+});
+
+test('extra_queries drops query, dedupes, caps', async () => {
+  const r = await chatTurn({ messages: [u('x')], location: loc }, fakeLlm({
+    ready: true, query: 'mechanical keyboard', reply_to_player: 'ok',
+    extra_queries: ['Mechanical Keyboard', 'keycaps', 'KEYCAPS', ' wrist rest '],
+  }));
+  assert.deepEqual(r.extra_queries, ['keycaps', 'wrist rest']);
+});
+
 test('POST /api/chat returns ClerkResponse', async () => {
   const llm = fakeLlm({ ready: true, query: 'kb', reply_to_player: 'ok' });
   const server = createApp({ llm }).listen(0);
