@@ -50,3 +50,32 @@ export function assignTiers(products) {
   }
   return products.map((p, i) => ({ ...p, tier: tiers[i] }));
 }
+
+// SerpApi's Amazon Search API. The search text goes in `k`, not `q`; results are `organic_results`.
+export async function searchAmazon({ q }, { apiKey, fetchImpl = fetch }) {
+  const url = `https://serpapi.com/search.json?engine=amazon&amazon_domain=amazon.com&k=${encodeURIComponent(q)}&api_key=${encodeURIComponent(apiKey)}`;
+  const res = await fetchImpl(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`serpapi amazon ${res.status}`);
+  return res.json();
+}
+
+// Same Product shape as normalizeShoppingResults. Drops sponsored items and items without a numeric price.
+export function normalizeAmazonResults(json) {
+  const kept = [];
+  for (const item of json?.organic_results ?? []) {
+    if (item.sponsored || !item.asin || typeof item.extracted_price !== 'number' || !Number.isFinite(item.extracted_price)) continue;
+    kept.push({
+      id: `amazon-${item.asin}`,
+      title: item.title,
+      price: item.price ?? '',
+      extracted_price: item.extracted_price,
+      rating: item.rating ?? null,
+      source: 'Amazon',
+      thumbnail: item.thumbnail ?? null,
+      link: item.link_clean ?? item.link ?? null,
+      relevance: kept.length,
+      related: false,
+    });
+  }
+  return kept;
+}

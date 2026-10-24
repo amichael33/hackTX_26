@@ -10,6 +10,7 @@ const app = createApp({
   llm: makeGeminiLlm(process.env.GEMINI_API_KEY, process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'),
   serpApiKey: process.env.SERPAPI_KEY,
   demoMode: process.env.DEMO_MODE === '1',
+  amazon: process.env.AMAZON_RESULTS !== '0', // Amazon Search API results; set AMAZON_RESULTS=0 to save SerpApi credits
   serveStatic: process.env.NODE_ENV !== 'production',
 });
 

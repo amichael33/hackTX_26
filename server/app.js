@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chatTurn } from './lib/clerk.js';
 import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
-import { searchShopping, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
+import { searchShopping, searchAmazon, normalizeAmazonResults, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
 import { generateStickers } from './lib/stickers.js';
 import { generateSimilarQueries } from './lib/similar.js';
 import { createCache } from './lib/cache.js';
@@ -18,8 +18,9 @@ const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PRODUCTS = 30;
 const MAX_RELATED = 6;
 const MAX_SIMILAR = 12;
+const MAX_AMAZON = 8; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
 
-// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, serveStatic?, geocodeTimeoutMs? }
+// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs? }
 export function createApp(deps = {}) {
   const app = express();
   app.set('trust proxy', 'loopback'); // Caddy on localhost: honor X-Forwarded-For so limits are per client
@@ -50,6 +51,17 @@ export function createApp(deps = {}) {
     return json;
   }
 
+  // Amazon Search API, cached like the others. Any failure just means no Amazon items.
+  async function runAmazon(q) {
+    const ckey = JSON.stringify(['amazon', q.trim().toLowerCase()]);
+    const hit = cache.get(ckey);
+    if (hit !== undefined) return hit;
+    const json = await searchAmazon({ q }, { apiKey: deps.serpApiKey, fetchImpl });
+    if (json?.error) throw new Error(json.error);
+    cache.set(ckey, json);
+    return json;
+  }
+
   async function fetchQuery(q, location) {
     const attempt = async (loc) => {
       const json = await searchShopping({ q, location: loc }, { apiKey: deps.serpApiKey, fetchImpl });
@@ -76,16 +88,27 @@ export function createApp(deps = {}) {
 
     try {
       const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2);
-      const [mainJson, ...extraJsons] = await Promise.all([
+      const [amazonJson, mainJson, ...extraJsons] = await Promise.all([
+        deps.amazon ? runAmazon(query.query).catch((err) => { console.warn('amazon failed:', err.message); return {}; }) : {},
         runQuery(query.query, city),
         ...extras.map((q) => runQuery(q, city).catch(() => ({}))),
       ]);
       const mainProducts = normalizeShoppingResults(mainJson);
       const seen = new Set();
       const dedupe = (list) => list.filter((p) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
-      const main = dedupe(mainProducts); // main first, so a main item wins over a duplicate related one
+      const googleMain = dedupe(mainProducts); // main first, so a main item wins over a duplicate related one
+      const amazon = dedupe(normalizeAmazonResults(amazonJson)).slice(0, MAX_AMAZON);
+      // One Amazon item after every 3 Google Shopping items; leftovers go at the end.
+      const main = [];
+      let ai = 0;
+      googleMain.forEach((p, i) => {
+        main.push(p);
+        if ((i + 1) % 3 === 0 && ai < amazon.length) main.push(amazon[ai++]);
+      });
+      main.push(...amazon.slice(ai));
+      main.forEach((p, i) => { p.relevance = i; });
       // Related relevance continues after the main items, one contiguous run across all extra queries.
-      let nextRelevance = mainProducts.length;
+      let nextRelevance = main.length;
       const relatedAll = [];
       for (const j of extraJsons) {
         const r = normalizeShoppingResults(j, { related: true, startRelevance: nextRelevance });
@@ -162,7 +185,7 @@ export function createApp(deps = {}) {
   });
 
   // Image proxy: https only, allowlisted hosts (dot boundary), image/* only, <= 2 MB.
-  const IMG_HOSTS = ['gstatic.com', 'googleusercontent.com', 'serpapi.com'];
+  const IMG_HOSTS = ['gstatic.com', 'googleusercontent.com', 'serpapi.com', 'media-amazon.com'];
   const IMG_MAX_BYTES = 2 * 1024 * 1024;
   const IMG_TIMEOUT_MS = 8000;
   app.get('/api/img', imgLimit, async (req, res) => {
