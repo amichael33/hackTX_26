@@ -1,7 +1,11 @@
 /* Classic script: registers the `room` A-Frame component (floor, walls, ceiling). */
 (function () {
   AFRAME.registerComponent('room', {
-    schema: { width: { default: 16 }, depth: { default: 20 }, height: { default: 4 } },
+    schema: {
+      width: { default: 16 }, depth: { default: 20 }, height: { default: 4 },
+      floor: { default: '#e9e7e3' }, wall: { default: '#f5f5f7' }, ceiling: { default: '#ffffff' },
+      accent: { default: '#d9bf98' }, tile: { default: '#dcd9d3' }
+    },
     init: function () {
       this.built = [];
       this.build();
@@ -38,20 +42,20 @@
     },
     build: function () {
       var d = this.data, t = 0.2, hw = d.width / 2, hd = d.depth / 2, h = d.height, i;
-      this.box([0, -t / 2, 0], [d.width, t, d.depth], '#e9e7e3');            // floor (matte stone)
+      this.box([0, -t / 2, 0], [d.width, t, d.depth], d.floor);            // floor (matte stone)
       // subtle large-tile lines every 2 m
-      for (i = -hw + 2; i < hw; i += 2) this.plane([i, 0.002, 0], [-90, 0, 0], [0.01, d.depth], '#dcd9d3');
-      for (i = -hd + 2; i < hd; i += 2) this.plane([0, 0.002, i], [-90, 0, 0], [d.width, 0.01], '#dcd9d3');
-      this.box([0, h + t / 2, 0], [d.width, t, d.depth], '#ffffff');         // ceiling
+      for (i = -hw + 2; i < hw; i += 2) this.plane([i, 0.002, 0], [-90, 0, 0], [0.01, d.depth], d.tile);
+      for (i = -hd + 2; i < hd; i += 2) this.plane([0, 0.002, i], [-90, 0, 0], [d.width, 0.01], d.tile);
+      this.box([0, h + t / 2, 0], [d.width, t, d.depth], d.ceiling);         // ceiling
       // emissive light-panel strips (visual only)
       for (i = -4; i <= 4; i += 4) {
-        this.plane([i, h - 0.01, 0], [90, 0, 0], [0.5, 12], '#ffffff', { emissive: '#ffffff', emissiveIntensity: 0.8 });
+        this.plane([i, h - 0.01, 0], [90, 0, 0], [0.5, Math.min(12, d.depth - 2)], '#ffffff', { emissive: '#ffffff', emissiveIntensity: 0.8 });
       }
-      this.box([0, h / 2, -hd - t / 2], [d.width + 2 * t, h, t], '#f5f5f7'); // back
-      this.box([0, h / 2, hd + t / 2], [d.width + 2 * t, h, t], '#f5f5f7');  // front
-      this.box([-hw - t / 2, h / 2, 0], [t, h, d], '#f5f5f7');               // left
-      this.box([hw + t / 2, h / 2, 0], [t, h, d], '#f5f5f7');                // right
-      this.box([0, 1.5, -hd + 0.01], [12, 2.6, 0.02], '#d9bf98');            // oak feature panel (back wall)
+      this.box([0, h / 2, -hd - t / 2], [d.width + 2 * t, h, t], d.wall); // back
+      this.box([0, h / 2, hd + t / 2], [d.width + 2 * t, h, t], d.wall);  // front
+      this.box([-hw - t / 2, h / 2, 0], [t, h, d.depth], d.wall);               // left
+      this.box([hw + t / 2, h / 2, 0], [t, h, d.depth], d.wall);                // right
+      this.box([0, 1.5, -hd + 0.01], [Math.min(12, d.width - 4), 2.6, 0.02], d.accent);            // oak feature panel (back wall)
     }
   });
 })();

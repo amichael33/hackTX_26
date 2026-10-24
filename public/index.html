@@ -28,12 +28,13 @@
 <body>
   <a-scene vr-mode-ui="enabled:false" renderer="colorManagement:true">
     <a-entity light="type:hemisphere; color:#ffffff; groundColor:#8a7a6a; intensity:0.9"></a-entity>
-    <a-entity light="type:point; color:#fff4e0; intensity:0.6; distance:30" position="0 3.5 0"></a-entity>
-    <a-entity light="type:point; color:#fff4e0; intensity:0.5; distance:20" position="0 3.5 6"></a-entity>
+    <a-entity id="light-a" light="type:point; color:#fff4e0; intensity:0.6; distance:30" position="0 3.5 0"></a-entity>
+    <a-entity id="light-b" light="type:point; color:#fff4e0; intensity:0.5; distance:20" position="0 3.5 6"></a-entity>
 
-    <a-entity disco-ball position="0 3.5 0"></a-entity>
+    <a-entity id="disco" disco-ball position="0 3.5 0"></a-entity>
 
-    <a-entity room="width:16; depth:20; height:4"></a-entity>
+    <!-- The room, shelves, island, corkboard, desk, clerk, lights and spawn are set from the chosen map (js/maps.js, js/sceneMap.js). -->
+    <a-entity id="room" room="width:16; depth:20; height:4"></a-entity>
 
     <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
     <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
@@ -47,39 +48,14 @@
 
     <a-entity id="smoke" smoke></a-entity>
 
-    <a-entity id="shelves" visible="false">
-      <!-- left wall, facing +x -->
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 -5" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 0" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 5" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <!-- right wall, facing -x -->
-      <a-entity shelf="width:2; rows:3" position="7.2 0 -5" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="7.2 0 0" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="7.2 0 5" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <!-- back wall, facing +z -->
-      <a-entity shelf="width:2; rows:3" position="-4 0 -9.2"><a-entity zone-banner="text:You Might Also Need; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <!-- the rest of the back wall: a corkboard of post-it search ideas, filled when the player walks back -->
-      <a-entity id="corkboard" corkboard="width:6; height:2.2" position="1 1.55 -9.97"></a-entity>
-      <a-entity id="banner-ideas" zone-banner="text:Try Next; width:2.4" position="1 3.0 -9.9"></a-entity>
-      <!-- center units -->
-      <a-entity shelf="width:2; rows:3" position="-3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <a-entity shelf="width:2; rows:3" position="3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>
-      <!-- island -->
-      <a-entity id="island" position="0 0 0">
-        <a-box position="0 0.77 0" width="2" height="0.06" depth="1.2" material="color:#d9bf98; flatShading:true; roughness:0.9; metalness:0"></a-box>
-        <a-box position="0 0.37 0" width="1.4" height="0.74" depth="0.7" material="color:#f5f5f7; flatShading:true; roughness:0.9; metalness:0"></a-box>
-        <!-- suspended banner: wires from the ceiling (y 4.0) to the banner's top corners (y 2.08) -->
-        <a-cylinder position="-0.78 3.04 0" radius="0.004" height="1.92" material="color:#1d1d1f"></a-cylinder>
-        <a-cylinder position="0.78 3.04 0" radius="0.004" height="1.92" material="color:#1d1d1f"></a-cylinder>
-        <a-entity zone-banner="text:Best Matches; width:1.6" position="0 1.95 0"></a-entity>
-      </a-entity>
-    </a-entity>
+    <a-entity id="shelves" visible="false"></a-entity>
     <a-entity id="products"></a-entity>
   </a-scene>
 
   <div id="intro">
     <h1>Welcome to the Store</h1>
     <p>Chat with our clerk, then browse shelves stocked just for you.</p>
+    <div id="map-picker" role="radiogroup" aria-label="Choose a store"></div>
     <button id="enter-btn" type="button">Enter store</button>
   </div>
 

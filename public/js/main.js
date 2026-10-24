@@ -6,7 +6,10 @@ import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPan
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
-import { layoutStore, SHELF_UNITS } from './layoutStore.js';
+import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
+import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
+import { applyMap } from './sceneMap.js';
+import { safeLocalStorage } from './storage.js';
 
 window.store = store; // console debugging
 
@@ -25,6 +28,42 @@ const GREETING = 'Hi! Welcome in. What are you shopping for today?';
 const RATE_LIMITED = 'Whoa, one sec! Ask me again in a moment.';
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
+// --- Maps: picked on the start screen; the store is built from the chosen map ---
+const MAP_KEY = 'store.map.v1';
+function savedMapId() {
+  try { return getMap(safeLocalStorage().getItem(MAP_KEY)).id; } catch (e) { return DEFAULT_MAP_ID; }
+}
+let mapId = savedMapId();
+
+const mapPicker = document.getElementById('map-picker');
+function renderMapPicker() {
+  mapPicker.textContent = '';
+  for (const m of MAPS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'map-card';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(m.id === mapId));
+    const name = document.createElement('strong');
+    name.textContent = m.name;
+    const blurb = document.createElement('span');
+    blurb.textContent = m.blurb;
+    b.append(name, blurb);
+    b.addEventListener('click', () => selectMap(m.id));
+    mapPicker.append(b);
+  }
+}
+
+// Only on the start screen: rebuild the scene around the new map so it previews behind the overlay.
+function selectMap(id) {
+  if (store.get().phase !== 'INTRO' || id === mapId) return;
+  mapId = id;
+  try { safeLocalStorage().setItem(MAP_KEY, id); } catch (e) { /* the pick just is not remembered */ }
+  applyMap(getMap(id), { preview: true });
+  renderMapPicker();
+}
+renderMapPicker();
+
 const scene = document.querySelector('a-scene');
 const intro = document.getElementById('intro');
 const enterBtn = document.getElementById('enter-btn');
@@ -39,6 +78,7 @@ function applyState(state) {
 }
 
 function boot() {
+  applyMap(getMap(mapId), { preview: true });
   applyState(store.get());
   onCartChanged(); // the module-load emit can predate the shopping-cart component; re-send now that the scene is loaded
   store.on('change', (state) => applyState(state));
@@ -141,6 +181,7 @@ async function startLocationStep() {
   showLocationPanel();
 }
 store.on('phase:LOCATION', startLocationStep);
+store.on('phase:LOCATION', () => document.getElementById('shelves')?.setAttribute('visible', 'false')); // the start-screen preview ends
 
 async function runTurn(text) {
   const messages = [...store.get().messages, { role: 'user', text }];
@@ -237,7 +278,8 @@ function puff(x, y, z, opts) {
 const SHELVES_SMOKE_MS = 600;
 function smokeOverShelves() {
   for (const u of Object.values(SHELF_UNITS).flat()) puff(u.x, 1.0, u.z, { size: 1.8, count: 5, spread: 1.4, life: 1400 });
-  puff(0, 1.0, 0, { size: 1.8, count: 5, spread: 1.4, life: 1400 });
+  const { island } = currentMap();
+  puff(island.x, 1.0, island.z, { size: 1.8, count: 5, spread: 1.4, life: 1400 });
 }
 
 function spawnBox(container, slot) {

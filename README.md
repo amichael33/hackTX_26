@@ -15,6 +15,7 @@ Built at hackTX 26.
 - **Funny price stickers.** Gemini writes a 4-word joke for each price, stuck on the box.
 - **Try Next corkboard.** Walk to the back wall and post-it notes pop onto a corkboard with follow-up searches Gemini suggests (a gaming mouse gets "mouse pad", "keyboard", "wrist rest"...). It only calls Gemini, never SerpApi.
 - **Past searches.** Your last 10 searches are saved in the browser. Replaying one makes no API calls.
+- **Pick your store.** The start screen has a map picker (Classic Store, Cozy Boutique, Big Box Warehouse). The choice is remembered. Each map is just data in `public/js/maps.js`: add an entry and it shows up in the picker.
 - **Skippable location.** Share GPS, type a city or ZIP, or skip (Austin is the default).
 
 ## Run it in 60 seconds
@@ -70,7 +71,7 @@ The page moves through phases: `INTRO → LOCATION → CHATTING → SEARCHING �
 
 1. Bob chats until Gemini says it has a query (`ready: true`), with optional price limits and up to 2 related searches.
 2. The server runs the searches in parallel, merges them (one Amazon item after every three Google items, max 8 from Amazon), and assigns budget, mid or premium tiers by price.
-3. A pure layout function (`public/js/layoutStore.js`) puts each product in a shelf slot. The boxes pop in one by one.
+3. A pure layout function (`public/js/layoutStore.js`) puts each product in a slot of the chosen map's shelves (`maps.js` describes the room; `sceneMap.js` builds it; `collide.js` gets its footprints from it). The boxes pop in one by one.
 4. Stickers arrive from Gemini a moment later. Fallback stickers show first.
 5. All API keys stay on the server. The frontend and API share one origin, and the server rate-limits every route.
 

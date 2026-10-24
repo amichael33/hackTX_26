@@ -3,6 +3,7 @@
    Shelf footprints mirror SHELF_UNITS in layoutStore.js (guarded by test/collide.test.js). */
 (function (root) {
   var PLAYER_RADIUS = 0.3;
+  var HALF_W = 8, HALF_D = 10; // room interior half-extents (the classic map); setMap changes them
 
   // Axis-aligned footprints in world x/z.
   var OBSTACLES = [
@@ -65,11 +66,20 @@
     return pos;
   }
 
-  // True when a circle at (x, z) overlaps no obstacle and stays inside the room interior (x +-8, z +-10).
+  // Swaps in another map's footprints and room size. OBSTACLES keeps its identity (it is edited in place), so
+  // anything holding a reference to it sees the new map.
+  function setMap(map) {
+    OBSTACLES.length = 0;
+    for (var i = 0; i < map.obstacles.length; i++) OBSTACLES.push(map.obstacles[i]);
+    HALF_W = map.halfW;
+    HALF_D = map.halfD;
+  }
+
+  // True when a circle at (x, z) overlaps no obstacle and stays inside the room interior (x +-HALF_W, z +-HALF_D).
   // Allocates nothing.
   function circleClear(x, z, r, obstacles) {
     if (obstacles === undefined) obstacles = OBSTACLES;
-    if (x < -(8 - r) || x > 8 - r || z < -(10 - r) || z > 10 - r) return false;
+    if (x < -(HALF_W - r) || x > HALF_W - r || z < -(HALF_D - r) || z > HALF_D - r) return false;
     for (var i = 0; i < obstacles.length; i++) {
       var o = obstacles[i];
       var cx = x < o.minX ? o.minX : (x > o.maxX ? o.maxX : x);
@@ -80,5 +90,5 @@
     return true;
   }
 
-  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve, circleClear: circleClear };
+  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve, circleClear: circleClear, setMap: setMap };
 })(globalThis);
