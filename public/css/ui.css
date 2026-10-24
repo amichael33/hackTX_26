@@ -189,6 +189,8 @@ button, input { font-family: inherit; }
 .cart-remove { flex-shrink: 0; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #6e6e73; font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .cart-remove:hover { background: #e8e8ed; }
 #cart-empty, .searches-empty { margin: 4px 2px; font-size: 0.9rem; color: #6e6e73; }
+#cart3d-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #6e6e73; cursor: pointer; user-select: none; }
+#cart3d-toggle kbd { margin-left: auto; font: inherit; font-size: 0.72rem; padding: 1px 6px; border-radius: 6px; background: #e8e8ed; color: #1d1d1f; }
 #cart-footer { margin: 0; font-size: 0.9rem; font-weight: 600; text-align: right; }
 .searches-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; }
 .searches-list li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }

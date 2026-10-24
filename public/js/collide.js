@@ -4,6 +4,7 @@
 (function (root) {
   var PLAYER_RADIUS = 0.3;
   var HALF_W = 8, HALF_D = 10; // room interior half-extents (the classic map); setMap changes them
+  var heightFn = null;         // ground height under (x, z) for maps with bridges; null = flat
 
   // Axis-aligned footprints in world x/z.
   var OBSTACLES = [
@@ -73,6 +74,12 @@
     for (var i = 0; i < map.obstacles.length; i++) OBSTACLES.push(map.obstacles[i]);
     HALF_W = map.halfW;
     HALF_D = map.halfD;
+    heightFn = typeof map.heightAt === 'function' ? map.heightAt : null;
+  }
+
+  // Height of the walkable ground at (x, z): 0 on the floor, up on a bridge's arch. Allocates nothing.
+  function heightAt(x, z) {
+    return heightFn ? heightFn(x, z) : 0;
   }
 
   // True when a circle at (x, z) overlaps no obstacle and stays inside the room interior (x +-HALF_W, z +-HALF_D).
@@ -90,5 +97,5 @@
     return true;
   }
 
-  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve, circleClear: circleClear, setMap: setMap };
+  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve, circleClear: circleClear, setMap: setMap, heightAt: heightAt };
 })(globalThis);

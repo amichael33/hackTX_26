@@ -16,7 +16,7 @@ Built at hackTX 26.
 - **Try Next corkboard.** Walk to the back wall and post-it notes pop onto a corkboard with follow-up searches Gemini suggests (a gaming mouse gets "mouse pad", "keyboard", "wrist rest"...). It only calls Gemini, never SerpApi.
 - **Past searches.** Your last 10 searches are saved in the browser. Replaying one makes no API calls.
 - **Clothing mode.** Search for clothes and the shelves turn into hanging rails: each product is a garment on a hanger (hanger color = the retailer), photo backgrounds removed, price sticker on the garment. A rail holds more than fits in view, so arrow buttons at its ends slide the hangers along. Gemini flags clothing searches (`is_clothing`), with garment words in the product titles as a backup; no extra API calls. Try `?demo=1` and ask for a hoodie: demo mode serves drawn demo garments (`scripts/make-demo-clothes.mjs`).
-- **Pick your store.** The start screen has a map picker (Classic Store, Cozy Boutique, Big Box Warehouse, Castle Great Hall). Each map has its own shelf styles and Bob wears a different outfit in each. The choice is remembered. Each map is just data in `public/js/maps.js`: add an entry and it shows up in the picker.
+- **Pick your store.** The start screen has a map picker (Classic Store, Cozy Boutique, Big Box Warehouse, Castle Great Hall). Each map has its own shelf styles, its own cart (wire cart, wicker basket, warehouse dolly, castle wheelbarrow) and Bob wears a different outfit in each. The castle has a courtyard with a river you cross by one of two arched bridges. The choice is remembered. Each map is just data in `public/js/maps.js`: add an entry and it shows up in the picker.
 - **Skippable location.** Share GPS, type a city or ZIP, or skip (Austin is the default).
 
 ## Run it in 60 seconds
@@ -125,7 +125,7 @@ Pure logic (state, layout, tiers, cutouts, saved searches, store colors) and eve
 
 ## Known limitations
 
-- **Shopping cart.** Add to cart on a product card; a wire cart rolls along in front of you with your items in it. `CART_ENABLED` in `public/js/main.js` switches it off (the Past searches tab stays).
+- **Shopping cart.** Add to cart on a product card; a wire cart rolls along in front of you with your items in it. The 3D cart is a toggle: the checkbox in the cart panel or the `C` key. `CART_ENABLED` in `public/js/main.js` switches the whole feature off (the Past searches tab stays).
 - **Google Shopping has very little Amazon.** That's why Amazon comes from its own SerpApi engine.
 - **Only Bob's search uses SerpApi** (the corkboard and everything else is Gemini or free). Each search uses 2 credits (Google Shopping plus Amazon), and more with related searches. Results are cached for 6 hours. Set `AMAZON_RESULTS=0` to save credits.
 - **Demo stock fallback.** With no `SERPAPI_KEY`, in `DEMO_MODE`, or if SerpApi fails, you get built-in demo products, and Bob says so.

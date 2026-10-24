@@ -16,6 +16,9 @@ import { safeLocalStorage } from './storage.js';
 window.store = store; // console debugging
 
 const CART_ENABLED = true; // false switches the shopping cart off (Past searches stay)
+// The 3D cart that rolls in front of the player can be switched off by the player (checkbox in the cart panel, or the C key).
+const CART3D_KEY = 'store.cart3d.v1';
+let cart3dOn = (() => { try { return safeLocalStorage().getItem(CART3D_KEY) !== '0'; } catch (e) { return true; } })();
 document.body.classList.toggle('cart-off', !CART_ENABLED);
 showWidgetTab(CART_ENABLED ? 'cart' : 'searches');
 const cart = createCart();
@@ -76,7 +79,7 @@ function applyState(state) {
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
-  if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && state.phase === 'BROWSING');
+  if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && cart3dOn && state.phase === 'BROWSING');
 }
 
 function boot() {
@@ -330,6 +333,7 @@ function railPoint(rail, lx, y) {
   return { x: rail.position.x + lx * Math.cos(th), y, z: rail.position.z - lx * Math.sin(th) };
 }
 
+const GARMENT_ANGLE = -45;
 const whenLoaded = (el) => new Promise((r) => (el.hasLoaded ? r() : el.addEventListener('loaded', r, { once: true })));
 
 // Builds every rail with its (hidden) garments, then reveals them wave by wave, a puff of smoke for each.
@@ -353,6 +357,7 @@ async function spawnClothes(container, rails, live) {
         sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
       });
       g.setAttribute('position', `0 ${RAIL_Y - rail.position.y} 0`);
+      g.setAttribute('rotation', `0 ${GARMENT_ANGLE} 0`); // turned like clothes on a real rack, so neighbours do not clip into each other
       re.appendChild(g);
       boxEls.set(p.id, g);
       comp.addGarment(g, i);
@@ -472,6 +477,22 @@ document.querySelector('a-scene').addEventListener('product-selected', (e) => {
   cardProduct = p;
   setCardInCart(cart.has(p.id)); // opening the card always refreshes the button
   showProductCard(p);
+});
+
+const cart3dCheck = document.getElementById('cart3d-check');
+function setCart3d(on) {
+  cart3dOn = on;
+  cart3dCheck.checked = on;
+  try { safeLocalStorage().setItem(CART3D_KEY, on ? '1' : '0'); } catch (e) { /* not remembered */ }
+  applyState(store.get());
+}
+cart3dCheck.checked = cart3dOn;
+cart3dCheck.addEventListener('change', () => setCart3d(cart3dCheck.checked));
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() !== 'c' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const s = store.get();
+  if (s.inputFocused || s.phase !== 'BROWSING') return;
+  setCart3d(!cart3dOn);
 });
 
 onCardCart(() => {

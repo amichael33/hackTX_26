@@ -5,6 +5,7 @@
       width: { default: 16 }, depth: { default: 20 }, height: { default: 4 },
       floor: { default: '#e9e7e3' }, wall: { default: '#f5f5f7' }, ceiling: { default: '#ffffff' },
       accent: { default: '#d9bf98' }, tile: { default: '#dcd9d3' },
+      panelX: { default: 0 }, panelW: { default: 0 }, // the back-wall accent panel (0 width = the old default); the map sizes it to the corkboard
       style: { default: 'plain', oneOf: ['plain', 'castle'] } // castle: timber ceiling beams, stone pillars and wall torches
     },
     init: function () {
@@ -58,7 +59,7 @@
       this.box([0, h / 2, hd + t / 2], [d.width + 2 * t, h, t], d.wall);  // front
       this.box([-hw - t / 2, h / 2, 0], [t, h, d.depth], d.wall);               // left
       this.box([hw + t / 2, h / 2, 0], [t, h, d.depth], d.wall);                // right
-      this.box([0, 1.5, -hd + 0.01], [Math.min(12, d.width - 4), 2.6, 0.02], d.accent);            // oak feature panel (back wall)
+      this.box([d.panelW > 0 ? d.panelX : 0, 1.5, -hd + 0.01], [d.panelW > 0 ? d.panelW : Math.min(12, d.width - 4), 2.6, 0.02], d.accent);            // oak feature panel (back wall)
       if (d.style === 'castle') this.castle(hw, hd, h);
     },
     // Timber beams across the ceiling, stone pillars in the corners and torches along the long walls.

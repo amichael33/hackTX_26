@@ -1,5 +1,6 @@
 /* Classic script: `bounds` clamps the entity's x/z position to a rectangle every tick. */
 (function () {
+  var EYE = 1.6; // the rig sits at eye height
   AFRAME.registerComponent('bounds', {
     schema: {
       minX: { default: -7.5 }, maxX: { default: 7.5 },
@@ -9,7 +10,10 @@
       var p = this.el.object3D.position, d = this.data;
       if (p.x < d.minX) p.x = d.minX; else if (p.x > d.maxX) p.x = d.maxX;
       if (p.z < d.minZ) p.z = d.minZ; else if (p.z > d.maxZ) p.z = d.maxZ;
-      if (window.StoreCollide) window.StoreCollide.resolve(p);
+      if (window.StoreCollide) {
+        window.StoreCollide.resolve(p);
+        p.y = EYE + window.StoreCollide.heightAt(p.x, p.z); // eye height, raised on a bridge
+      }
     }
   });
 })();

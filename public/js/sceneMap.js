@@ -1,6 +1,6 @@
 // Builds the A-Frame scene for a map (maps.js): room, shelves, island, corkboard, desk, clerk, lights, spawn and collision.
 // Everything else in the scene (products, smoke, cart) is independent of the map.
-import { labelFor, shelfStyleFor, obstaclesFor, boundsFor } from './maps.js';
+import { labelFor, shelfStyleFor, obstaclesFor, boundsFor, accentPanelFor, riverFor, walkHeight } from './maps.js';
 import { setMap as setLayoutMap } from './layoutStore.js';
 
 const $ = (id) => document.getElementById(id);
@@ -28,10 +28,10 @@ function buildIsland(map, parent) {
 // Rebuilds the whole map. preview = show the (empty) shelves, e.g. behind the start screen.
 export function applyMap(map, { preview = false } = {}) {
   setLayoutMap(map);
-  window.StoreCollide?.setMap({ obstacles: obstaclesFor(map), halfW: map.room.width / 2, halfD: map.room.depth / 2 });
+  window.StoreCollide?.setMap({ obstacles: obstaclesFor(map), halfW: map.room.width / 2, halfD: map.room.depth / 2, heightAt: map.river ? (x, z) => walkHeight(map, x, z) : null });
 
   const { room, spawn, desk, clerk, board } = map;
-  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain' });
+  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain', panelX: accentPanelFor(map).x, panelW: accentPanelFor(map).width });
 
   const rig = $('rig');
   if (rig) {
@@ -47,7 +47,7 @@ export function applyMap(map, { preview = false } = {}) {
   // Lights and the disco ball hang from this map's ceiling.
   const hang = room.height - 0.5;
   $('light-a')?.setAttribute('position', `0 ${hang} 0`);
-  $('light-b')?.setAttribute('position', `0 ${hang} ${desk.z}`);
+  $('light-b')?.setAttribute('position', `0 ${hang} ${map.lightBz ?? desk.z}`);
   for (const id of ['light-a', 'light-b']) $(id)?.setAttribute('light', 'color', map.light ?? '#fff4e0');
   const oldDisco = $('disco');
   if (oldDisco) {
@@ -55,7 +55,22 @@ export function applyMap(map, { preview = false } = {}) {
     oldDisco.replaceWith(disco);
   }
 
+  $('cart3d')?.setAttribute('shopping-cart', 'variant', map.cartVariant ?? 'cart');
+  buildFeatures(map);
   buildShelves(map, { clothes: false, visible: preview });
+}
+
+// Map features that are not shelves: today the castle's river and its arched bridges.
+function buildFeatures(map) {
+  const box = $('features');
+  if (!box) return;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  const rv = riverFor(map);
+  if (!rv) return;
+  el('a-entity', { river: `length:${rv.halfW * 2}; width:${rv.width}; bank:${rv.bank}`, position: `0 0 ${rv.z}` }, box);
+  for (const b of rv.bridges) {
+    el('a-entity', { bridge: `width:${b.width}; length:${b.zEnd - b.zStart}; arch:${b.arch}`, position: `${b.x} 0 ${(b.zStart + b.zEnd) / 2}` }, box);
+  }
 }
 
 // (Re)builds everything inside #shelves: shelf units (or clothing rails), signs, the corkboard and the island.

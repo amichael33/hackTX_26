@@ -25,6 +25,9 @@
     return clearMat || (clearMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
   }
   var GW = 0.46, GH = 0.66, HANGER_DROP = 0.075; // garment fits GW x GH, hangs HANGER_DROP below the rail
+  var GARMENT_BULGE = 0.04;                       // how far the front sheet bulges out at its middle
+  // How far the cloth sheet bulges toward the viewer at (u, v) in -1..1: most at the middle, none at the edges.
+  function garmentBulge(u, v) { return GARMENT_BULGE * (1 - u * u) * (1 - 0.35 * v * v); }
 
   function hashSeed(str) {
     var h = 5381;
@@ -104,10 +107,15 @@
         this.stickerCanvas = null;
       }
       if (this.plane) {
-        if (this.plane.material) {
-          if (this.plane.material.map) this.plane.material.map.dispose();
-          this.plane.material.dispose();
-        }
+        var own = this.plane.userData.ownGeometry; // garments build their own curved geometry; box planes share a cached one
+        this.plane.traverse(function (o) {
+          if (o.material) {
+            if (o.material.map) o.material.map.dispose();
+            if (o.material.emissiveMap && o.material.emissiveMap !== o.material.map) o.material.emissiveMap.dispose();
+            o.material.dispose();
+          }
+          if (own && o.geometry) o.geometry.dispose();
+        });
         this.el.removeObject3D('thumb');
         this.plane = null;
       }
@@ -236,25 +244,40 @@
       img.onerror = function () { if (self.buildId === buildId && self.mesh) show(silhouette(d.color)); };
       img.src = url;
     },
-    // The garment image (double-sided, transparent around the cutout) hangs from the hanger, top edge under the shoulder bar.
+    // The garment is two gently bulging sheets (front and back) joined at the edges, lit like cloth, so it has some volume
+    // instead of being a flat cut-out. Top edge sits just under the shoulder bar.
     buildGarmentPlane: function (cut) {
       var pw, ph;
       if (cut.aspect >= GW / GH) { pw = GW; ph = GW / cut.aspect; } else { ph = GH; pw = GH * cut.aspect; }
       var tex = new THREE.CanvasTexture(cut.canvas);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
-      var plane = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
-      plane.position.set(0, -HANGER_DROP - ph / 2, 0);
+      var mkMat = function () {
+        // Lambert shading gives the curve some light and shadow; the emissive map keeps the photo's colors bright.
+        return new THREE.MeshLambertMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.55, transparent: true, alphaTest: 0.1 });
+      };
+      var geo = new THREE.PlaneGeometry(pw, ph, 10, 12);
+      var pos = geo.attributes.position;
+      for (var i = 0; i < pos.count; i++) pos.setZ(i, garmentBulge(pos.getX(i) / (pw / 2), pos.getY(i) / (ph / 2)));
+      geo.computeVertexNormals();
+      var front = new THREE.Mesh(geo, mkMat());
+      var back = new THREE.Mesh(geo, mkMat());
+      back.rotation.y = Math.PI; // the same sheet turned to face the other way (the back of the cloth)
+      var group = new THREE.Group();
+      group.add(front, back);
+      group.position.set(0, -HANGER_DROP - ph / 2, 0);
+      group.userData.ownGeometry = true;
+      group.userData.size = { w: pw, h: ph };
       if (this.plane) this.el.removeObject3D('thumb');
-      this.plane = plane;
-      this.el.setObject3D('thumb', plane);
-      this.mesh.scale.set(pw, ph, 0.1);
+      this.plane = group;
+      this.el.setObject3D('thumb', group);
+      this.mesh.scale.set(pw, ph, 0.1 + 2 * GARMENT_BULGE);
       this.mesh.position.set(0, -HANGER_DROP - ph / 2, 0);
       this.placeGarmentSticker(pw, ph);
     },
     placeGarmentSticker: function (pw, ph) {
       if (!this.stickerMesh) return;
-      this.stickerMesh.position.set(pw * 0.22, -HANGER_DROP - ph * 0.72, 0.02);
+      var u = 0.44, v = -0.44; // lower right of the garment, in -1..1 sheet coordinates
+      this.stickerMesh.position.set(pw / 2 * u, -HANGER_DROP - ph / 2 + ph / 2 * v, garmentBulge(u, v) + 0.012);
     },
     buildSticker: function () {
       var d = this.data;

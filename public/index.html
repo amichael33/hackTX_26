@@ -13,6 +13,8 @@
   <script src="js/components/smoke.js"></script>
   <script src="js/components/corkboard.js"></script>
   <script src="js/components/clothes-rail.js"></script>
+  <script src="js/components/river.js"></script>
+  <script src="js/components/bridge.js"></script>
   <script src="js/collide.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
@@ -49,6 +51,7 @@
 
     <a-entity id="smoke" smoke></a-entity>
 
+    <a-entity id="features"></a-entity>
     <a-entity id="shelves" visible="false"></a-entity>
     <a-entity id="products"></a-entity>
   </a-scene>
@@ -89,6 +92,7 @@
         <ul id="cart-list"></ul>
         <p id="cart-empty">Click a product and press Add to cart.</p>
         <p id="cart-footer" hidden></p>
+        <label id="cart3d-toggle"><input id="cart3d-check" type="checkbox" checked> Show my cart in the store <kbd>C</kbd></label>
       </div>
       <div id="searches-pane" hidden>
         <p class="searches-empty">No past searches yet.</p>
