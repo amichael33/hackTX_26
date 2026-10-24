@@ -82,3 +82,16 @@ test('setMap swaps footprints in place and changes the room size', () => {
   assert.equal(C.circleClear(-2, -2, 0.3), true);
   assert.equal(C.circleClear(0.5, 0.5, 0.3), false);
 });
+
+test('every map uses known shelf styles and a known clerk outfit', () => {
+  const styles = ['oak', 'cubby', 'rack', 'timber'], outfits = ['suit', 'apron', 'hivis', 'tabard'];
+  for (const m of MAPS) {
+    for (const [zone, style] of Object.entries(m.shelfStyles ?? {})) {
+      assert.ok(styles.includes(style), `${m.id}.${zone}: ${style}`);
+      assert.ok(ZONE_LABELS[zone], `${m.id}: unknown zone ${zone}`);
+    }
+    assert.ok(outfits.includes(m.clerkOutfit), `${m.id} outfit ${m.clerkOutfit}`);
+    assert.ok(!m.desk.body, `${m.id}: desk is the position; colors live in deskStyle`);
+  }
+  assert.ok(new Set(MAPS.map((m) => m.clerkOutfit)).size === MAPS.length, 'each map has its own outfit');
+});

@@ -42,6 +42,7 @@ export function applyMap(map, { preview = false } = {}) {
   $('desk')?.setAttribute('position', `${desk.x} 0 ${desk.z}`);
   $('desk')?.setAttribute('desk', { body: map.deskStyle?.body ?? '#fbfbfd', top: map.deskStyle?.top ?? '#d9bf98' });
   $('clerk')?.setAttribute('position', `${clerk.x} 0 ${clerk.z}`);
+  $('clerk')?.setAttribute('clerk', 'outfit', map.clerkOutfit ?? 'suit');
 
   // Lights and the disco ball hang from this map's ceiling.
   const hang = room.height - 0.5;

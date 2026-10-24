@@ -6,6 +6,7 @@ export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You 
 
 // Optional per-map styling (all have defaults, see the helpers below):
 //   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
+//   clerkOutfit: suit | apron | hivis | tabard (what Bob wears);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
 export const DEFAULT_SHELF_STYLE = 'oak';
 export const shelfStyleFor = (map, zone) => map.shelfStyles?.[zone] ?? DEFAULT_SHELF_STYLE;
@@ -31,6 +32,7 @@ export const MAPS = [
     ],
     board: { x: 1, y: 1.55, z: -9.97, width: 6, height: 2.2, bannerY: 3.0 },
     shelfStyles: { center: 'cubby' },
+    clerkOutfit: 'suit',
   },
   {
     id: 'boutique',
@@ -49,6 +51,7 @@ export const MAPS = [
     ],
     board: { x: 1.5, y: 1.55, z: -6.97, width: 5, height: 2.2, bannerY: 3.0 },
     shelfStyles: { left: 'cubby', right: 'cubby', back: 'cubby' },
+    clerkOutfit: 'apron',
   },
   {
     id: 'warehouse',
@@ -67,6 +70,7 @@ export const MAPS = [
     ],
     board: { x: 4, y: 1.55, z: -14.97, width: 8, height: 2.2, bannerY: 3.0 },
     shelfStyles: { left: 'rack', right: 'rack', back: 'rack', center: 'rack' },
+    clerkOutfit: 'hivis',
   },
   {
     id: 'castle',
@@ -87,6 +91,7 @@ export const MAPS = [
     shelfStyles: { left: 'timber', right: 'timber', back: 'timber', center: 'timber' },
     labels: { left: 'Squire\'s Bargains', right: 'Royal Treasury', back: 'Also in the Armory', center: 'More Like This' },
     light: '#ffc98a',
+    clerkOutfit: 'tabard',
     deskStyle: { body: '#5a3d24', top: '#8a6a45' },
   },
 ];
