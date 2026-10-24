@@ -1,5 +1,5 @@
 import { store, movementEnabled } from './store.js';
-import { postChat, postGeocode } from './api.js';
+import { postChat, postGeocode, postSearch } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation } from './text.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy } from './ui.js';
 
@@ -136,9 +136,42 @@ async function runTurn(text) {
   if (res.ready) {
     const { query, min_price, max_price, preferences, extra_queries } = res;
     store.set({ query: { query, min_price, max_price, preferences, extra_queries } });
-    store.setPhase('SEARCHING'); // Task 6 handles phase:SEARCHING
+    store.setPhase('SEARCHING');
   }
 }
+
+// --- Search: fetch products while the clerk says "checking the back" ---
+const SEARCH_WAIT = 'Let me check the back...';
+const SEARCH_EMPTY = 'Hmm, nothing matched. Want to try something else?';
+const SEARCH_FAILED = "Hmm, I couldn't reach the back room. Want to try again?";
+
+async function runSearch() {
+  try {
+    store.set({ status: 'thinking' });
+    const { query, location } = store.get();
+    const waiting = clerkSay(SEARCH_WAIT);
+    const searching = postSearch({ query, city: location?.city }).then(
+      (res) => res?.products ?? [],
+      (err) => {
+        console.warn('search failed', err);
+        return null; // null = request failed, distinct from an empty result
+      },
+    );
+    const [products] = await Promise.all([searching, waiting]);
+
+    if (products?.length) {
+      store.set({ products });
+      store.setPhase('OPENING');
+      return;
+    }
+    await clerkSay(products === null ? SEARCH_FAILED : SEARCH_EMPTY);
+    store.setPhase('CHATTING');
+    store.set({ messages: [] }); // next chat starts fresh
+  } finally {
+    if (store.get().status !== 'idle') store.set({ status: 'idle' });
+  }
+}
+store.on('phase:SEARCHING', runSearch);
 
 // Returns false when the submit is ignored so the UI keeps the typed text.
 function handlePlayerSubmit(raw) {
