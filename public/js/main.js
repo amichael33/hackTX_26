@@ -5,6 +5,7 @@ import { fallbackSticker } from './stickerText.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
+import { storeColor } from './storeColor.js';
 import { layoutStore, layoutSimilar } from './layoutStore.js';
 
 window.store = store; // console debugging
@@ -220,7 +221,6 @@ async function runSearch() {
 store.on('phase:SEARCHING', runSearch);
 
 // --- Opening: show the shelves and pop the products in one by one ---
-const BOX_COLOR = '#0071e3'; // the store's primary blue (same as the UI's primary buttons)
 const SPAWN_MS = 60;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -231,7 +231,7 @@ function spawnBox(container, slot) {
   const p = slot.product;
   const e = document.createElement('a-entity');
   e.setAttribute('product-box', {
-    productId: p.id, thumb: p.thumbnail ?? '', color: BOX_COLOR, size: 0.45,
+    productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.45,
     sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
   });
   boxEls.set(p.id, e);
