@@ -479,6 +479,20 @@ document.querySelector('a-scene').addEventListener('product-selected', (e) => {
   showProductCard(p);
 });
 
+// The castle's alligator holds up a search result in its open mouth while the player is on a bridge (it asks for one).
+let gatorIdx = 0;
+document.querySelector('a-scene').addEventListener('gator-mouth', (e) => {
+  if (!e.detail?.open) return;
+  const mouth = e.target?.components?.alligator?.mouthEl;
+  const list = [...store.get().products].sort((a, b) => a.relevance - b.relevance);
+  if (!mouth || !list.length) return;
+  const p = list[gatorIdx++ % list.length];
+  mouth.setAttribute('product-box', {
+    productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.4,
+    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+  });
+});
+
 const cart3dCheck = document.getElementById('cart3d-check');
 function setCart3d(on) {
   cart3dOn = on;

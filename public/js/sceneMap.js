@@ -68,6 +68,7 @@ function buildFeatures(map) {
   const rv = riverFor(map);
   if (!rv) return;
   el('a-entity', { river: `length:${rv.halfW * 2}; width:${rv.width}; bank:${rv.bank}`, position: `0 0 ${rv.z}` }, box);
+  if (rv.gator) el('a-entity', { alligator: `range:${rv.halfW - 2.5}; sway:${Math.max(0.2, rv.width / 2 - 0.5)}; avoid:${rv.bridges.map((b) => b.x).join(',')}; avoidHalf:${rv.bridges[0].width / 2 + 2.3}`, position: `0 0.04 ${rv.z}` }, box);
   for (const b of rv.bridges) {
     el('a-entity', { bridge: `width:${b.width}; length:${b.zEnd - b.zStart}; arch:${b.arch}`, position: `${b.x} 0 ${(b.zStart + b.zEnd) / 2}` }, box);
   }

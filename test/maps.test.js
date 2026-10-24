@@ -147,3 +147,12 @@ test('the castle: a courtyard between the desk and the spawn, a river across the
   for (let z = b.zStart; z <= b.zEnd; z += 0.1) assert.ok(walkHeight(castle, b.x, z) >= 0);
   assert.equal(walkHeight(getMap('classic'), 0, 5), 0);
 });
+
+test('the castle river has an alligator, which keeps clear of the bridges', async () => {
+  const { riverFor } = await import('../public/js/maps.js');
+  assert.equal(riverFor(getMap('castle')).gator, true);
+  for (const id of ['classic', 'boutique', 'warehouse']) assert.equal(riverFor(getMap(id)), null);
+  // sceneMap hands the bridge positions to the alligator, so it surfaces beside a bridge (not hidden under the deck).
+  const src = (await import('node:fs')).readFileSync(new URL('../public/js/sceneMap.js', import.meta.url), 'utf8');
+  assert.match(src, /alligator: `range:.*avoid:\$\{rv\.bridges\.map/);
+});

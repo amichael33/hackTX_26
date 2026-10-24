@@ -7,7 +7,7 @@ export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You 
 // Optional per-map styling (all have defaults, see the helpers below):
 //   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
-//   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach } (see riverFor) and lightBz (z of the second light);
+//   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach, gator } (see riverFor; gator puts an alligator in it) and lightBz (z of the second light);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
 export const DEFAULT_SHELF_STYLE = 'oak';
 export const shelfStyleFor = (map, zone) => map.shelfStyles?.[zone] ?? DEFAULT_SHELF_STYLE;
@@ -93,7 +93,7 @@ export const MAPS = [
     ],
     board: { x: 3.5, y: 1.55, z: -15.97, width: 7, height: 2.2, bannerY: 3.0 },
     // A courtyard between the desk and the spawn, with a river across the hall and an arched bridge on each side of the desk.
-    river: { z: 8, width: 2.6, bank: 0.2, bridges: [-5.2, 5.2], bridgeWidth: 2.4, arch: 0.8, approach: 1.6 },
+    river: { z: 8, width: 2.6, bank: 0.2, bridges: [-5.2, 5.2], bridgeWidth: 2.4, arch: 0.8, approach: 1.6, gator: true },
     shelfStyles: { left: 'timber', right: 'timber', back: 'timber', center: 'timber' },
     labels: { left: 'Squire\'s Bargains', right: 'Royal Treasury', back: 'Also in the Armory', center: 'More Like This' },
     light: '#ffc98a',
@@ -115,7 +115,7 @@ export function riverFor(map) {
   const half = r.width / 2 + r.bank;
   const zMin = r.z - half, zMax = r.z + half;
   const bridges = r.bridges.map((x) => ({ x, width: r.bridgeWidth, zStart: zMin - r.approach, zEnd: zMax + r.approach, arch: r.arch }));
-  return { z: r.z, width: r.width, bank: r.bank, zMin, zMax, bridges, halfW: map.room.width / 2 };
+  return { z: r.z, width: r.width, bank: r.bank, zMin, zMax, bridges, halfW: map.room.width / 2, gator: r.gator === true };
 }
 
 // Ground height under (x, z): the arch of a bridge deck, 0 everywhere else. No allocations (runs every frame).
