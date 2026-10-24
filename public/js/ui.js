@@ -1,7 +1,7 @@
 // Overlay wiring: chat bar, subtitle typewriter, chat log, mute/skip.
 import { store } from './store.js';
 import { speak, cancelSpeech, createRecognizer } from './voice.js';
-import { formatPrice } from './text.js';
+import { formatPrice, timeAgo } from './text.js';
 import { imgUrl } from './api.js';
 
 const CHAR_MS = 35;
@@ -388,4 +388,48 @@ export function renderCart(items, total) {
   cartEmpty.hidden = items.length > 0;
   cartFooter.hidden = items.length === 0;
   cartFooter.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'} Â· ${formatPrice(total)}`;
+}
+
+// --- Past searches tab ---
+let pickHandler = null;
+let searchRemoveHandler = null;
+export function onPastSearchPick(fn) { pickHandler = fn; }
+export function onPastSearchRemove(fn) { searchRemoveHandler = fn; }
+
+// Collapse the panel and return to the Cart tab so the player sees the store build.
+export function closeWidget() {
+  showWidgetTab('cart');
+  clearTimeout(peekTimer);
+  setCartExpanded(false);
+}
+
+export function renderPastSearches(list) {
+  searchesPane.textContent = '';
+  if (!list.length) {
+    const p = document.createElement('p');
+    p.className = 'searches-empty';
+    p.textContent = 'No past searches yet.';
+    searchesPane.append(p);
+    return;
+  }
+  const ul = document.createElement('ul');
+  ul.className = 'searches-list';
+  for (const e of list) {
+    const li = document.createElement('li');
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'search-row';
+    const n = e.products.length;
+    row.textContent = `${e.query.query} · ${e.city ?? ''} · ${n} ${n === 1 ? 'item' : 'items'} · ${timeAgo(e.savedAt)}`;
+    row.addEventListener('click', () => pickHandler?.(e.id));
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'search-remove';
+    rm.setAttribute('aria-label', 'Delete saved search');
+    rm.textContent = '×';
+    rm.addEventListener('click', () => searchRemoveHandler?.(e.id));
+    li.append(row, rm);
+    ul.append(li);
+  }
+  searchesPane.append(ul);
 }

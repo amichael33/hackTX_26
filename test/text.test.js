@@ -22,3 +22,17 @@ test('formatPrice', () => {
   assert.equal(formatPrice(100), '$100');
   assert.equal(formatPrice(1299.5), '$1,299.50');
 });
+
+import { timeAgo } from '../public/js/text.js';
+
+test('timeAgo buckets', () => {
+  const now = 1_000_000_000_000;
+  assert.equal(timeAgo(now - 59_000, now), 'just now');
+  assert.equal(timeAgo(now + 5000, now), 'just now');
+  assert.equal(timeAgo(now - 60_000, now), '1 min ago');
+  assert.equal(timeAgo(now - 59 * 60_000, now), '59 min ago');
+  assert.equal(timeAgo(now - 60 * 60_000, now), '1 h ago');
+  assert.equal(timeAgo(now - 23 * 3600_000, now), '23 h ago');
+  assert.equal(timeAgo(now - 24 * 3600_000, now), '1 d ago');
+  assert.equal(timeAgo(now - 3 * 86400_000, now), '3 d ago');
+});

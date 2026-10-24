@@ -26,6 +26,7 @@ function initialState() {
     products: [],
     messages: [],
     inputFocused: false,
+    replay: null,
   };
 }
 
