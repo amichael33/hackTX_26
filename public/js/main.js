@@ -2,13 +2,16 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postSimilar, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { layoutStore, layoutSimilar } from './layoutStore.js';
 
 window.store = store; // console debugging
 
+const CART_ENABLED = false; // the shopping cart is switched off for now; Past searches stay
+document.body.classList.toggle('cart-off', !CART_ENABLED);
+showWidgetTab(CART_ENABLED ? 'cart' : 'searches');
 const cart = createCart();
 const savedSearches = createSavedSearches();
 renderPastSearches(savedSearches.list());
@@ -31,7 +34,7 @@ function applyState(state) {
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
-  if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', state.phase === 'BROWSING');
+  if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && state.phase === 'BROWSING');
 }
 
 function boot() {

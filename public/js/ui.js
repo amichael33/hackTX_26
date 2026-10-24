@@ -330,7 +330,7 @@ export function peekCart() {
 }
 
 export function showWidgetTab(name) {
-  const cartOn = name !== 'searches';
+  const cartOn = name !== 'searches' && !document.body.classList.contains('cart-off');
   cartPane.hidden = !cartOn;
   searchesPane.hidden = cartOn;
   tabCart.setAttribute('aria-selected', String(cartOn));
