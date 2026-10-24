@@ -122,7 +122,13 @@ async function typedLocation(raw) {
   await finishLocation({ city, source: city === DEFAULT_CITY ? 'default' : 'typed' });
 }
 
-onLocationChoice({ onShare: shareLocation, onTyped: typedLocation, onType: abandonGps });
+// Skipping is allowed: the search just uses the default city.
+function skipLocation() {
+  abandonGps();
+  return typedLocation('');
+}
+
+onLocationChoice({ onShare: shareLocation, onTyped: typedLocation, onType: abandonGps, onSkip: skipLocation });
 
 async function startLocationStep() {
   locationBusy = false;

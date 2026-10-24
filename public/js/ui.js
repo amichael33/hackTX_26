@@ -139,6 +139,7 @@ export function setLocationBusy(busy) {
 }
 
 shareBtn.addEventListener('click', () => locationHandlers?.onShare());
+$('skip-loc-btn').addEventListener('click', () => locationHandlers?.onSkip?.());
 typeBtn.addEventListener('click', () => {
   locationHandlers?.onType?.(); // abandons any pending GPS request
   showTypedField();
