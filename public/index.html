@@ -60,5 +60,27 @@
     <p>Chat with our clerk, then browse shelves stocked just for you.</p>
     <button id="enter-btn" type="button">Enter store</button>
   </div>
+
+  <aside id="chat-log" class="collapsed" hidden>
+    <button id="chat-log-toggle" type="button" aria-expanded="false">Chat log</button>
+    <ul id="chat-log-list" aria-live="polite"></ul>
+  </aside>
+
+  <div id="hud">
+    <div id="subtitle" hidden>
+      <p id="subtitle-text" aria-live="polite"></p>
+      <div id="subtitle-controls">
+        <button id="skip-btn" type="button" hidden>Skip</button>
+        <button id="mute-btn" type="button" aria-pressed="false">Mute</button>
+      </div>
+    </div>
+    <div id="chat-bar" hidden>
+      <form id="chat-form">
+        <input id="chat-input" type="text" autocomplete="off" placeholder="Tell the clerk what you want..." aria-label="Message the clerk" disabled>
+        <button id="mic-btn" type="button" aria-label="Speak" hidden>Mic</button>
+        <button id="send-btn" type="submit" disabled>Send</button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

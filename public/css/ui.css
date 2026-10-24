@@ -12,3 +12,55 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
   background: #ffcf33; color: #222; font-weight: 700; cursor: pointer;
 }
 #enter-btn:hover { background: #ffdb66; }
+
+/* --- HUD: subtitle + chat bar, bottom of screen --- */
+#hud {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 0 12px 14px; pointer-events: none;
+}
+#hud > * { pointer-events: auto; }
+#subtitle[hidden], #chat-bar[hidden], #chat-log[hidden], #skip-btn[hidden], #mic-btn[hidden] { display: none; }
+#subtitle {
+  display: flex; align-items: center; gap: 10px;
+  width: min(720px, 100%); box-sizing: border-box;
+  background: rgba(10, 12, 18, 0.82); color: #fff;
+  border-radius: 10px; padding: 10px 14px;
+}
+#subtitle-text { flex: 1; margin: 0; font-size: 1.1rem; line-height: 1.35; min-height: 1.35em; }
+#subtitle-controls { display: flex; gap: 6px; flex-shrink: 0; }
+#subtitle-controls button, #chat-log-toggle {
+  font: inherit; font-size: 0.85rem; padding: 5px 10px; border: 0; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2); color: #fff; cursor: pointer;
+}
+#subtitle-controls button:hover, #chat-log-toggle:hover { background: rgba(255, 255, 255, 0.32); }
+#chat-bar { width: min(720px, 100%); }
+#chat-form { display: flex; gap: 8px; }
+#chat-input {
+  flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 10px 12px;
+  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #111;
+}
+#chat-input:disabled { opacity: 0.6; }
+#send-btn, #mic-btn {
+  font: inherit; font-weight: 700; padding: 10px 16px; border: 0; border-radius: 8px;
+  background: #ffcf33; color: #222; cursor: pointer;
+}
+#send-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* --- Collapsible chat log, right side --- */
+#chat-log {
+  position: fixed; right: 12px; top: 12px; bottom: 120px; z-index: 5;
+  width: min(300px, 60vw); display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  pointer-events: none;
+}
+#chat-log > * { pointer-events: auto; }
+#chat-log-toggle { background: rgba(10, 12, 18, 0.82); }
+#chat-log-list {
+  list-style: none; margin: 0; padding: 8px; width: 100%; box-sizing: border-box;
+  flex: 1; min-height: 0; overflow-y: auto;
+  background: rgba(10, 12, 18, 0.82); border-radius: 10px; color: #fff; font-size: 0.9rem;
+}
+#chat-log.collapsed #chat-log-list { display: none; }
+#chat-log-list li { margin: 0 0 8px; padding: 6px 8px; border-radius: 8px; line-height: 1.3; }
+#chat-log-list .log-clerk { background: rgba(255, 207, 51, 0.22); }
+#chat-log-list .log-user { background: rgba(255, 255, 255, 0.16); text-align: right; }
