@@ -55,9 +55,9 @@
       tag.position.set(-0.08, 1.15, 0.29);
       this.body.object3D.add(tag);
       // Three lonely hairs, on the hat-free side of the crown (the hat sits at x 0.06).
-      [[-0.04, 0, 8], [-0.09, 0.03, 20], [-0.13, -0.02, 30]].forEach(function (h) {
+      [[-0.04, 0], [-0.09, 0.03], [-0.13, -0.02]].forEach(function (h) {
         var y = Math.sqrt(0.24 * 0.24 - h[0] * h[0] - h[1] * h[1]);
-        mk('a-cylinder', { position: h[0] + ' ' + (y + 0.035) + ' ' + h[1], rotation: '0 0 ' + h[2], radius: 0.004, height: 0.08, 'segments-radial': 4 }, '#3b2a1a', self.head);
+        mk('a-cylinder', { position: h[0] + ' ' + (y + 0.035) + ' ' + h[1], radius: 0.004, height: 0.08, 'segments-radial': 4 }, '#3b2a1a', self.head);
       });
       // One-shot celebratory spin, triggered by emitting `spin` on the clerk entity.
       this.spinFrom = -1;
