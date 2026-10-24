@@ -40,6 +40,7 @@
       this.el.classList.add('clickable');
       this.mesh = null;
       this.plane = null;
+      this.standee = null;
       this.stickerMesh = null;
       this.stickerCanvas = null;
       this.tilt = 0;
@@ -92,6 +93,16 @@
         this.stickerMesh = null;
         this.stickerCanvas = null;
       }
+      if (this.standee) {
+        var st = this.standee;
+        st.traverse(function (o) {
+          if (o.geometry) o.geometry.dispose();
+          // The cardboard material is shared via matCache; only the canvas-textured one is ours.
+          if (o.material && o.material.map) { o.material.map.dispose(); o.material.dispose(); }
+        });
+        this.el.removeObject3D('standee');
+        this.standee = null;
+      }
       if (this.plane) {
         if (this.plane.material) {
           if (this.plane.material.map) this.plane.material.map.dispose();
@@ -109,9 +120,73 @@
       this.el.setObject3D('mesh', this.mesh);
       this.buildSticker();
       if (!d.thumb) return;
+      var url = '/api/img?u=' + encodeURIComponent(d.thumb);
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        if (self.buildId !== buildId || !self.mesh) return; // removed or rebuilt while loading
+        var cut = null;
+        try { cut = self.makeCutout(img); } catch (e) { cut = null; } // tainted canvas etc.
+        if (cut) self.buildStandee(cut);
+        else self.buildThumbPlane(url, buildId);
+      };
+      img.onerror = function () { /* keep the colored box, no plane */ };
+      img.src = url;
+    },
+    // Returns { canvas, aspect } for a background-removed crop, or null when the photo has no plain background.
+    makeCutout: function (img) {
+      var SC = window.StoreCutout;
+      if (!SC) return null;
+      var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      if (!iw || !ih) return null;
+      var k = Math.min(1, 256 / Math.max(iw, ih));
+      var w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
+      var src = document.createElement('canvas');
+      src.width = w; src.height = h;
+      var ctx = src.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var id = ctx.getImageData(0, 0, w, h); // throws if tainted
+      var res = SC.removeEdgeBackground(id.data, w, h);
+      if (res.removedFraction < 0.04) return null;
+      var bb = SC.alphaBBox(id.data, w, h);
+      if (!bb) return null;
+      ctx.putImageData(id, 0, 0);
+      var pad = 2;
+      var x0 = Math.max(0, bb.x - pad), y0 = Math.max(0, bb.y - pad);
+      var x1 = Math.min(w, bb.x + bb.w + pad), y1 = Math.min(h, bb.y + bb.h + pad);
+      var cw = x1 - x0, ch = y1 - y0;
+      var out = document.createElement('canvas');
+      out.width = cw; out.height = ch;
+      out.getContext('2d').drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
+      return { canvas: out, aspect: cw / ch };
+    },
+    buildStandee: function (cut) {
+      var d = this.data, size = d.size;
+      var pw, ph;
+      if (cut.aspect >= 1) { pw = size; ph = size / cut.aspect; } else { ph = size; pw = size * cut.aspect; }
+      var tex = new THREE.CanvasTexture(cut.canvas);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+      var plane = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
+      plane.position.y = -size / 2 + ph / 2; // bottom edge on the surface the box sat on
+      var stand = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.9, ph * 0.25, 0.012), boxMat('#c8a165'));
+      stand.position.set(0, -size / 2 + ph * 0.125, -0.008);
+      var group = new THREE.Group();
+      group.add(plane);
+      group.add(stand);
+      this.standee = group;
+      this.el.setObject3D('standee', group);
+      // Hidden, not removed: the box stays in the raycast target set, so the click area is unchanged.
+      this.mesh.visible = false;
+      if (this.stickerMesh) {
+        var side = size * 0.7;
+        this.stickerMesh.position.y = -size / 2 + ph + side / 2 + 0.02;
+      }
+    },
+    buildThumbPlane: function (url, buildId) {
+      var d = this.data, self = this;
       var loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
-      var url = '/api/img?u=' + encodeURIComponent(d.thumb);
       loader.load(url, function (tex) {
         if (self.buildId !== buildId || !self.mesh) { tex.dispose(); return; } // removed or rebuilt while loading
         if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
@@ -120,7 +195,6 @@
         self.plane = plane;
         self.el.setObject3D('thumb', plane);
       }, undefined, function () {
-        // Texture failed: keep the colored box, no plane.
         if (self.buildId === buildId) self.plane = null;
       });
     },
