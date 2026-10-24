@@ -140,16 +140,17 @@
   // around the top), two rails that run flat under the tub and then rise into the handles, legs, a braced fork and a spoked
   // wooden wheel at the front. Origin = floor centre; +z = the handles, toward the player.
   var plankTex = null;
+  // One plank: wood with slanted grain strokes, darker long edges (the seams between neighbours) and two iron bands across it.
   function planks() {
     if (plankTex) return plankTex;
     var c = document.createElement('canvas');
-    c.width = 128; c.height = 64;
+    c.width = 32; c.height = 64;
     var g = c.getContext('2d');
-    g.fillStyle = '#9a7448'; g.fillRect(0, 0, 128, 64);
-    for (var i = 0; i < 4; i++) { g.fillStyle = i % 2 ? '#a07a4d' : '#946c42'; g.fillRect(i * 32, 0, 32, 64); }    // plank tones
-    g.fillStyle = '#5e4429'; [0, 32, 64, 96].forEach(function (x) { g.fillRect(x, 0, 2, 64); });                       // seams
-    g.fillStyle = 'rgba(70,45,20,0.25)'; for (var k = 0; k < 24; k++) g.fillRect((k * 53) % 128, (k * 29) % 64, 1, 8); // grain
-    g.fillStyle = '#2b2b2b'; g.fillRect(0, 10, 128, 5); g.fillRect(0, 49, 128, 5);                                      // iron bands
+    g.fillStyle = '#9a7448'; g.fillRect(0, 0, 32, 64);
+    g.strokeStyle = 'rgba(70,45,20,0.3)'; g.lineWidth = 1.5;
+    for (var k = 0; k < 7; k++) { var x = 6 + (k * 11) % 20, y = (k * 23) % 50; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y + 9); g.stroke(); }
+    g.fillStyle = '#5e4429'; g.fillRect(0, 0, 2, 64); g.fillRect(30, 0, 2, 64);                                         // seams
+    g.fillStyle = '#2b2b2b'; g.fillRect(0, 10, 32, 5); g.fillRect(0, 49, 32, 5);                                        // iron bands
     plankTex = new THREE.CanvasTexture(c);
     if (THREE.SRGBColorSpace) plankTex.colorSpace = THREE.SRGBColorSpace;
     return plankTex;
@@ -172,12 +173,25 @@
     grainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, flatShading: true });
     return grainMat;
   }
-  // A flat four-cornered panel (bottom-left, bottom-right, top-right, top-left) with its UVs, visible from both sides.
-  function panelGeo(bl, br, tr, tl) {
+  // A wall made of `n` separate plank strips (bottom-left, bottom-right, top-right, top-left corners of the whole wall). Each strip
+  // is its own quad with its own 0..1 texture, so every seam is a straight line from the bottom edge to the top edge: one texture
+  // stretched over a whole trapezoid would bend the lines at the diagonal. Strips alternate in tone through vertex colours.
+  function plankedWall(bl, br, tr, tl, n) {
+    var pos = [], uv = [], col = [], idx = [];
+    var lerp = function (a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; };
+    for (var i = 0; i < n; i++) {
+      var b0 = lerp(bl, br, i / n), b1 = lerp(bl, br, (i + 1) / n), t0 = lerp(tl, tr, i / n), t1 = lerp(tl, tr, (i + 1) / n);
+      var o = i * 4, shade = i % 2 ? 0.93 : 1;
+      pos.push.apply(pos, [].concat(b0, b1, t1, t0));
+      uv.push(0, 0, 1, 0, 1, 1, 0, 1);
+      for (var v = 0; v < 4; v++) col.push(shade, shade, shade);
+      idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    }
     var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute([].concat(bl, br, tr, tl), 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-    geo.setIndex([0, 1, 2, 0, 2, 3]);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
     geo.computeVertexNormals();
     return geo;
   }
@@ -185,17 +199,16 @@
   function buildWheelbarrow(g) {
     var add = newPart(g);
     var dark = frameWood(), iron = mat('#2b2b2b'), wood = mat('#9a7448'), rim = mat('#b08a56'), leather = mat('#3a2a18');
-    var plank = new THREE.MeshStandardMaterial({ map: planks(), roughness: 0.95, flatShading: true }); // wheel disc: the tub's planks
 
     // --- the tub: floor at y 0.335, walls flaring out to the top rim at y 0.615 ---
     var YB = 0.335, YT = 0.615, ZC = -0.05, WB = 0.17, LB = 0.26, WT = 0.31, LT = 0.39;
     add(box(2 * WB, 0.025, 2 * LB), wood, 0, YB + 0.0125, ZC);
-    var wallMat = new THREE.MeshStandardMaterial({ map: planks(), roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
-    var wall = function (bl, br, tr, tl) { var m = new THREE.Mesh(panelGeo(bl, br, tr, tl), wallMat); g.add(m); };
-    wall([-WB, YB, ZC - LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [-WT, YT, ZC - LT]); // left
-    wall([WB, YB, ZC + LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [WT, YT, ZC + LT]);     // right
-    wall([-WB, YB, ZC - LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [-WT, YT, ZC - LT]);   // front (toward the wheel)
-    wall([WB, YB, ZC + LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [WT, YT, ZC + LT]);   // back (toward the player)
+    var wallMat = new THREE.MeshStandardMaterial({ map: planks(), vertexColors: true, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
+    var wall = function (bl, br, tr, tl, n) { g.add(new THREE.Mesh(plankedWall(bl, br, tr, tl, n), wallMat)); };
+    wall([-WB, YB, ZC - LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [-WT, YT, ZC - LT], 6); // left
+    wall([WB, YB, ZC + LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [WT, YT, ZC + LT], 6);     // right
+    wall([-WB, YB, ZC - LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [-WT, YT, ZC - LT], 5);   // front (toward the wheel)
+    wall([WB, YB, ZC + LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [WT, YT, ZC + LT], 5);   // back (toward the player)
     // Rim: the long sides run the full length, the front and back sit between them.
     [-1, 1].forEach(function (s) { add(box(0.04, 0.035, 2 * LT + 0.04), rim, s * WT, YT, ZC); });
     [-1, 1].forEach(function (s) { add(box(2 * WT - 0.04, 0.035, 0.04), rim, 0, YT, ZC + s * LT); });
@@ -220,7 +233,7 @@
     // --- the wheel: iron tyre, wooden disc and spokes, on an axle ---
     var WY = 0.19, WZ = -0.62;
     add(wheelGeo(0.19, 0.06), iron, 0, WY, WZ, 0, 0, Math.PI / 2);
-    add(wheelGeo(0.165, 0.064), plank, 0, WY, WZ, 0, 0, Math.PI / 2);
+    add(wheelGeo(0.165, 0.064), dark, 0, WY, WZ, 0, 0, Math.PI / 2); // wooden disc, in the frame's wood
     [0, 60, 120].forEach(function (a) { add(box(0.068, 0.3, 0.018), dark, 0, WY, WZ, a * DEG, 0, 0); });
     add(box(0.17, 0.028, 0.028), dark, 0, WY, WZ);                                                          // axle
   }
