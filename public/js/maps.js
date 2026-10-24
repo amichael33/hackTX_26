@@ -101,7 +101,7 @@ export const MAPS = [
       ...[-6.5, -3.5].map((x) => unit('back', x, -15.2, 0)),
       ...[-3.5, 3.5].map((x) => unit('center', x, -3.5, 0)),
     ],
-    board: { x: 3.5, y: 1.55, z: -15.97, width: 7, height: 2.2, bannerY: 3.0 },
+    board: { x: 3.5, y: 1.55, z: -15.97, width: 7, height: 2.2, bannerY: 3.0, notes: 'parchment' }, // parchment notes held by daggers
     // A courtyard between the desk and the spawn, with a river across the hall and an arched bridge on each side of the desk.
     river: { z: 8, width: 2.6, bank: 0.2, bridges: [-5.2, 5.2], bridgeWidth: 2.4, arch: 0.8, approach: 1.6, gator: true },
     shelfStyles: { left: 'timber', right: 'timber', back: 'timber', center: 'timber' },

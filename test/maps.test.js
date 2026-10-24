@@ -189,3 +189,9 @@ for (const map of MAPS) {
     }
   });
 }
+
+test('only the castle board uses parchment notes held by daggers; the others keep sticky notes', () => {
+  for (const m of MAPS) assert.ok([undefined, 'postit', 'parchment'].includes(m.board.notes), `${m.id}: ${m.board.notes}`);
+  assert.equal(getMap('castle').board.notes, 'parchment');
+  for (const id of ['classic', 'boutique', 'warehouse']) assert.notEqual(getMap(id).board.notes, 'parchment');
+});

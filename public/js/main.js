@@ -7,7 +7,7 @@ import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
 import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
-import { isClothingSearch } from './category.js';
+import { isClothingSearch, isApparelTitle } from './category.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
@@ -522,7 +522,8 @@ onCartRemove((id) => { cart.remove(id); });
 function onCartChanged() {
   renderCart(cart.items(), cart.total());
   if (cardProduct) setCardInCart(cart.has(cardProduct.id));
-  scene.emit('cart-changed', { items: cart.items() });
+  // The 3D cart draws each item like its shelf product: a box in the retailer's colour, or a folded garment for clothes.
+  scene.emit('cart-changed', { items: cart.items().map((i) => ({ ...i, color: storeColor(i.source), garment: isApparelTitle(i.title) })) });
 }
 cart.on('change', onCartChanged);
 onCartChanged();

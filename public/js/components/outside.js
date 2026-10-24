@@ -288,6 +288,7 @@
         add(new THREE.BoxGeometry(2.5, 2.8, 6.4), flat('#e9e9ec'), 0, 1.8, -0.5, body);            // trailer
         [-1.1, 1.1].forEach(function (wx) { [-2.6, 0.4, 3.6].forEach(function (wz) { add(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 8), flat('#1d1d1f'), wx, 0.5, wz, body).rotation.z = Math.PI / 2; }); });
       };
+      var vehicles = []; // [x, z, clear radius] of every vehicle placed so far
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (n) {
         var span = n[0] ? hd + 20 : hw + 20;
         for (var u = -span; u < span; u += T.lamps === 'torch' ? 7 : 10) {
@@ -297,12 +298,21 @@
           // Only low bushes against the shop's own wall: a full tree here would poke through it into the room.
           if (T.trees && rnd() < 0.5) { var tq = sidewalkAt(n, 1.5, u + between(-1, 1)); add(new THREE.SphereGeometry(between(0.4, 0.6), 7, 5), flat(pick(['#5f9a4a', '#4f8a42', '#6aa84f'])), tq[0], 0.4, tq[1]); }
         }
-        // vehicles on the road (never on the player's side of the front road, where the door is)
+        // Vehicles on the road: two fixed lanes, and a spot is only used if it is clear of every vehicle already placed
+        // (on any road), so two never overlap. Trucks are longer, so they need more room.
         var cars = d.theme === 'industrial' ? 3 : T.cars.length ? 4 : 0;
         for (var ci2 = 0; ci2 < cars; ci2++) {
-          var cu = between(-span + 4, span - 4), lane = ROAD0 + between(1.2, 2.2) + (rnd() < 0.5 ? 0 : 1.6);
-          var cp = sidewalkAt(n, lane, cu);
-          if (d.theme === 'industrial' && rnd() < 0.6) truck(cp[0], cp[1], n[0] === 0); else if (T.cars.length) car(cp[0], cp[1], n[0] === 0);
+          var isTruck = d.theme === 'industrial' && rnd() < 0.6, need = isTruck ? 5.0 : 2.7;
+          for (var attempt = 0; attempt < 30; attempt++) {
+            var cu = between(-span + 4, span - 4), lane = ROAD0 + (rnd() < 0.5 ? 1.5 : 3.7);
+            var cp = sidewalkAt(n, lane, cu);
+            var spot = cp;
+            var clear = vehicles.every(function (v) { var ddx = v[0] - spot[0], ddz = v[1] - spot[1]; return Math.sqrt(ddx * ddx + ddz * ddz) >= v[2] + need; });
+            if (!clear) continue;
+            vehicles.push([spot[0], spot[1], need]);
+            if (isTruck) truck(spot[0], spot[1], n[0] === 0); else if (T.cars.length) car(spot[0], spot[1], n[0] === 0);
+            break;
+          }
         }
       });
 

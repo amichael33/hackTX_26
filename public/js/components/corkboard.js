@@ -1,5 +1,6 @@
-/* Classic script: `corkboard` component. A framed cork board on the back wall (faces +z) that post-it notes get
-   pinned to one by one. addNote(text, index) pops a note in and returns its world position; clearNotes() empties it. */
+/* Classic script: `corkboard` component. A framed cork board on the back wall (faces +z) that notes get pinned to one by one.
+   `notes: postit` = coloured sticky notes with a red pin; `notes: parchment` = torn, stained parchment with a dagger stuck through it
+   (the castle). addNote(text, index) pops a note in and returns its world position; clearNotes() empties it. */
 (function () {
   var COLORS = ['#fff176', '#ff9ec7', '#8fd3ff', '#b8f28a', '#ffcb80'];
   var COLS = 4;
@@ -56,6 +57,68 @@
     return tex;
   }
 
+  // Old parchment: a torn outline (transparent outside it), stains, scorched edges and dark ink in a serif hand.
+  var PARCHMENT = ['#ead9a8', '#e3cf98', '#efe0b4'];
+  function parchmentTexture(text, seed) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 256;
+    var g = c.getContext('2d');
+    var s = seed >>> 0;
+    function rnd() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }
+    // Torn outline: points around the edge, each pushed in or out a little.
+    var pts = [], N = 36;
+    for (var i = 0; i < N; i++) {
+      var a = (i / N) * Math.PI * 2, side = Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+      var r = 118 / side * 0.97 - (rnd() * 9 + (i % 3 === 0 ? rnd() * 6 : 0));
+      pts.push([128 + Math.cos(a) * r, 128 + Math.sin(a) * r]);
+    }
+    g.beginPath();
+    pts.forEach(function (p, k) { if (k) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    g.closePath();
+    var base = PARCHMENT[(seed >> 3) % PARCHMENT.length];
+    var grad = g.createRadialGradient(128, 128, 20, 128, 128, 150);
+    grad.addColorStop(0, base); grad.addColorStop(0.7, '#d9c186'); grad.addColorStop(1, '#a98a4e');
+    g.fillStyle = grad;
+    g.fill();
+    g.save();
+    g.clip();
+    for (var k2 = 0; k2 < 7; k2++) {                                 // coffee-coloured stains and age spots
+      g.fillStyle = 'rgba(120,80,30,' + (0.05 + rnd() * 0.08) + ')';
+      g.beginPath(); g.arc(rnd() * 256, rnd() * 256, 10 + rnd() * 34, 0, Math.PI * 2); g.fill();
+    }
+    for (var k3 = 0; k3 < 40; k3++) { g.fillStyle = 'rgba(90,60,20,' + (0.1 + rnd() * 0.2) + ')'; g.fillRect(rnd() * 256, rnd() * 256, 1 + rnd() * 2, 1 + rnd() * 2); }
+    g.lineWidth = 14; g.strokeStyle = 'rgba(70,40,10,0.35)';         // scorched, darker edge
+    g.stroke();
+    g.restore();
+    g.fillStyle = '#3b2a14';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    var size = 42, lines;
+    for (; size >= 22; size -= 3) {
+      g.font = 'italic bold ' + size + 'px "Palatino Linotype","Book Antiqua",Palatino,Georgia,serif';
+      lines = wrap(g, text, 180);
+      if (lines.length * size * 1.18 <= 150) break;
+    }
+    var lh = size * 1.18, y0 = 140 - ((lines.length - 1) * lh) / 2;
+    lines.forEach(function (l, i2) { g.fillText(l, 128, y0 + i2 * lh); });
+    var tex = new THREE.CanvasTexture(c);
+    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  // The dagger that holds a parchment note: its point is the origin; the blade points down into the note, the handle tilts
+  // out toward the viewer. Shared parts, built once per board.
+  function buildDagger(parts) {
+    var g = new THREE.Group();
+    var blade = new THREE.Mesh(parts.blade, parts.steel);
+    blade.position.y = 0.1; blade.rotation.z = Math.PI; blade.scale.z = 0.28;     // a flat cone, point down
+    var guard = new THREE.Mesh(parts.guard, parts.iron); guard.position.y = 0.2;
+    var grip = new THREE.Mesh(parts.grip, parts.leather); grip.position.y = 0.26;
+    var pommel = new THREE.Mesh(parts.pommel, parts.gold); pommel.position.y = 0.325;
+    g.add(blade, guard, grip, pommel);
+    return g;
+  }
+
   function corkTexture() {
     var c = document.createElement('canvas');
     c.width = 512; c.height = 256;
@@ -75,7 +138,7 @@
   }
 
   AFRAME.registerComponent('corkboard', {
-    schema: { width: { default: 6 }, height: { default: 2.2 } },
+    schema: { width: { default: 6 }, height: { default: 2.2 }, notes: { default: 'postit', oneOf: ['postit', 'parchment'] } },
     init: function () {
       var d = this.data;
       this.group = new THREE.Group();
@@ -101,6 +164,16 @@
       });
       this.owned.push(frameMat);
       this.notes = []; // { mesh, t, delay }
+      // Shared dagger parts for the parchment style (disposed with the board).
+      this.dagger = {
+        blade: new THREE.ConeGeometry(0.024, 0.2, 4), guard: new THREE.BoxGeometry(0.1, 0.018, 0.024),
+        grip: new THREE.CylinderGeometry(0.014, 0.014, 0.11, 8), pommel: new THREE.SphereGeometry(0.022, 8, 6),
+        steel: new THREE.MeshStandardMaterial({ color: '#c9ced3', metalness: 0.6, roughness: 0.35, flatShading: true }),
+        iron: new THREE.MeshStandardMaterial({ color: '#2b2b2b', metalness: 0.4, roughness: 0.5, flatShading: true }),
+        leather: new THREE.MeshStandardMaterial({ color: '#5a3d24', roughness: 0.9, flatShading: true }),
+        gold: new THREE.MeshStandardMaterial({ color: '#c9a227', metalness: 0.7, roughness: 0.3, flatShading: true })
+      };
+      Object.keys(this.dagger).forEach(function (k) { this.owned.push(this.dagger[k]); }, this);
     },
     // Slot i in a COLS-wide grid, centered on the board, with a little hand-pinned jitter.
     slot: function (i, text) {
@@ -122,10 +195,19 @@
     },
     addNote: function (text, index) {
       var s = this.slot(index, text);
-      var tex = noteTexture(text, s.color);
+      var parchment = this.data.notes === 'parchment';
+      var tex = parchment ? parchmentTexture(text, hashSeed(text)) : noteTexture(text, s.color);
       var geo = new THREE.PlaneGeometry(NOTE, NOTE);
-      var mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+      var mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0, transparent: parchment, alphaTest: parchment ? 0.4 : 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
       var mesh = new THREE.Mesh(geo, mat);
+      if (parchment) {
+        // A dagger through the top of the note: point on the paper, handle leaning out, a slightly different lean on each.
+        var knife = buildDagger(this.dagger);
+        var lean = ((hashSeed(text + 'k') % 1000) / 1000 - 0.5) * 0.5;
+        knife.position.set(0, NOTE / 2 - 0.16, 0.012);
+        knife.rotation.set(0.55, 0, lean);
+        mesh.add(knife);
+      }
       mesh.position.set(s.x, s.y, 0.02);
       mesh.rotation.z = s.rot;
       mesh.scale.setScalar(0.001);
