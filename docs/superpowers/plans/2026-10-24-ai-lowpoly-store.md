@@ -304,6 +304,51 @@ API contracts (JSON in, JSON out):
 
 ---
 
+### Task 8b: Background-removed cutout standees (user request; spec §10b Stage 2 option 1, flood-fill instead of rembg)
+
+**Files:** Create `public/js/cutout.js`. Modify `public/js/components/product-box.js`, `public/index.html`. Test `test/cutout.test.js`.
+
+**Interfaces:**
+- Consumes: `product-box` with `{productId, thumb, color, size, sticker, price}` (Tasks 7-8), and the `/api/img` proxy (Task 7). Thumbnails are same-origin through the proxy, so the canvas is not tainted.
+- Produces:
+  - `public/js/cutout.js` is a **classic script** (R7) with no import/export. It assigns `globalThis.StoreCutout = { removeEdgeBackground, alphaBBox }`. Load it in `<head>` before `product-box.js`. Tests load it with `await import('../public/js/cutout.js')` and read from `globalThis.StoreCutout`, so the same file works in both places.
+  - `removeEdgeBackground(data: Uint8ClampedArray, w, h, { minLight = 232, maxChroma = 24 } = {}) -> { removedFraction: number }`. Mutates `data` in place.
+    - A pixel is "background-like" when `min(r,g,b) >= minLight && max(r,g,b) - min(r,g,b) <= maxChroma`, or when it's already transparent (`a < 16`).
+    - Run a 4-connected flood fill (iterative, with a typed-array queue; no recursion) seeded from every border pixel that is background-like. Set the alpha of every reached pixel to 0.
+    - Feather: any kept pixel 4-adjacent to a removed one gets `a = min(a, 140)`.
+    - `removedFraction` = removed / (w*h).
+  - `alphaBBox(data, w, h, alphaMin = 16) -> {x, y, w, h} | null`: the tight box around pixels with `a >= alphaMin`. Returns null when every pixel is transparent.
+- `product-box` behavior when `thumb` is set and the image loads:
+  1. Draw it to a canvas no bigger than 256 px on the long side and get the ImageData. Run `removeEdgeBackground`.
+  2. If `removedFraction < 0.04` (a busy photo with no plain background), skip the cutout and keep the Task 7 look: tier box plus front thumbnail. Otherwise crop to `alphaBBox` plus 2 px of padding and use it as a **standee**:
+     - **Hide the tier box.** Keep it in the scene with `visible = false` so it stays clickable through the raycaster. Better: put the `clickable` class on the standee instead.
+     - **Standee plane:** a vertical `PlaneGeometry` sized to fit the cropped aspect ratio inside a `size × size` square, using the box's own `size` (0.3 on shelves, 0.45 on the island).
+     - **Placement:** the bottom edge sits on the same surface the box sat on, i.e. the plane's local y center is `-size/2 + planeH/2`. It faces local +z like the thumbnail did.
+     - **Material:** `MeshBasicMaterial({ map: CanvasTexture, transparent: true, alphaTest: 0.1, side: DoubleSide })`.
+     - **Cardboard edge:** a thin flat-shaded `#c8a165` box, 0.012 deep, 90% of the plane's width, `planeH*0.25` tall, placed behind the plane at its base as a little stand.
+     - **Sticker:** move it so it sits relative to the standee's top. Its center goes at `-size/2 + planeH + side/2 + 0.02`, which keeps R20's clearance under the shelf above.
+  3. If the image fails, or `thumb` is null, keep the tier box (the spec's fallback).
+- `product-selected` still fires on click.
+- In `remove()`, dispose the canvas texture, the material, and the geometry.
+
+- [ ] **Step 1: Failing tests** (`test/cutout.test.js`, using small synthetic RGBA buffers):
+  - A 10×10 white image with a 4×4 red square in the center ends with `removedFraction` = 0.84, every white pixel alpha 0, and the red pixels at alpha 255 except feathered edge pixels, which are ≤ 140.
+  - A white ring around a white interior, separated by a closed black border, keeps the interior white pixels opaque, because they are unreachable from the edge.
+  - An all-dark image ends with `removedFraction` = 0, unchanged.
+  - Light gray at (240,240,240) is removed, and pale pink at (250,200,220) is kept (chroma 50 > 24).
+  - `alphaBBox` on the red-square result returns `{x:3, y:3, w:4, h:4}`. A fully transparent buffer returns `null`.
+- [ ] **Step 2:** Run `npm test`. Expected: FAIL.
+- [ ] **Step 3:** Implement `cutout.js`, then the standee path in `product-box`.
+- [ ] **Step 4:** `npm test` passes. **Manual check:**
+  - Products on white backgrounds appear as cutouts standing on the shelves.
+  - Lifestyle photos stay as boxes with the photo on the front.
+  - Products with no photo stay as tier-colored boxes.
+  - Stickers sit right above each cutout without touching the shelf above.
+  - Clicking a cutout opens its card.
+- [ ] **Step 5: Commit** `feat: background-removed cutout standees`
+
+---
+
 ### Task 9: Push-to-talk mic (§8, §13 step 4)
 
 **Files:** Modify `public/js/voice.js`, `public/js/ui.js`, `public/js/main.js`.
