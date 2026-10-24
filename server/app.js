@@ -20,6 +20,12 @@ const MAX_RELATED = 6;
 const MAX_SIMILAR = 12;
 const MAX_AMAZON = 8; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
 
+function pluralize(w) {
+  if (/[^aeiou]y$/i.test(w)) return w.slice(0, -1) + 'ies';
+  if (/(s|x|z|ch|sh)$/i.test(w)) return w + 'es';
+  return w + 's';
+}
+
 // deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs? }
 export function createApp(deps = {}) {
   const app = express();
@@ -52,8 +58,8 @@ export function createApp(deps = {}) {
   }
 
   // Amazon Search API, cached like the others. Any failure just means no Amazon items.
-  // Amazon sometimes answers "no results" for a query that a shorter one finds ("gaming keyboard" vs "keyboard"),
-  // so a failed query is retried once without its first word.
+  // Amazon sometimes answers "no results" for an exact phrase that a close variant finds ("gaming keyboard" fails,
+  // "gaming keyboards" works), so a failed query is retried with its last word pluralized, then without its first word.
   async function runAmazonOnce(q) {
     const ckey = JSON.stringify(['amazon', q.trim().toLowerCase()]);
     const hit = cache.get(ckey);
@@ -65,13 +71,16 @@ export function createApp(deps = {}) {
   }
 
   async function runAmazon(q) {
-    try {
-      return await runAmazonOnce(q);
-    } catch (err) {
-      const words = q.trim().split(/\s+/);
-      if (words.length < 2) throw err;
-      return runAmazonOnce(words.slice(1).join(' '));
+    const words = q.trim().split(/\s+/);
+    const variants = [];
+    const last = words[words.length - 1];
+    if (!/s$/i.test(last)) variants.push([...words.slice(0, -1), pluralize(last)].join(' '));
+    if (words.length > 1) variants.push(words.slice(1).join(' '));
+    let err;
+    for (const v of [q, ...variants]) {
+      try { return await runAmazonOnce(v); } catch (e) { err ??= e; }
     }
+    throw err;
   }
 
   async function fetchQuery(q, location) {

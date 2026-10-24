@@ -71,15 +71,20 @@ test('route: Amazon is off unless enabled (no extra fetch)', async () => {
   assert.equal(urls.length, 1);
 });
 
-test('route: a query Amazon has no results for is retried without its first word', async () => {
-  const amazonQs = [];
-  const fetchImpl = async (u) => {
-    const url = new URL(String(u));
-    if (url.searchParams.get('engine') !== 'amazon') return ok(google(3));
-    amazonQs.push(url.searchParams.get('k'));
-    return ok(url.searchParams.get('k') === 'gaming keyboard' ? { error: "Amazon hasn't returned any results for this query." } : amazonJson(4));
+test('route: a query Amazon has no results for is retried pluralized, then without its first word', async () => {
+  const run = async (works) => {
+    const amazonQs = [];
+    const fetchImpl = async (u) => {
+      const url = new URL(String(u));
+      if (url.searchParams.get('engine') !== 'amazon') return ok(google(3));
+      const k = url.searchParams.get('k');
+      amazonQs.push(k);
+      return ok(k === works ? amazonJson(4) : { error: "Amazon hasn't returned any results for this query." });
+    };
+    const { products } = await search({ fetchImpl, serpApiKey: 'k', amazon: true }, { query: { query: 'gaming keyboard', extra_queries: [] } });
+    return { amazonQs, n: products.filter((p) => p.source === 'Amazon').length };
   };
-  const { products } = await search({ fetchImpl, serpApiKey: 'k', amazon: true }, { query: { query: 'gaming keyboard', extra_queries: [] } });
-  assert.deepEqual(amazonQs, ['gaming keyboard', 'keyboard']);
-  assert.equal(products.filter((p) => p.source === 'Amazon').length, 4);
+  assert.deepEqual(await run('gaming keyboards'), { amazonQs: ['gaming keyboard', 'gaming keyboards'], n: 4 });
+  assert.deepEqual(await run('keyboard'), { amazonQs: ['gaming keyboard', 'gaming keyboards', 'keyboard'], n: 4 });
+  assert.deepEqual(await run('never'), { amazonQs: ['gaming keyboard', 'gaming keyboards', 'keyboard'], n: 0 });
 });
