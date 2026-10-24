@@ -1,6 +1,7 @@
 import { store, movementEnabled } from './store.js';
-import { postChat, postGeocode, postSearch } from './api.js';
-import { DEFAULT_CITY, normalizeTypedLocation } from './text.js';
+import { postChat, postGeocode, postSearch, postStickers } from './api.js';
+import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
+import { fallbackSticker } from './stickerText.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard } from './ui.js';
 import { layoutStore } from './layoutStore.js';
 
@@ -204,11 +205,18 @@ function showSigns() {
   }
 }
 
+const boxEls = new Map();       // productId -> product-box element, for later sticker updates
+const stickerTexts = new Map(); // productId -> Gemini sticker text (applied at spawn if it arrived early)
+
 function spawnBox(container, slot) {
   const p = slot.product;
   const e = document.createElement('a-entity');
   const isIsland = slot.zone === 'island';
-  e.setAttribute('product-box', { productId: p.id, thumb: p.thumbnail ?? '', color: TIER_COLORS[p.tier] ?? TIER_COLORS.mid, size: isIsland ? 0.45 : 0.3 });
+  e.setAttribute('product-box', {
+    productId: p.id, thumb: p.thumbnail ?? '', color: TIER_COLORS[p.tier] ?? TIER_COLORS.mid, size: isIsland ? 0.45 : 0.3,
+    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+  });
+  boxEls.set(p.id, e);
   e.setAttribute('position', slot.position);
   e.setAttribute('rotation', slot.rotation);
   e.setAttribute('scale', '0.001 0.001 0.001');
@@ -223,6 +231,19 @@ async function runOpening() {
   showSigns();
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
+  boxEls.clear();
+  stickerTexts.clear();
+  // Fire the batched sticker copy now; boxes spawn with fallback text and are upgraded when it lands.
+  postStickers({ items: products.map((p) => ({ id: p.id, title: p.title, price: p.price, tier: p.tier })) })
+    .then((res) => {
+      for (const s of res?.stickers ?? []) {
+        if (!s || typeof s.id !== 'string' || typeof s.sticker_text !== 'string' || !s.sticker_text) continue;
+        stickerTexts.set(s.id, s.sticker_text);
+        const el = boxEls.get(s.id);
+        if (el) el.setAttribute('product-box', 'sticker', s.sticker_text);
+      }
+    })
+    .catch(() => { /* keep fallbacks */ });
   const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
   for (const slot of slots) {
     spawnBox(container, slot);

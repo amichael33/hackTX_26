@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { chatTurn } from './lib/clerk.js';
 import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
 import { searchShopping, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
+import { generateStickers } from './lib/stickers.js';
 import { createCache } from './lib/cache.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -83,6 +84,14 @@ export function createApp(deps = {}) {
 
   app.post('/api/chat', async (req, res) => {
     res.json(await chatTurn(req.body || {}, deps.llm));
+  });
+
+  const MAX_STICKER_ITEMS = 30;
+  app.post('/api/stickers', async (req, res) => {
+    const items = req.body?.items;
+    if (!Array.isArray(items)) return res.json({ stickers: [] });
+    const valid = items.filter((it) => it && typeof it === 'object' && it.id != null).slice(0, MAX_STICKER_ITEMS);
+    res.json({ stickers: await generateStickers(valid, deps.llm) });
   });
 
   // Privacy: coordinates are rounded to 2 decimals (~1 km) before leaving the server
