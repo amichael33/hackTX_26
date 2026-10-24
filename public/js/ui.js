@@ -126,15 +126,17 @@ export function showTypedField() {
   locInput.focus();
 }
 
-// Disable both buttons (and the typed submit) while a request is in flight.
+// Disable Share and the typed submit ('Type a city' stays enabled as an escape) while a request is in flight.
 export function setLocationBusy(busy) {
   shareBtn.disabled = busy;
-  typeBtn.disabled = busy;
   locSubmit.disabled = busy;
 }
 
 shareBtn.addEventListener('click', () => locationHandlers?.onShare());
-typeBtn.addEventListener('click', showTypedField);
+typeBtn.addEventListener('click', () => {
+  locationHandlers?.onType?.(); // abandons any pending GPS request
+  showTypedField();
+});
 locForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (locSubmit.disabled) return;

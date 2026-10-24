@@ -25,7 +25,7 @@ export function createApp(deps = {}) {
       const lng = Number(req.body?.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('bad coordinates');
       const r2 = (n) => Math.round(n * 100) / 100;
-      res.json({ city: await reverseGeocode(r2(lat), r2(lng), deps.fetchImpl ?? fetch) });
+      res.json({ city: await reverseGeocode(r2(lat), r2(lng), deps.fetchImpl ?? fetch, deps.geocodeTimeoutMs) });
     } catch {
       res.json({ city: DEFAULT_CITY });
     }

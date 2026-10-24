@@ -62,3 +62,20 @@ test('route: invalid coordinates return default city', async () => {
   const r = await geocode(async () => { throw new Error('should not be called'); }, { lat: 'x' });
   assert.deepEqual(r.json, { city: DEFAULT_CITY });
 });
+
+test('route: a Nominatim fetch that hangs times out and returns the default city', async () => {
+  const hang = (url, opts) => new Promise((_, reject) => {
+    opts.signal.addEventListener('abort', () => reject(opts.signal.reason));
+  });
+  const server = createApp({ fetchImpl: hang, geocodeTimeoutMs: 50 }).listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/geocode`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lat: 30.2, lng: -97.7 }),
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { city: DEFAULT_CITY });
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});

@@ -47,32 +47,57 @@ async function finishLocation(location) {
   await say(GREETING);
 }
 
+let gpsAttempt = 0; // bumped to abandon a pending GPS request (typed escape / new attempt)
+const GPS_GIVE_UP_MS = 12000;
+
 function shareLocation() {
   if (locationBusy) return;
   locationBusy = true;
   setLocationBusy(true);
+  const attempt = ++gpsAttempt;
+  let settled = false;
+  const claim = () => {
+    if (settled || attempt !== gpsAttempt) return false;
+    settled = true;
+    clearTimeout(timer);
+    return true;
+  };
   const typedFallback = () => {
+    if (!claim()) return;
     locationBusy = false;
     setLocationBusy(false);
     showLocationPanel({ typed: true });
     say(TYPE_INSTEAD);
   };
+  // Browsers may never call back (ignored prompt, Firefox "Not now"), so give up ourselves.
+  const timer = setTimeout(typedFallback, GPS_GIVE_UP_MS);
   if (!('geolocation' in navigator) || !window.isSecureContext) return typedFallback();
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const { latitude: lat, longitude: lng } = pos.coords;
+      if (!claim()) return;
+      // Round to 2 decimals: matches what the server sends out and avoids keeping precise coords.
+      const lat = Math.round(pos.coords.latitude * 100) / 100;
+      const lng = Math.round(pos.coords.longitude * 100) / 100;
       let location = { city: DEFAULT_CITY, source: 'default' };
       try {
         const res = await postGeocode({ lat, lng });
-        if (res?.city) location = { city: res.city, lat, lng, source: 'gps' };
+        // The server answers DEFAULT_CITY when geocoding failed: not a real GPS result.
+        if (res?.city && res.city !== DEFAULT_CITY) location = { city: res.city, lat, lng, source: 'gps' };
       } catch (err) {
         console.warn('geocode failed', err);
       }
       await finishLocation(location);
     },
-    () => typedFallback(),
+    typedFallback,
     { timeout: 10000 },
   );
+}
+
+// The user chose to type: ignore any late GPS result and re-enable the controls.
+function abandonGps() {
+  gpsAttempt++;
+  locationBusy = false;
+  setLocationBusy(false);
 }
 
 async function typedLocation(raw) {
@@ -83,7 +108,7 @@ async function typedLocation(raw) {
   await finishLocation({ city, source: city === DEFAULT_CITY ? 'default' : 'typed' });
 }
 
-onLocationChoice({ onShare: shareLocation, onTyped: typedLocation });
+onLocationChoice({ onShare: shareLocation, onTyped: typedLocation, onType: abandonGps });
 
 async function startLocationStep() {
   locationBusy = false;
