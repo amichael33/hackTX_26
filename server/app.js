@@ -52,7 +52,9 @@ export function createApp(deps = {}) {
   }
 
   // Amazon Search API, cached like the others. Any failure just means no Amazon items.
-  async function runAmazon(q) {
+  // Amazon sometimes answers "no results" for a query that a shorter one finds ("gaming keyboard" vs "keyboard"),
+  // so a failed query is retried once without its first word.
+  async function runAmazonOnce(q) {
     const ckey = JSON.stringify(['amazon', q.trim().toLowerCase()]);
     const hit = cache.get(ckey);
     if (hit !== undefined) return hit;
@@ -60,6 +62,16 @@ export function createApp(deps = {}) {
     if (json?.error) throw new Error(json.error);
     cache.set(ckey, json);
     return json;
+  }
+
+  async function runAmazon(q) {
+    try {
+      return await runAmazonOnce(q);
+    } catch (err) {
+      const words = q.trim().split(/\s+/);
+      if (words.length < 2) throw err;
+      return runAmazonOnce(words.slice(1).join(' '));
+    }
   }
 
   async function fetchQuery(q, location) {
