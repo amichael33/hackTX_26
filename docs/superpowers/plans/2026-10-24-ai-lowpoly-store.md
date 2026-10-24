@@ -1,5 +1,18 @@
 # AI Low-Poly Store Implementation Plan
 
+> **Status (read this first).** The checkboxes below were never ticked; use this table instead. Tasks 0-14 are built and merged. **Task 15 was
+> replaced**: "Similar Finds" shelves that called SerpApi were swapped for a corkboard of Gemini-suggested follow-up searches (`/api/ideas`, no
+> SerpApi). Everything built after this plan (maps, clothing mode, castle, windows and outside scenes, cart models, Amazon results, smoke reveal)
+> is in [docs/ROADMAP.md](../../ROADMAP.md), which is the living plan and to-do list.
+>
+> | Tasks | State |
+> |---|---|
+> | 0-11 (scaffold, state, scene, chat, location, search, layout, stickers, cutouts, mic, hardening, redesign) | done |
+> | 12, 12b, 13 (cart, player collision, 3D cart) | done; the 3D cart is now a toggle with a model per map |
+> | 14 (saved searches + replay) | done |
+> | 15 (Similar Finds) | **superseded** by the Try Next corkboard, see ROADMAP |
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A website with a low-poly A-Frame store. A clerk chats with the player (text or voice), works out what they want, then fills the shelves with real nearby Google Shopping listings, each one a box with a funny price sticker.
@@ -710,7 +723,7 @@ test/{storage,cart,savedSearches,similar}.test.js
 
 ---
 
-### Task 15: Similar Finds at the back wall
+### Task 15: Similar Finds at the back wall  *(SUPERSEDED: built differently; see the status table at the top)*
 
 **Files:**
 - Create: `server/lib/similar.js`, `test/similar.test.js`.

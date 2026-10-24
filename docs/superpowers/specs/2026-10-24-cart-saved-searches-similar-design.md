@@ -1,5 +1,7 @@
 # Cart, Saved Searches and Similar Finds: Design
 
+> **Note:** the cart and saved searches below are built as specified (the 3D cart is now a toggle, with a different model per map). The "Similar Finds" part was **replaced** by a corkboard of Gemini-suggested follow-up searches that never calls SerpApi. See docs/ROADMAP.md.
+
 **Date:** 2026-10-24
 **Builds on:** `plan.md`, which is the product spec, and `docs/superpowers/plans/2026-10-24-ai-lowpoly-store.md`, which covers Tasks 0-11.
 **Status:** approved in conversation; waiting on the user's review of this written spec.

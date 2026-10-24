@@ -136,8 +136,4 @@ Pure logic (state, layout, tiers, cutouts, saved searches, store colors) and eve
 
 ## What we'd do next
 
-- Live store inventory and pickup times.
-- Mobile controls.
-- Make the post-its clickable so Bob searches for them.
-- Multiplayer: browse the store with a friend.
-- More brand colors and logos on the boxes.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full to-do list. Headlines: clickable sticky notes, opening the merchant's own site, a demo deploy, vendoring A-Frame for offline demos, and mobile controls.
