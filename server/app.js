@@ -37,7 +37,17 @@ export function createApp(deps = {}) {
 
   // One SerpApi query. A failure (error field, non-2xx, network) with a location is retried once without it.
   // "No results" is not a failure: it comes back as an empty shopping_results list.
+  // Successful JSON is cached per (query, location) so prewarm and overlapping requests share work.
   async function runQuery(q, location) {
+    const ckey = JSON.stringify([q.trim().toLowerCase(), location ?? '']);
+    const hit = cache.get(ckey);
+    if (hit !== undefined) return hit;
+    const json = await fetchQuery(q, location);
+    cache.set(ckey, json);
+    return json;
+  }
+
+  async function fetchQuery(q, location) {
     const attempt = async (loc) => {
       const json = await searchShopping({ q, location: loc }, { apiKey: deps.serpApiKey, fetchImpl });
       if (json?.error && json.error !== NO_RESULTS_MSG) throw new Error(json.error);
@@ -59,12 +69,7 @@ export function createApp(deps = {}) {
     const query = req.body?.query ?? {};
     const city = req.body?.city || undefined;
     if (!query.query) return res.status(400).json({ error: 'missing query' });
-    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoProducts });
-
-    const extraKey = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2).map(String).sort();
-    const key = JSON.stringify([query.query, query.min_price, query.max_price, city, extraKey]);
-    const cached = cache.get(key);
-    if (cached !== undefined) return res.json({ products: cached });
+    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoProducts, demo: true });
 
     try {
       const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2);
@@ -88,10 +93,10 @@ export function createApp(deps = {}) {
       const relatedKept = dedupe(relatedAll).slice(0, MAX_RELATED);
       const mainKept = main.slice(0, MAX_PRODUCTS - relatedKept.length);
       const products = assignTiers([...mainKept, ...relatedKept]);
-      cache.set(key, products);
       res.json({ products });
-    } catch {
-      res.json({ products: demoProducts });
+    } catch (err) {
+      console.warn('search failed:', err.message);
+      res.json({ products: demoProducts, demo: true });
     }
   });
 
