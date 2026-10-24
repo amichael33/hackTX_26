@@ -7,7 +7,7 @@ export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You 
 // Optional per-map styling (all have defaults, see the helpers below):
 //   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
-//   windows: { style, width, sill, head, max } and door: { style, width, height } (see openingsFor), outside: city | town | industrial | medieval;
+//   windows: { style, width, sill, head, max } and door: { style, width, height, personnel? } (see openingsFor), outside: city | town | industrial | medieval;
 //   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach, gator } (see riverFor; gator puts an alligator in it) and lightBz (z of the second light);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
 export const DEFAULT_SHELF_STYLE = 'oak';
@@ -67,7 +67,7 @@ export const MAPS = [
     id: 'warehouse',
     name: 'Big Box Warehouse',
     blurb: 'A huge concrete hall with long aisles and room to roam.',
-    room: { width: 24, depth: 30, height: 6, floor: '#bfc1c4', wall: '#d7d9dc', ceiling: '#a9abb0', accent: '#8d9096', tile: '#b0b2b6' },
+    room: { width: 24, depth: 30, height: 6, floor: '#bfc1c4', wall: '#d7d9dc', ceiling: '#a9abb0', accent: '#8d9096', tile: '#b0b2b6', style: 'warehouse' },
     spawn: { x: 0, z: 13.5 },
     desk: { x: 0, z: 11 },
     clerk: { x: 0, z: 10.3 },
@@ -83,7 +83,8 @@ export const MAPS = [
     clerkOutfit: 'hivis',
     cartVariant: 'dolly',
     windows: { style: 'industrial', width: 2.6, sill: 3.0, head: 4.2, max: 4 },
-    door: { style: 'industrial', width: 3.4, height: 3.6 },
+    // A roller shutter with a small personnel door in the wall beside it (decor only; `gap` = clear wall between them).
+    door: { style: 'industrial', width: 3.4, height: 3.6, personnel: { width: 0.95, height: 2.1, gap: 0.45 } },
     outside: 'industrial',
   },
   {
@@ -190,7 +191,7 @@ export function openingsFor(map) {
   const { room, units } = map, W = map.windows, D = map.door;
   const hw = room.width / 2, hd = room.depth / 2;
   const out = [];
-  if (D) out.push({ wall: 'front', kind: 'door', style: D.style, c: 0, w: D.width, y0: 0, y1: D.height });
+  if (D) out.push({ wall: 'front', kind: 'door', style: D.style, c: 0, w: D.width, y0: 0, y1: D.height, ...(D.personnel ? { personnel: D.personnel } : {}) });
   if (!W) return out;
   const win = (wall, c) => ({ wall, kind: 'window', style: W.style, c: Math.round(c * 100) / 100, w: W.width, y0: W.sill, y1: W.head });
   const MARGIN = 0.5; // clear wall between a window and a shelf unit or the front/back wall

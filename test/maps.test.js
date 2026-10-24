@@ -202,3 +202,20 @@ test('boutique: front windows sit where the town outside hangs its awnings and b
   assert.ok(front.includes(2.75), `front window offsets: ${front}`);
   assert.equal(getMap('boutique').outside, 'town');
 });
+
+test('warehouse: the personnel door beside the roller shutter clears the windows and the shutter', async () => {
+  const { openingsFor } = await import('../public/js/maps.js');
+  const map = getMap('warehouse');
+  assert.equal(map.room.style, 'warehouse');
+  const ops = openingsFor(map);
+  const shutter = ops.find((o) => o.kind === 'door');
+  const p = shutter.personnel;
+  assert.ok(p, 'the shutter carries the personnel door spec');
+  const x0 = shutter.c + shutter.w / 2 + p.gap, x1 = x0 + p.width;
+  assert.ok(p.gap > 0.2 && p.height < shutter.y1 && p.height > 1.9, 'a normal man-door beside the shutter');
+  assert.ok(x1 <= map.room.width / 2 - 0.5, 'inside the front wall');
+  for (const o of ops.filter((q) => q.wall === 'front' && q.kind === 'window')) {
+    assert.ok(o.c - o.w / 2 >= x1 + 0.2 || o.c + o.w / 2 <= x0 || o.y0 >= p.height + 0.8, 'no window overlaps the personnel door or its exit sign');
+  }
+  for (const id of ['classic', 'boutique', 'castle']) assert.equal(openingsFor(getMap(id)).find((o) => o.kind === 'door').personnel, undefined);
+});

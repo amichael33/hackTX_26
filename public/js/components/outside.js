@@ -297,11 +297,22 @@
           if (rnd() < 0.3) add(new THREE.CylinderGeometry(0.08, 0.08, 6, 4), flat('#55595e'), -w * 0.25, h + 3, dp * 0.2, grp); // antenna
         } else if (kind === 'shed') {
           add(new THREE.BoxGeometry(w + 0.3, 0.5, dp + 0.3), flat('#7b8087'), 0, h + 0.25, 0, grp);                                // flat roof lip
-          for (var rd = -1; rd <= 1; rd += 2) add(new THREE.BoxGeometry(3.2, 3.6, 0.15), flat('#c9a227'), rd * w * 0.25, 1.8, dp / 2 + 0.05, grp); // roller doors
+          add(new THREE.BoxGeometry(w + 0.06, 0.9, dp + 0.06), flat(v.v % 2 ? '#2c5aa0' : '#3d5a6e'), 0, h * 0.8, 0, grp);        // colored cladding band
+          for (var rd = -1; rd <= 1; rd += 2) {
+            var dx = rd * w * 0.25;
+            add(new THREE.BoxGeometry(3.7, 3.95, 0.12), flat('#4a4f57'), dx, 1.975, dp / 2 + 0.03, grp);                              // dock door frame
+            add(new THREE.BoxGeometry(3.2, 3.6, 0.15), flat('#c9a227'), dx, 1.8, dp / 2 + 0.05, grp);                                // roller doors
+            add(new THREE.BoxGeometry(3.2, 0.12, 0.2), flat('#1d1d1f'), dx, 0.9, dp / 2 + 0.08, grp);                                // shutter seam
+            add(new THREE.BoxGeometry(0.5, 0.9, 0.6), flat('#1d1d1f'), dx - 1.9, 0.6, dp / 2 + 0.3, grp);                           // dock bumpers
+            add(new THREE.BoxGeometry(0.5, 0.9, 0.6), flat('#1d1d1f'), dx + 1.9, 0.6, dp / 2 + 0.3, grp);
+          }
+          for (var rv = 0; rv < 3; rv++) add(new THREE.BoxGeometry(1.4, 0.9, 1.4), flat('#8d9096'), (rv - 1) * w * 0.3, h + 0.95, -dp * 0.1, grp);  // roof vents
         }
         return grp;
       };
 
+      // The industrial container yard lies beside the left wall, in the first building row (world z range).
+      var YARD = { z0: -9.5, z1: 14.5 }; // ends before the front road at z = depth / 2
       // --- rows of buildings along each side of the shop ---
       var DIST0 = ROAD1 + 2.6;
       var sides = [
@@ -321,7 +332,8 @@
             var h = between(HEIGHT[kind][row][0], HEIGHT[kind][row][1]);
             var uc = u + w / 2, off = dist0 + dp / 2;
             var cx = sd.span === 'z' ? sd.n[0] * (hw + off) : uc, cz = sd.span === 'z' ? uc : sd.n[1] * (hd + off);
-            if (rnd() < (row ? 0.85 : 0.92)) { var bg = placeBuilding(cx, cz, sd.rot, w, dp, h, row); if (d.theme === 'city' && row === 0 && bg) cityStorefront(bg, w, dp, sd.n[0] ? -1 : 1); }
+            var inYard = d.theme === 'industrial' && row === 0 && sd.n[0] === -1 && cz > YARD.z0 - 8 && cz < YARD.z1 + 8; // keep the container yard clear
+            if (rnd() < (row ? 0.85 : 0.92) && !inYard) { var bg = placeBuilding(cx, cz, sd.rot, w, dp, h, row); if (d.theme === 'city' && row === 0 && bg) cityStorefront(bg, w, dp, sd.n[0] ? -1 : 1); }
             u += w + between(0.8, 2.8);
           }
         }
@@ -479,17 +491,58 @@
 
       // --- extras that make each place feel like itself ---
       if (d.theme === 'industrial') {
-        // Stacks of shipping containers in the yard behind the first row, a gantry crane and a smokestack.
-        var cols = ['#c0392b', '#2c5aa0', '#2e8b57', '#e0a526', '#8a4b3a'];
-        for (var st = 0; st < 10; st++) {
-          var sx2 = (rnd() < 0.5 ? -1 : 1) * (hw + between(28, 46)), sz2 = between(-hd - 10, hd + 10), lv = 1 + Math.floor(rnd() * 3);
-          for (var l = 0; l < lv; l++) add(new THREE.BoxGeometry(2.6, 2.6, 12), shaded(pick(cols)), sx2, 1.3 + l * 2.6, sz2);
+        // A container yard beside the left wall (clear of buildings, see YARD): ribbed shipping containers in stacks, with a
+        // gantry crane straddling it. Further out: silos, a smokestack with a smoke plume, and an overcast layer of cloud.
+        var ribTex = {};
+        var ribbed = function (color) {
+          if (ribTex[color]) return ribTex[color];
+          var t = tex(64, 64, function (g2, w, h) {
+            g2.fillStyle = color; g2.fillRect(0, 0, w, h);
+            for (var rx = 0; rx < w; rx += 8) { g2.fillStyle = 'rgba(0,0,0,0.22)'; g2.fillRect(rx, 0, 3, h); g2.fillStyle = 'rgba(255,255,255,0.1)'; g2.fillRect(rx + 3, 0, 2, h); }
+            g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(0, 0, w, 3); g2.fillRect(0, h - 3, w, 3);
+          });
+          return (ribTex[color] = shaded(color, t, 'rib' + color));
+        };
+        var cols = ['#c0392b', '#2c5aa0', '#2e8b57', '#e0a526', '#8a4b3a', '#d9d4c7'];
+        var xc = -(hw + 17.5);
+        for (var ix = -2; ix <= 2; ix++) {
+          for (var iz = 0; iz < 2; iz++) {
+            var lv = 1 + Math.floor(rnd() * 4);
+            for (var l = 0; l < lv; l++) add(new THREE.BoxGeometry(2.6, 2.6, 11.6), ribbed(pick(cols)), xc + ix * 3.1, 1.3 + l * 2.6, YARD.z0 + 6 + iz * 12);
+          }
         }
-        var crane = new THREE.Group(); crane.position.set(hw + 50, 0, -10); g.add(crane);
-        [-8, 8].forEach(function (cz) { add(new THREE.BoxGeometry(1.2, 26, 1.2), flat('#d6a321'), 0, 13, cz, crane); });
-        add(new THREE.BoxGeometry(1.4, 1.6, 22), flat('#d6a321'), 0, 26, 0, crane);
+        // Gantry crane: two A-frame legs, a beam along the yard, a trolley and a container on the hook.
+        var crane = new THREE.Group(); crane.position.set(xc, 0, (YARD.z0 + YARD.z1) / 2); g.add(crane);
+        var cy = '#d6a321', halfLen = 12.9;
+        [-halfLen, halfLen].forEach(function (cz) {
+          [-5.2, 5.2].forEach(function (cx) { add(new THREE.BoxGeometry(0.7, 15, 0.7), flat(cy), cx, 7.5, cz, crane); });
+          add(new THREE.BoxGeometry(11.4, 0.8, 1.2), flat(cy), 0, 15.2, cz, crane);          // cross girder
+          add(new THREE.BoxGeometry(11.4, 0.5, 1.4), flat('#4a4f57'), 0, 0.25, cz, crane);   // foot rail
+        });
+        add(new THREE.BoxGeometry(1.4, 1.2, 2 * halfLen + 1.4), flat(cy), 0, 16.2, 0, crane);  // main beam
+        add(new THREE.BoxGeometry(1.8, 0.9, 2.4), flat('#2c5aa0'), 0, 15.4, 4, crane);         // trolley
+        add(new THREE.BoxGeometry(0.1, 1.2, 0.1), flat('#1d1d1f'), -0.6, 14.4, 4, crane);
+        add(new THREE.BoxGeometry(0.1, 1.2, 0.1), flat('#1d1d1f'), 0.6, 14.4, 4, crane);
+        add(new THREE.BoxGeometry(2.4, 0.3, 5), flat('#4a4f57'), 0, 13.7, 4, crane);           // spreader
+        add(new THREE.BoxGeometry(2.6, 2.6, 11.6), ribbed('#c0392b'), 0, 12.2, 4, crane);      // the hanging container (bottom at 10.9)
+        // Silos, a smokestack with smoke, and overcast clouds.
+        [0, 1, 2].forEach(function (k) {
+          var sx3 = hw + 62, sz3 = -hd - 8 + k * 9;
+          add(new THREE.CylinderGeometry(3.4, 3.4, 20, 12), flat('#c9ccd0'), sx3, 10, sz3);
+          add(new THREE.ConeGeometry(3.6, 3, 12), flat('#8d9096'), sx3, 21.5, sz3);
+        });
         add(new THREE.CylinderGeometry(1.8, 2.4, 40, 10), flat('#a8a39a'), -hw - 60, 20, -hd - 20);
         add(new THREE.CylinderGeometry(1.85, 1.85, 4, 10), flat('#c0392b'), -hw - 60, 38, -hd - 20);
+        var smokeMat = own(new THREE.MeshBasicMaterial({ color: '#7d8389', transparent: true, opacity: 0.7, depthWrite: false }));
+        for (var sp2 = 0; sp2 < 6; sp2++) {
+          var puff2 = add(new THREE.SphereGeometry(2.2 + sp2 * 0.9, 8, 6), smokeMat, -hw - 60 + sp2 * 3.2, 43 + sp2 * 3.6, -hd - 20 + sp2 * 1.4);
+          puff2.scale.y = 0.75;
+        }
+        var cloudMat2 = flat('#aab0b6');
+        for (var oc = 0; oc < 16; oc++) {
+          var oc1 = add(new THREE.SphereGeometry(between(9, 15), 8, 5), cloudMat2, between(-85, 85), between(48, 66), between(-85, 40));
+          oc1.scale.y = 0.3;
+        }
       }
       if (T.far === 'skyline') {
         for (var sk = 0; sk < 26; sk++) { var a = (sk / 26) * Math.PI * 2, rr = between(70, 90), hh = between(20, 55); add(new THREE.BoxGeometry(between(6, 11), hh, between(6, 11)), flat(pick(['#9db0c4', '#8fa4ba', '#b0bfce'])), Math.cos(a) * rr, hh / 2, Math.sin(a) * rr); }

@@ -7,7 +7,7 @@
       accent: { default: '#d9bf98' }, tile: { default: '#dcd9d3' },
       panelX: { default: 0 }, panelW: { default: 0 }, // the back-wall accent panel (0 width = the old default); the map sizes it to the corkboard
       openings: { default: '' }, // JSON: windows and the front door [{ wall, kind, style, c, w, y0, y1 }] (maps.js openingsFor)
-      style: { default: 'plain', oneOf: ['plain', 'castle'] } // castle: timber ceiling beams, stone pillars and wall torches
+      style: { default: 'plain', oneOf: ['plain', 'castle', 'warehouse'] } // castle: timber ceiling beams, stone pillars and wall torches; warehouse: steel trusses, pendant lamps, floor lines, wall safety gear
     },
     init: function () {
       this.built = [];
@@ -59,6 +59,7 @@
       this.walls(d, hw, hd, h, t);
       this.box([d.panelW > 0 ? d.panelX : 0, 1.5, -hd + 0.01], [d.panelW > 0 ? d.panelW : Math.min(12, d.width - 4), 2.6, 0.02], d.accent);            // oak feature panel (back wall)
       if (d.style === 'castle') this.castle(hw, hd, h);
+      if (d.style === 'warehouse') this.warehouse(hw, hd, h);
     },
     // --- walls with windows and the front door ---
     // A box on a wall in the wall's own terms: u along it, y up, `off` toward the room from the wall's centre plane.
@@ -193,6 +194,7 @@
         self.wallBox(wall, o.c, ih / 2, iw, ih, 0.06, 0, '#8d9096');                                      // roller shutter
         for (var y = 0.35; y < ih - 0.05; y += 0.3) self.wallBox(wall, o.c, y, iw, 0.03, 0.09, 0, '#6e7177'); // slats
         self.wallBox(wall, o.c, 0.1, iw, 0.2, 0.1, 0.01, '#e0a526');                                      // yellow bottom bar
+        if (o.personnel) self.personnelDoor(wall, o);
       } else {
         // Two heavy timber leaves bound with iron, a ring on each.
         [-1, 1].forEach(function (s) {
@@ -206,6 +208,80 @@
           self.el.appendChild(ring); self.built.push(ring);
         });
       }
+    },
+
+    // --- the warehouse: floor lines, steel trusses, pendant lamps, a personnel door and wall safety gear (all decor) ---
+    // Is something already in the wall at u (half-width hu) between heights y0..y1?
+    taken: function (wall, u, hu, y0, y1) {
+      return (this.ops || []).some(function (o) { return o.wall === wall && Math.abs(u - o.c) < o.w / 2 + hu + 0.15 && o.y0 < y1 && o.y1 > y0; });
+    },
+    // A small fitting stuck to a wall's inner face: `dp` thick, standing a hair proud of it.
+    onWall: function (wall, u, y, du, dy, dp, color, extra) { this.wallBox(wall, u, y, du, dy, dp, 0.1 + dp / 2 + 0.003, color, extra); },
+    // A small man-door in the wall beside the roller shutter. It is a flat decoration: it never opens.
+    personnelDoor: function (wall, o) {
+      var p = o.personnel, c = o.c + o.w / 2 + p.gap + p.width / 2, w = p.width, hh = p.height, self = this;
+      var fr = '#4a4f57', dp = 0.05;
+      this.onWall(wall, c, hh / 2, w + 0.12, hh, dp, fr);                                                 // frame
+      this.onWall(wall, c, hh / 2, w - 0.04, hh - 0.06, dp + 0.03, '#8d9096');                            // steel leaf
+      this.onWall(wall, c, hh * 0.72, 0.4, 0.5, dp + 0.05, '#2b2f36');                                    // vision panel frame
+      this.wallPlane(wall, c, hh * 0.72, 0.3, 0.4, 0.1 + dp + 0.09, '#9ec6e8', { roughness: 0.2 });
+      this.onWall(wall, c - w * 0.32, hh * 0.45, 0.04, 0.2, dp + 0.08, '#c7c7cc');                         // push bar
+      this.onWall(wall, c, hh + 0.35, 0.6, 0.22, 0.05, '#1f8a4c', { emissive: '#1f8a4c', emissiveIntensity: 0.7 }); // exit sign
+      this.onWall(wall, c, hh + 0.35, 0.36, 0.06, 0.08, '#ffffff', { emissive: '#ffffff', emissiveIntensity: 0.6 });
+    },
+    warehouse: function (hw, hd, h) {
+      var d = this.data, i, j, x, z, steel = '#555a62', yellow = '#e0a526', self = this;
+      // Floor: two yellow aisle lines either side of the middle aisle, and a hazard-striped band in front of the shutter.
+      [-1, 1].forEach(function (s) { self.plane([s * 2.5, 0.006, -1], [-90, 0, 0], [0.14, 20], yellow); });
+      [-1, 1].forEach(function (s) { self.plane([s * 8.2, 0.006, 4], [-90, 0, 0], [0.1, 18], '#d9d4c7'); }); // pale walkway lines in the side aisles
+      var bz = hd - 1.1, n = Math.round(4.2 / 0.35);
+      for (i = 0; i < n; i++) this.plane([-2.1 + (i + 0.5) * 0.35, 0.006, bz], [-90, 0, 0], [0.35, 0.7], i % 2 ? '#26282c' : yellow);
+      // Ceiling: steel I-beams across the hall with lamps hanging from them.
+      for (z = -hd + 3; z < hd - 1; z += 6) {
+        this.box([0, h - 0.3, z], [d.width - 0.04, 0.5, 0.1], steel);        // web
+        this.box([0, h - 0.56, z], [d.width - 0.04, 0.05, 0.32], steel);     // lower flange
+        this.box([0, h - 0.04, z], [d.width - 0.04, 0.05, 0.32], steel);     // upper flange
+      }
+      [-1, 1].forEach(function (s) { self.box([s * 6.5, h - 0.7, 0], [0.16, 0.16, d.depth - 0.04], '#43474e'); }); // long cable trays
+      for (x = -1; x <= 1; x += 2) for (z = -hd + 3; z < hd - 1; z += 6) {
+        var lx = x * 8;
+        this.box([lx, h - 0.8, z], [0.03, 0.5, 0.03], '#26282c');            // cord
+        var shade = document.createElement('a-cone');
+        shade.setAttribute('position', lx + ' ' + (h - 1.2) + ' ' + z);
+        shade.setAttribute('radius-bottom', 0.55); shade.setAttribute('radius-top', 0.1); shade.setAttribute('height', 0.35); shade.setAttribute('segments-radial', 8);
+        shade.setAttribute('material', { color: '#3c4047', flatShading: true, side: 'double' });
+        this.el.appendChild(shade); this.built.push(shade);
+        this.plane([lx, h - 1.38, z], [90, 0, 0], [0.7, 0.7], '#fff4d6', { emissive: '#fff4d6', emissiveIntensity: 0.9 }); // the bulb glow under the shade
+      }
+      // Walls: a dark base band with a yellow stripe on the side and front walls, broken around the door and windows.
+      ['left', 'right', 'front'].forEach(function (wall) {
+        var len = wall === 'front' ? d.width : d.depth, cuts = (self.ops || []).filter(function (o) { return o.wall === wall && o.y0 < 1.3; }).sort(function (a, b) { return a.c - b.c; });
+        var cur = -len / 2 + 0.2, seg = function (a, b) {
+          if (b - a < 0.05) return;
+          self.onWall(wall, (a + b) / 2, 0.55, b - a, 1.1, 0.02, '#6d7178');
+          self.onWall(wall, (a + b) / 2, 1.14, b - a, 0.08, 0.03, yellow);
+        };
+        cuts.forEach(function (o) { seg(cur, o.c - o.w / 2 - 0.1); cur = o.c + o.w / 2 + 0.1; });
+        seg(cur, len / 2 - 0.2);
+      });
+      // Safety gear on the side walls where nothing else hangs: fire extinguishers with a red sign, caution plates.
+      var spots = [{ wall: 'left', u: 8.5 }, { wall: 'right', u: 8.5 }, { wall: 'left', u: 12.5 }, { wall: 'right', u: -12.8 }, { wall: 'left', u: -12.8 }];
+      var placed = 0;
+      spots.forEach(function (sp) {
+        if (placed >= 3 || self.taken(sp.wall, sp.u, 0.4, 0.1, 2.6)) return;
+        placed++;
+        self.onWall(sp.wall, sp.u, 1.95, 0.4, 0.4, 0.03, '#c0392b');                 // red sign
+        self.onWall(sp.wall, sp.u, 1.95, 0.22, 0.06, 0.04, '#ffffff');
+        self.onWall(sp.wall, sp.u, 1.95, 0.06, 0.22, 0.04, '#ffffff');
+        self.onWall(sp.wall, sp.u, 1.1, 0.26, 0.5, 0.02, '#f2f2f2');                  // backboard
+        var cyl = document.createElement('a-cylinder'), q = self.knobPos(sp.wall, sp.u, 1.0);
+        var inward = sp.wall === 'left' ? 1 : -1;
+        cyl.setAttribute('position', (q[0] + inward * 0.07) + ' 1.0 ' + q[2]);
+        cyl.setAttribute('radius', 0.08); cyl.setAttribute('height', 0.46); cyl.setAttribute('segments-radial', 8);
+        cyl.setAttribute('material', { color: '#c0392b', flatShading: true });
+        self.el.appendChild(cyl); self.built.push(cyl);
+        self.onWall(sp.wall, sp.u, 1.27, 0.06, 0.08, 0.2, '#26282c');                  // hose head
+      });
     },
     // World position of a small fitting (knob, ring) on a wall's interior side.
     knobPos: function (wall, u, y) {
