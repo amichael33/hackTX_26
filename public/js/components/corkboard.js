@@ -4,7 +4,8 @@
   var COLORS = ['#fff176', '#ff9ec7', '#8fd3ff', '#b8f28a', '#ffcb80'];
   var COLS = 4;
   var POP_MS = 380;
-  var NOTE = 0.95; // note edge, metres
+  var NOTE = 0.8; // note edge, metres
+  var MARGIN = 0.06; // clear space kept between a note and the frame
 
   function hashSeed(str) {
     var h = 5381;
@@ -107,10 +108,15 @@
       var col = i % COLS, row = Math.floor(i / COLS) % rows;
       var gx = d.width / COLS, gy = d.height / rows;
       var seed = hashSeed(text);
+      var rot = ((((seed >> 3) % 1000) / 1000) - 0.5) * 0.2; // about +-6 degrees
+      var half = (NOTE / 2) * (Math.abs(Math.cos(rot)) + Math.abs(Math.sin(rot))); // half-extent of the rotated note
+      var limX = d.width / 2 - half - MARGIN, limY = d.height / 2 - half - MARGIN;
+      var x = (col - (COLS - 1) / 2) * gx + (((seed % 100) / 100) - 0.5) * 0.12;
+      var y = ((rows - 1) / 2 - row) * gy + ((((seed >> 7) % 100) / 100) - 0.5) * 0.1;
       return {
-        x: (col - (COLS - 1) / 2) * gx + (((seed % 100) / 100) - 0.5) * 0.12,
-        y: ((rows - 1) / 2 - row) * gy + ((((seed >> 7) % 100) / 100) - 0.5) * 0.1,
-        rot: ((((seed >> 3) % 1000) / 1000) - 0.5) * 0.2, // about +-6 degrees
+        x: Math.max(-limX, Math.min(limX, x)),
+        y: Math.max(-limY, Math.min(limY, y)),
+        rot: rot,
         color: COLORS[seed % COLORS.length]
       };
     },
@@ -118,9 +124,9 @@
       var s = this.slot(index, text);
       var tex = noteTexture(text, s.color);
       var geo = new THREE.PlaneGeometry(NOTE, NOTE);
-      var mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0 });
+      var mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
       var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(s.x, s.y, 0.012);
+      mesh.position.set(s.x, s.y, 0.02);
       mesh.rotation.z = s.rot;
       mesh.scale.setScalar(0.001);
       this.group.add(mesh);

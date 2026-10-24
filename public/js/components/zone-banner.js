@@ -30,7 +30,7 @@
       var panelGeo = new THREE.BoxGeometry(d.width, d.height, 0.04);
       var panelMat = new THREE.MeshStandardMaterial({ color: '#fbfbfd', roughness: 0.85, metalness: 0 });
       var panel = new THREE.Mesh(panelGeo, panelMat);
-      var edgeGeo = new THREE.BoxGeometry(d.width, 0.012, 0.042);
+      var edgeGeo = new THREE.BoxGeometry(d.width, 0.012, 0.046);
       var edgeMat = new THREE.MeshStandardMaterial({ color: '#1d1d1f', roughness: 0.6, metalness: 0 });
       var edge = new THREE.Mesh(edgeGeo, edgeMat);
       edge.position.set(0, -d.height / 2 + 0.006, 0);
@@ -42,9 +42,9 @@
       var renderer = this.el.sceneEl && this.el.sceneEl.renderer;
       tex.anisotropy = Math.min(8, renderer ? renderer.capabilities.getMaxAnisotropy() : 8);
       var textGeo = new THREE.PlaneGeometry(d.width, d.width * 128 / 1024);
-      var textMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false });
+      var textMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       var textMesh = new THREE.Mesh(textGeo, textMat);
-      textMesh.position.set(0, 0.006, 0.021);
+      textMesh.position.set(0, 0.006, 0.026);
 
       this.group.add(panel, edge, textMesh);
       this.disposables.push(panelGeo, panelMat, edgeGeo, edgeMat, textGeo, textMat, tex);

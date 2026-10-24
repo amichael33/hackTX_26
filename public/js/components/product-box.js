@@ -140,9 +140,9 @@
       if (cut.aspect >= 1) { pw = fit; ph = fit / cut.aspect; } else { ph = fit; pw = fit * cut.aspect; }
       var tex = new THREE.CanvasTexture(cut.canvas);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1 });
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
       var plane = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
-      plane.position.set(0, size * 0.04, size / 2 + 0.002);
+      plane.position.set(0, size * 0.04, size / 2 + 0.008);
       this.plane = plane;
       this.el.setObject3D('thumb', plane);
     },
@@ -153,8 +153,8 @@
       loader.load(url, function (tex) {
         if (self.buildId !== buildId || !self.mesh) { tex.dispose(); return; } // removed or rebuilt while loading
         if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-        var plane = new THREE.Mesh(planeGeo(d.size), new THREE.MeshBasicMaterial({ map: tex }));
-        plane.position.set(0, d.size * 0.04, d.size / 2 + 0.002);
+        var plane = new THREE.Mesh(planeGeo(d.size), new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+        plane.position.set(0, d.size * 0.04, d.size / 2 + 0.008);
         self.plane = plane;
         self.el.setObject3D('thumb', plane);
       }, undefined, function () {
@@ -168,9 +168,9 @@
       canvas.width = canvas.height = 256;
       var tex = new THREE.CanvasTexture(canvas);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       var mesh = new THREE.Mesh(new THREE.PlaneGeometry(side, side), mat);
-      mesh.position.set(d.size * 0.2, -d.size * 0.2, d.size / 2 + 0.01); // lower-right of the +z face
+      mesh.position.set(d.size * 0.2, -d.size * 0.2, d.size / 2 + 0.018); // lower-right of the +z face
       mesh.renderOrder = 1;
       // Fixed per-product z-tilt of +-10 degrees.
       this.tilt = ((hashSeed(d.productId + ':tilt') % 2001) / 1000 - 1) * (10 * Math.PI / 180);
