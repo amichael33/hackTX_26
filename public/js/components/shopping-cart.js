@@ -2,11 +2,12 @@
    pitch) and shows the saved items as little cubes with their thumbnail on top. Fed by the scene's
    `cart-changed` event ({ items }). Not clickable. */
 (function () {
-  var AHEAD = 0.9;          // metres in front of the rig
+  var SCALE = 1.8;          // the whole cart (and its items) is drawn this much larger
+  var AHEAD = 0.9 * SCALE;  // metres in front of the rig
   var BASKET_BOTTOM = 0.45; // local y of the basket underside
   var POP_MS = 250;
-  var CART_RADIUS = 0.28;
-  var STEPS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35];
+  var CART_RADIUS = 0.28 * SCALE;
+  var STEPS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35].map(function (d) { return d * SCALE; });
   var CUBE = 0.12;
   var COLS = 4, ROWS = 3;
   var PITCH_X = 0.13, PITCH_Z = 0.13;
@@ -15,7 +16,7 @@
   // Shared by every cart / item (never disposed; they live for the page).
   var cartGeo = {};
   var mats = {};
-  var cubeGeo = null, topGeo = null, cubeMat = null;
+  var cubeGeo = null, topGeo = null, frontGeo = null, cubeMat = null;
 
   function box(w, h, d) {
     var k = w + 'x' + h + 'x' + d;
@@ -29,6 +30,7 @@
     cubeGeo = new THREE.BoxGeometry(CUBE, CUBE, CUBE);
     topGeo = new THREE.PlaneGeometry(CUBE * 0.9, CUBE * 0.9);
     topGeo.rotateX(-Math.PI / 2); // face up
+    frontGeo = new THREE.PlaneGeometry(CUBE * 0.9, CUBE * 0.9); // faces +z, toward the player
     cubeMat = new THREE.MeshStandardMaterial({ color: '#fbfbfd', flatShading: true });
   }
 
@@ -64,7 +66,7 @@
       }
       // Basket: floor + 4 thin walls, open on top.
       add(box(W, T, D), grey, 0, B + T / 2, 0);
-      add(box(W, H, T), grey, 0, B + H / 2, D / 2 - T / 2);
+      add(box(W, 0.06, T), grey, 0, B + 0.03, D / 2 - T / 2); // low front lip so the player sees the items
       add(box(W, H, T), grey, 0, B + H / 2, -D / 2 + T / 2);
       add(box(T, H, D), grey, W / 2 - T / 2, B + H / 2, 0);
       add(box(T, H, D), grey, -W / 2 + T / 2, B + H / 2, 0);
@@ -83,6 +85,7 @@
         }
       }
       g.add(this.items);
+      g.scale.setScalar(SCALE);
       this.el.setObject3D('cart', g);
     },
     update: function () {
@@ -108,6 +111,9 @@
         var top = new THREE.Mesh(topGeo, topMat);
         top.position.y = CUBE / 2 + 0.002;
         group.add(top);
+        var front = new THREE.Mesh(frontGeo, topMat);
+        front.position.z = CUBE / 2 + 0.002;
+        group.add(front);
         this.itemMats.push(topMat);
         if (it.thumbnail) this.loadThumb(topMat, it.thumbnail, buildId);
         if (!this.prevIds[it.id]) {

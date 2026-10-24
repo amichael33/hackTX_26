@@ -37,6 +37,23 @@
       mk('a-cylinder', { position: '0 0.006 0', radius: 0.07, height: 0.012, 'segments-radial': 10 }, '#111111', hat);
       mk('a-cylinder', { position: '0 0.055 0', radius: 0.042, height: 0.09, 'segments-radial': 10 }, '#111111', hat);
       mk('a-cylinder', { position: '0 0.022 0', radius: 0.044, height: 0.016, 'segments-radial': 10 }, '#c0392b', hat);
+      // Name tag on the chest: a canvas-textured sticker, parented to the body so it leans and spins along.
+      var tagCanvas = document.createElement('canvas');
+      tagCanvas.width = 256; tagCanvas.height = 128;
+      var c = tagCanvas.getContext('2d');
+      c.fillStyle = '#fbfbfd'; c.fillRect(0, 0, 256, 128);
+      c.fillStyle = '#c0392b'; c.fillRect(0, 0, 256, 38);
+      c.fillStyle = '#ffffff'; c.font = 'bold 26px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('HELLO, I\u2019M', 128, 20);
+      c.fillStyle = '#1d1d1f'; c.font = 'bold 64px sans-serif';
+      c.fillText('Bob', 128, 84);
+      this.tagTex = new THREE.CanvasTexture(tagCanvas);
+      if (THREE.SRGBColorSpace) this.tagTex.colorSpace = THREE.SRGBColorSpace;
+      this.tagGeo = new THREE.PlaneGeometry(0.3, 0.15);
+      this.tagMat = new THREE.MeshBasicMaterial({ map: this.tagTex, toneMapped: false });
+      var tag = new THREE.Mesh(this.tagGeo, this.tagMat);
+      tag.position.set(-0.1, 1.15, 0.268);
+      this.body.object3D.add(tag);
       // One-shot celebratory spin, triggered by emitting `spin` on the clerk entity.
       this.spinFrom = -1;
       this.onSpin = function () { self.spinFrom = 0; };
@@ -44,6 +61,7 @@
     },
     remove: function () {
       this.el.removeEventListener('spin', this.onSpin);
+      if (this.tagTex) { this.tagTex.dispose(); this.tagGeo.dispose(); this.tagMat.dispose(); }
       this.built.forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
       this.built = [];
     },
