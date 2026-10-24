@@ -64,3 +64,25 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
 #chat-log-list li { margin: 0 0 8px; padding: 6px 8px; border-radius: 8px; line-height: 1.3; }
 #chat-log-list .log-clerk { background: rgba(255, 207, 51, 0.22); }
 #chat-log-list .log-user { background: rgba(255, 255, 255, 0.16); text-align: right; }
+
+/* --- Location panel: shown only in the LOCATION phase --- */
+#location-panel[hidden], #location-form[hidden] { display: none; }
+#location-panel {
+  position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 6;
+  width: min(460px, calc(100% - 24px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  background: rgba(10, 12, 18, 0.88); color: #fff; border-radius: 12px;
+}
+#location-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+#location-buttons button, #location-submit {
+  flex: 1; font: inherit; font-weight: 700; padding: 10px 14px; border: 0; border-radius: 8px;
+  background: #ffcf33; color: #222; cursor: pointer;
+}
+#location-buttons button:disabled, #location-submit:disabled { opacity: 0.5; cursor: default; }
+#location-buttons button[hidden] { display: none; }
+#location-form { display: flex; gap: 8px; }
+#location-input {
+  flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 10px 12px;
+  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #111;
+}
+#location-privacy { margin: 0; font-size: 0.8rem; opacity: 0.75; }

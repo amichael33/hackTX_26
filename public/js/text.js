@@ -16,3 +16,11 @@ export function formatPrice(n) {
   const whole = Number.isInteger(n);
   return (whole && n >= 100 ? money(0, 0) : money(2, 2)).format(n);
 }
+
+export const DEFAULT_CITY = 'Austin, Texas, United States';
+
+// Trim and collapse whitespace; empty input falls back to the default city.
+export function normalizeTypedLocation(s) {
+  const t = String(s ?? '').trim().replace(/\s+/g, ' ');
+  return t || DEFAULT_CITY;
+}

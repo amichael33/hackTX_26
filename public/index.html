@@ -61,6 +61,18 @@
     <button id="enter-btn" type="button">Enter store</button>
   </div>
 
+  <div id="location-panel" hidden>
+    <div id="location-buttons">
+      <button id="share-loc-btn" type="button">Share my location</button>
+      <button id="type-loc-btn" type="button">Type a city or ZIP</button>
+    </div>
+    <form id="location-form" hidden>
+      <input id="location-input" type="text" autocomplete="off" placeholder="City or ZIP (blank = Austin)" aria-label="City or ZIP code">
+      <button id="location-submit" type="submit">Go</button>
+    </form>
+    <p id="location-privacy">Your location is only used for this search.</p>
+  </div>
+
   <aside id="chat-log" class="collapsed" hidden>
     <button id="chat-log-toggle" type="button" aria-expanded="false">Chat log</button>
     <ul id="chat-log-list" aria-live="polite"></ul>

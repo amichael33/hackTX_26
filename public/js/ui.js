@@ -16,9 +16,17 @@ const chatInput = $('chat-input');
 const sendBtn = $('send-btn');
 const muteBtn = $('mute-btn');
 const skipBtn = $('skip-btn');
+const locPanel = $('location-panel');
+const shareBtn = $('share-loc-btn');
+const typeBtn = $('type-loc-btn');
+const locForm = $('location-form');
+const locInput = $('location-input');
+const locSubmit = $('location-submit');
 
 let current = null; // { text, timer, typeDone, speechDone, resolve }
 let submitHandler = null;
+let locationHandlers = null; // { onShare(), onTyped(text) }
+let locationShown = false;
 
 export function addLogLine(role, text) {
   const li = document.createElement('li');
@@ -77,12 +85,17 @@ export function onPlayerSubmit(handler) {
 }
 
 // --- DOM wiring ---
-chatInput.addEventListener('focus', () => store.set({ inputFocused: true }));
-chatInput.addEventListener('blur', () => store.set({ inputFocused: false }));
-// Typed keys must never reach A-Frame's wasd-controls.
-for (const ev of ['keydown', 'keyup', 'keypress']) {
-  chatInput.addEventListener(ev, (e) => e.stopPropagation());
+// A text input that must never drive the avatar: tracks focus in the store and keeps
+// typed keys away from A-Frame's wasd-controls.
+function guardTypedInput(input) {
+  input.addEventListener('focus', () => store.set({ inputFocused: true }));
+  input.addEventListener('blur', () => store.set({ inputFocused: false }));
+  for (const ev of ['keydown', 'keypress']) {
+    input.addEventListener(ev, (e) => e.stopPropagation());
+  }
 }
+guardTypedInput(chatInput);
+guardTypedInput(locInput);
 
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -94,6 +107,39 @@ chatForm.addEventListener('submit', (e) => {
 });
 
 skipBtn.addEventListener('click', skip);
+
+// --- Location panel ---
+export function onLocationChoice(handlers) {
+  locationHandlers = handlers;
+}
+
+// Reveals the panel (only takes effect while phase is LOCATION). typed: show the field now.
+export function showLocationPanel({ typed = false } = {}) {
+  locationShown = true;
+  if (typed) showTypedField();
+  renderPhase(store.get());
+}
+
+export function showTypedField() {
+  locForm.hidden = false;
+  typeBtn.hidden = true;
+  locInput.focus();
+}
+
+// Disable both buttons (and the typed submit) while a request is in flight.
+export function setLocationBusy(busy) {
+  shareBtn.disabled = busy;
+  typeBtn.disabled = busy;
+  locSubmit.disabled = busy;
+}
+
+shareBtn.addEventListener('click', () => locationHandlers?.onShare());
+typeBtn.addEventListener('click', showTypedField);
+locForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (locSubmit.disabled) return;
+  locationHandlers?.onTyped(locInput.value);
+});
 
 function renderMute() {
   const muted = store.get().voice.ttsMuted;
@@ -124,6 +170,8 @@ function renderPhase(state) {
   chatBar.hidden = state.phase === 'INTRO';
   logEl.hidden = state.phase === 'INTRO';
   if (!chatting && document.activeElement === chatInput) chatInput.blur(); // disabled inputs may not fire blur
+  locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
+  if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
   chatInput.disabled = !chatting;
   sendBtn.disabled = !chatting;
 }

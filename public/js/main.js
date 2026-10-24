@@ -1,10 +1,12 @@
 import { store, movementEnabled } from './store.js';
-import { postChat } from './api.js';
-import { clerkSay, onPlayerSubmit, addLogLine } from './ui.js';
+import { postChat, postGeocode } from './api.js';
+import { DEFAULT_CITY, normalizeTypedLocation } from './text.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy } from './ui.js';
 
 window.store = store; // console debugging
 
-const DEFAULT_CITY = 'Austin, Texas, United States';
+const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can find stuff in your area?";
+const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
 const GREETING = 'Hi! Welcome in. What are you shopping for today?';
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
@@ -34,12 +36,60 @@ async function say(text) {
   if (store.get().status !== 'idle') store.set({ status: 'idle' });
 }
 
-// TEMPORARY BRIDGE (ruling R2): Task 5 replaces this with the real location step
-// (geolocation / typed city). Must end in CHATTING with store.location set.
-function startLocationStep() {
-  store.set({ location: { city: DEFAULT_CITY, source: 'default' } });
+// --- Location step: GPS, typed city/ZIP, or the default city ---
+let locationBusy = false;
+
+async function finishLocation(location) {
+  if (store.get().phase !== 'LOCATION') return;
+  store.set({ location });
+  addLogLine('system', `\u{1F4CD} ${location.city}`);
   store.setPhase('CHATTING');
-  say(GREETING);
+  await say(GREETING);
+}
+
+function shareLocation() {
+  if (locationBusy) return;
+  locationBusy = true;
+  setLocationBusy(true);
+  const typedFallback = () => {
+    locationBusy = false;
+    setLocationBusy(false);
+    showLocationPanel({ typed: true });
+    say(TYPE_INSTEAD);
+  };
+  if (!('geolocation' in navigator) || !window.isSecureContext) return typedFallback();
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      let location = { city: DEFAULT_CITY, source: 'default' };
+      try {
+        const res = await postGeocode({ lat, lng });
+        if (res?.city) location = { city: res.city, lat, lng, source: 'gps' };
+      } catch (err) {
+        console.warn('geocode failed', err);
+      }
+      await finishLocation(location);
+    },
+    () => typedFallback(),
+    { timeout: 10000 },
+  );
+}
+
+async function typedLocation(raw) {
+  if (locationBusy) return;
+  locationBusy = true;
+  setLocationBusy(true);
+  const city = normalizeTypedLocation(raw);
+  await finishLocation({ city, source: city === DEFAULT_CITY ? 'default' : 'typed' });
+}
+
+onLocationChoice({ onShare: shareLocation, onTyped: typedLocation });
+
+async function startLocationStep() {
+  locationBusy = false;
+  setLocationBusy(false);
+  await say(ASK_LOCATION);
+  showLocationPanel();
 }
 store.on('phase:LOCATION', startLocationStep);
 
