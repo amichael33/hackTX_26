@@ -54,34 +54,47 @@
       this.onCart = function (e) { self.setItems((e.detail && e.detail.items) || []); };
       this.el.sceneEl.addEventListener('cart-changed', this.onCart);
     },
+    // A wire-style basket: corner posts, rails and thin vertical bars you can see items through, a blue plastic rim and
+    // handle grip, a chrome frame and four wheels. Parts butt against each other (no overlapping coplanar faces).
     buildModel: function () {
       var g = new THREE.Group();
-      var grey = mat('#c7c7cc'), dark = mat('#1d1d1f');
+      var chrome = mat('#c7c7cc'), dark = mat('#1d1d1f'), blue = mat('#0071e3'), floorMat = mat('#9a9aa0');
       var W = 0.55, H = 0.35, D = 0.4, T = 0.02, B = BASKET_BOTTOM;
+      var P = 0.014, R = 0.012, V = 0.01, RIM = 0.02; // post, rail, vertical-bar and rim thickness
       function add(geo, m, x, y, z) {
         var mesh = new THREE.Mesh(geo, m);
         mesh.position.set(x, y, z);
         g.add(mesh);
         return mesh;
       }
-      // Basket: floor + 4 thin walls, open on top.
-      add(box(W, T, D), grey, 0, B + T / 2, 0);
-      add(box(W, 0.06, T), grey, 0, B + 0.03, D / 2 - T / 2); // low front lip so the player sees the items
-      add(box(W, H, T), grey, 0, B + H / 2, -D / 2 + T / 2);
-      add(box(T, H, D), grey, W / 2 - T / 2, B + H / 2, 0);
-      add(box(T, H, D), grey, -W / 2 + T / 2, B + H / 2, 0);
-      // Handle on the +z side (faces the player): two posts and a bar.
-      add(box(0.03, 0.3, 0.03), dark, -0.22, B + H - 0.02, D / 2 + 0.04);
-      add(box(0.03, 0.3, 0.03), dark, 0.22, B + H - 0.02, D / 2 + 0.04);
-      add(box(0.5, 0.03, 0.03), dark, 0, B + H + 0.13, D / 2 + 0.04);
-      // Wheels: low-poly cylinders on their sides, radius 0.1 so they touch y 0; legs up to the basket.
+      add(box(W, T, D), floorMat, 0, B + T / 2, 0);
+      var xs = [-W / 2, W / 2], zs = [-D / 2, D / 2];
+      // Corner posts up to just under the rim.
+      xs.forEach(function (x) { zs.forEach(function (z) { add(box(P, H - RIM / 2, P), chrome, x, B + (H - RIM / 2) / 2, z); }); });
+      // Rim (plastic): the long sides run the full depth, the front and back butt between them.
+      xs.forEach(function (x) { add(box(RIM, RIM, D + RIM), blue, x, B + H, 0); });
+      zs.forEach(function (z) { add(box(W - RIM, RIM, RIM), blue, 0, B + H, z); });
+      // Two rails per wall, between the posts.
+      [B + H * 0.35, B + H * 0.7].forEach(function (y) {
+        zs.forEach(function (z) { add(box(W - P, R, R), chrome, 0, y, z); });
+        xs.forEach(function (x) { add(box(R, R, D - P), chrome, x, y, 0); });
+      });
+      // Thin vertical bars between the rails, narrower than the rails so they never share a face with them.
+      var barH = H - RIM / 2 - 0.02;
+      [-0.2, -0.1, 0, 0.1, 0.2].forEach(function (x) { zs.forEach(function (z) { add(box(V, barH, V), chrome, x, B + T + barH / 2, z); }); });
+      [-0.1, 0, 0.1].forEach(function (z) { xs.forEach(function (x) { add(box(V, barH, V), chrome, x, B + T + barH / 2, z); }); });
+      // Handle on the +z side (faces the player): two posts down to the frame and a blue grip.
+      add(box(0.03, 0.3, 0.03), chrome, -0.22, B + H - 0.02, D / 2 + 0.04);
+      add(box(0.03, 0.3, 0.03), chrome, 0.22, B + H - 0.02, D / 2 + 0.04);
+      add(box(0.5, 0.035, 0.035), blue, 0, B + H + 0.14, D / 2 + 0.04);
+      // Frame under the basket, legs and wheels (radius 0.1 so they touch y 0).
       var wheelGeo = cartGeo.wheel || (cartGeo.wheel = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8));
-      var legGeo = box(0.03, 0.25, 0.03);
+      var legGeo = box(0.03, B - 0.1, 0.03);
       for (var sx = -1; sx <= 1; sx += 2) {
         for (var sz = -1; sz <= 1; sz += 2) {
           var w = add(wheelGeo, dark, sx * 0.22, 0.1, sz * 0.15);
           w.rotation.z = Math.PI / 2;
-          add(legGeo, dark, sx * 0.22, 0.225, sz * 0.15);
+          add(legGeo, chrome, sx * 0.22, 0.1 + (B - 0.1) / 2, sz * 0.15);
         }
       }
       g.add(this.items);

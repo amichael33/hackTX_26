@@ -13,7 +13,7 @@ import { safeLocalStorage } from './storage.js';
 
 window.store = store; // console debugging
 
-const CART_ENABLED = false; // the shopping cart is switched off for now; Past searches stay
+const CART_ENABLED = true; // false switches the shopping cart off (Past searches stay)
 document.body.classList.toggle('cart-off', !CART_ENABLED);
 showWidgetTab(CART_ENABLED ? 'cart' : 'searches');
 const cart = createCart();
