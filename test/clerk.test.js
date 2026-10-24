@@ -86,6 +86,7 @@ test('POST /api/chat returns ClerkResponse', async () => {
     await bad.json();
     assert.deepEqual(llm.arg.messages, []);
   } finally {
+    server.closeAllConnections();
     await new Promise((r) => server.close(r));
   }
 });

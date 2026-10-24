@@ -10,6 +10,7 @@ test('health returns ok', async () => {
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { ok: true });
   } finally {
+    server.closeAllConnections();
     await new Promise((r) => server.close(r));
   }
 });
