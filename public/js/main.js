@@ -6,7 +6,7 @@ import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPan
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
-import { layoutStore, layoutSimilar } from './layoutStore.js';
+import { layoutStore, layoutSimilar, SHELF_UNITS } from './layoutStore.js';
 
 window.store = store; // console debugging
 
@@ -228,6 +228,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const boxEls = new Map();       // productId -> product-box element, for later sticker updates
 const stickerTexts = new Map(); // productId -> Gemini sticker text (applied at spawn if it arrived early)
 
+// The magic-trick smoke: a burst of puffs at a world position (no-op until the scene has the component).
+function puff(x, y, z, opts) {
+  document.getElementById('smoke')?.components.smoke?.puff(x, y, z, opts);
+}
+
+// A thick cloud over every shelf unit and the island, so the shelves seem to appear out of the smoke.
+const SHELVES_SMOKE_MS = 900;
+function smokeOverShelves() {
+  for (const u of Object.values(SHELF_UNITS).flat()) puff(u.x, 1.0, u.z, { size: 2.6, count: 10, spread: 1.8, life: 2400 });
+  puff(0, 1.0, 0, { size: 2.6, count: 10, spread: 1.8, life: 2400 });
+}
+
 function spawnBox(container, slot) {
   const p = slot.product;
   const e = document.createElement('a-entity');
@@ -236,6 +248,7 @@ function spawnBox(container, slot) {
     sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
   });
   boxEls.set(p.id, e);
+  puff(slot.position.x, slot.position.y, slot.position.z, { size: 0.9, count: 5, life: 1300 });
   e.setAttribute('position', slot.position);
   e.setAttribute('rotation', slot.rotation);
   e.setAttribute('scale', '0.001 0.001 0.001');
@@ -290,6 +303,8 @@ async function runOpening() {
     .catch(() => { /* keep fallbacks */ });
   try {
     const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
+    smokeOverShelves();
+    await sleep(SHELVES_SMOKE_MS); // let the cloud build before the products appear in it
     for (const slot of slots) {
       if (!live()) return;
       try { spawnBox(container, slot); } catch (err) { console.error(err); }
