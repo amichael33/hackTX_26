@@ -99,6 +99,39 @@ export function createApp(deps = {}) {
     }
   });
 
+  // Image proxy: https only, allowlisted hosts (dot boundary), image/* only, <= 2 MB.
+  const IMG_HOSTS = ['gstatic.com', 'googleusercontent.com', 'serpapi.com'];
+  const IMG_MAX_BYTES = 2 * 1024 * 1024;
+  const IMG_TIMEOUT_MS = 8000;
+  app.get('/api/img', async (req, res) => {
+    let url;
+    try { url = new URL(String(req.query.u ?? '')); } catch { return res.status(400).end(); }
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== 'https:' || !IMG_HOSTS.some((h) => host === h || host.endsWith('.' + h))) {
+      return res.status(400).end();
+    }
+    try {
+      const up = await fetchImpl(url.href, { signal: AbortSignal.timeout(IMG_TIMEOUT_MS), redirect: 'error' });
+      const type = up.headers.get('content-type') ?? '';
+      const len = Number(up.headers.get('content-length'));
+      if (!up.ok || !type.startsWith('image/') || (Number.isFinite(len) && len > IMG_MAX_BYTES)) {
+        up.body?.cancel?.().catch(() => {});
+        return res.status(502).end();
+      }
+      const chunks = [];
+      let total = 0;
+      for await (const chunk of up.body) {
+        total += chunk.length;
+        if (total > IMG_MAX_BYTES) return res.status(502).end();
+        chunks.push(chunk);
+      }
+      res.set({ 'Content-Type': type, 'Cache-Control': 'public, max-age=86400' });
+      res.send(Buffer.concat(chunks));
+    } catch {
+      res.status(502).end();
+    }
+  });
+
   if (deps.serveStatic) app.use(express.static(publicDir));
 
   return app;

@@ -1,7 +1,8 @@
 import { store, movementEnabled } from './store.js';
 import { postChat, postGeocode, postSearch } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation } from './text.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard } from './ui.js';
+import { layoutStore } from './layoutStore.js';
 
 window.store = store; // console debugging
 
@@ -172,6 +173,70 @@ async function runSearch() {
   }
 }
 store.on('phase:SEARCHING', runSearch);
+
+// --- Opening: show the shelves and pop the products in one by one ---
+const TIER_COLORS = { budget: '#4caf50', mid: '#2196f3', premium: '#9c27b0' };
+const SPAWN_MS = 60;
+// Zone signs sit above each zone, facing into the room.
+const SIGNS = [
+  { text: 'Budget picks', position: '-7.1 2.4 0', rotation: '0 90 0' },
+  { text: 'Premium', position: '7.1 2.4 0', rotation: '0 -90 0' },
+  { text: 'You might also need', position: '0 2.4 -9.1', rotation: '0 0 0' },
+  { text: 'More like this', position: '0 2.4 0.6', rotation: '0 0 0', width: 7 },
+  { text: 'Best matches', position: '0 1.6 0.7', rotation: '0 0 0', width: 4 },
+];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function showSigns() {
+  const shelves = document.getElementById('shelves');
+  shelves.querySelectorAll('[data-zone-sign]').forEach((e) => e.remove());
+  for (const s of SIGNS) {
+    const t = document.createElement('a-text');
+    t.setAttribute('data-zone-sign', '');
+    t.setAttribute('value', s.text);
+    t.setAttribute('align', 'center');
+    t.setAttribute('color', '#ffffff');
+    t.setAttribute('width', s.width ?? 6);
+    t.setAttribute('position', s.position);
+    t.setAttribute('rotation', s.rotation);
+    t.setAttribute('side', 'double');
+    shelves.appendChild(t);
+  }
+}
+
+function spawnBox(container, slot) {
+  const p = slot.product;
+  const e = document.createElement('a-entity');
+  const isIsland = slot.zone === 'island';
+  e.setAttribute('product-box', { productId: p.id, thumb: p.thumbnail ?? '', color: TIER_COLORS[p.tier] ?? TIER_COLORS.mid, size: isIsland ? 0.45 : 0.3 });
+  e.setAttribute('position', slot.position);
+  e.setAttribute('rotation', slot.rotation);
+  e.setAttribute('scale', '0.001 0.001 0.001');
+  e.setAttribute('animation', 'property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 350; easing: easeOutBack');
+  container.appendChild(e);
+}
+
+async function runOpening() {
+  const { products, query } = store.get();
+  const saying = clerkSay('Go take a look!');
+  document.getElementById('shelves').setAttribute('visible', 'true');
+  showSigns();
+  const container = document.getElementById('products');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
+  for (const slot of slots) {
+    spawnBox(container, slot);
+    await sleep(SPAWN_MS);
+  }
+  store.setPhase('BROWSING');
+  await saying;
+}
+store.on('phase:OPENING', () => { runOpening().catch((err) => console.error(err)); });
+
+document.querySelector('a-scene').addEventListener('product-selected', (e) => {
+  const p = store.get().products.find((x) => x.id === e.detail?.productId);
+  if (p) showProductCard(p);
+});
 
 // Returns false when the submit is ignored so the UI keeps the typed text.
 function handlePlayerSubmit(raw) {

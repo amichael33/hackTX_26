@@ -86,3 +86,24 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
   border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #111;
 }
 #location-privacy { margin: 0; font-size: 0.8rem; opacity: 0.75; }
+
+/* --- Product card --- */
+#product-card[hidden] { display: none; }
+#product-card {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
+  width: min(360px, calc(100% - 24px)); box-sizing: border-box; padding: 18px 18px 16px;
+  background: rgba(10, 12, 18, 0.94); color: #fff; border-radius: 12px;
+}
+#product-card h2 { margin: 0 28px 8px 0; font-size: 1.05rem; line-height: 1.25; }
+#product-card p { margin: 4px 0; font-size: 0.95rem; }
+#card-price { font-size: 1.4rem !important; font-weight: 700; color: #ffcf33; }
+#card-source, #card-rating { opacity: 0.8; }
+#card-close {
+  position: absolute; right: 8px; top: 6px; width: 32px; height: 32px; border: 0; border-radius: 8px;
+  background: transparent; color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer;
+}
+#card-buy {
+  display: inline-block; margin-top: 10px; padding: 10px 22px; border-radius: 8px;
+  background: #ffcf33; color: #222; font-weight: 700; text-decoration: none;
+}
+#card-buy[hidden] { display: none; }

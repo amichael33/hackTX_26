@@ -11,6 +11,7 @@
   <script src="js/components/desk.js"></script>
   <script src="js/components/clerk.js"></script>
   <script src="js/components/bounds.js"></script>
+  <script src="js/components/product-box.js"></script>
   <link rel="stylesheet" href="css/ui.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -53,6 +54,7 @@
         <a-box position="0 0.35 0" width="1.6" height="0.7" depth="0.9" material="color:#8a5a3c; flatShading:true"></a-box>
       </a-entity>
     </a-entity>
+    <a-entity id="products"></a-entity>
   </a-scene>
 
   <div id="intro">
@@ -93,6 +95,14 @@
         <button id="send-btn" type="submit" disabled>Send</button>
       </form>
     </div>
+  </div>
+  <div id="product-card" role="dialog" aria-modal="false" aria-labelledby="card-title" hidden>
+    <button id="card-close" type="button" aria-label="Close">&times;</button>
+    <h2 id="card-title"></h2>
+    <p id="card-price"></p>
+    <p id="card-source"></p>
+    <p id="card-rating"></p>
+    <a id="card-buy" href="#" target="_blank" rel="noopener" hidden>Buy</a>
   </div>
 </body>
 </html>

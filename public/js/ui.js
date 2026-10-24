@@ -1,6 +1,7 @@
 // Overlay wiring: chat bar, subtitle typewriter, chat log, mute/skip.
 import { store } from './store.js';
 import { speak, cancelSpeech } from './voice.js';
+import { formatPrice } from './text.js';
 
 const CHAR_MS = 35;
 
@@ -179,3 +180,35 @@ function renderPhase(state) {
 }
 renderPhase(store.get());
 store.on('change', (state) => renderPhase(state));
+
+// --- Product card ---
+const card = $('product-card');
+const cardTitle = $('card-title');
+const cardPrice = $('card-price');
+const cardSource = $('card-source');
+const cardRating = $('card-rating');
+const cardBuy = $('card-buy');
+
+export function showProductCard(p) {
+  cardTitle.textContent = p.title ?? '';
+  cardPrice.textContent = Number.isFinite(p.extracted_price) ? formatPrice(p.extracted_price) : (p.price ?? '');
+  cardSource.textContent = p.source ?? '';
+  cardRating.textContent = p.rating != null ? `Rating: ${p.rating} / 5` : '';
+  cardRating.hidden = p.rating == null;
+  // Only real http(s) links are offered; anything else hides the button.
+  const link = typeof p.link === 'string' && /^https?:\/\//i.test(p.link) ? p.link : null;
+  if (link) cardBuy.setAttribute('href', link);
+  else cardBuy.removeAttribute('href');
+  cardBuy.hidden = !link;
+  card.hidden = false;
+  store.set({ inputFocused: true }); // keeps WASD from moving the player while the card is open
+}
+
+export function hideProductCard() {
+  if (card.hidden) return;
+  card.hidden = true;
+  store.set({ inputFocused: false });
+}
+
+$('card-close').addEventListener('click', hideProductCard);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideProductCard(); });
