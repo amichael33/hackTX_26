@@ -31,6 +31,11 @@
       mk('a-box', { position: '-0.08 0.05 0.21', width: 0.05, height: 0.05, depth: 0.03 }, '#222222', this.head);
       mk('a-box', { position: '0.08 0.05 0.21', width: 0.05, height: 0.05, depth: 0.03 }, '#222222', this.head);
       this.jaw = mk('a-box', { class: 'jaw', position: '0 -0.12 0.17', width: 0.16, height: 0.06, depth: 0.05 }, '#7a2f2f', this.head);
+      // Comically tiny top hat, perched at a jaunty angle; parented to the head so it bobs and tilts along.
+      var hat = mk('a-entity', { position: '0.06 0.235 0', rotation: '0 0 -14' }, '#111111', this.head);
+      mk('a-cylinder', { position: '0 0.006 0', radius: 0.07, height: 0.012, 'segments-radial': 10 }, '#111111', hat);
+      mk('a-cylinder', { position: '0 0.055 0', radius: 0.042, height: 0.09, 'segments-radial': 10 }, '#111111', hat);
+      mk('a-cylinder', { position: '0 0.022 0', radius: 0.044, height: 0.016, 'segments-radial': 10 }, '#c0392b', hat);
     },
     remove: function () {
       this.built.forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
