@@ -4,6 +4,13 @@
 
 export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You Might Also Need', center: 'More Like This' };
 
+// Optional per-map styling (all have defaults, see the helpers below):
+//   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
+//   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
+export const DEFAULT_SHELF_STYLE = 'oak';
+export const shelfStyleFor = (map, zone) => map.shelfStyles?.[zone] ?? DEFAULT_SHELF_STYLE;
+export const labelFor = (map, zone) => map.labels?.[zone] ?? ZONE_LABELS[zone];
+
 const unit = (zone, x, z, rotY) => ({ zone, x, z, rotY });
 
 export const MAPS = [
@@ -23,6 +30,7 @@ export const MAPS = [
       ...[-3, 3].map((x) => unit('center', x, 0, 0)),
     ],
     board: { x: 1, y: 1.55, z: -9.97, width: 6, height: 2.2, bannerY: 3.0 },
+    shelfStyles: { center: 'cubby' },
   },
   {
     id: 'boutique',
@@ -40,6 +48,7 @@ export const MAPS = [
       unit('center', -2.5, 1.5, 0),
     ],
     board: { x: 1.5, y: 1.55, z: -6.97, width: 5, height: 2.2, bannerY: 3.0 },
+    shelfStyles: { left: 'cubby', right: 'cubby', back: 'cubby' },
   },
   {
     id: 'warehouse',
@@ -57,6 +66,28 @@ export const MAPS = [
       ...[[-5, -4], [5, -4], [-5, 4], [5, 4]].map(([x, z]) => unit('center', x, z, 0)),
     ],
     board: { x: 4, y: 1.55, z: -14.97, width: 8, height: 2.2, bannerY: 3.0 },
+    shelfStyles: { left: 'rack', right: 'rack', back: 'rack', center: 'rack' },
+  },
+  {
+    id: 'castle',
+    name: 'Castle Great Hall',
+    blurb: 'A torch-lit stone hall with timber racks. Shop like royalty.',
+    room: { width: 18, depth: 22, height: 5.5, floor: '#8b8780', wall: '#a8a299', ceiling: '#4a3b2c', accent: '#7a1f2b', tile: '#74716b', style: 'castle' },
+    spawn: { x: 0, z: 10 },
+    desk: { x: 0, z: 7.5 },
+    clerk: { x: 0, z: 6.8 },
+    island: { x: 0, z: -3.5 },
+    units: [
+      ...[-8, -5, -2, 1].map((z) => unit('left', -8.2, z, 90)),
+      ...[-8, -5, -2, 1].map((z) => unit('right', 8.2, z, -90)),
+      ...[-6.5, -3.5].map((x) => unit('back', x, -10.2, 0)),
+      ...[-3.5, 3.5].map((x) => unit('center', x, 1.5, 0)),
+    ],
+    board: { x: 3.5, y: 1.55, z: -10.97, width: 7, height: 2.2, bannerY: 3.0 },
+    shelfStyles: { left: 'timber', right: 'timber', back: 'timber', center: 'timber' },
+    labels: { left: 'Squire\'s Bargains', right: 'Royal Treasury', back: 'Also in the Armory', center: 'More Like This' },
+    light: '#ffc98a',
+    deskStyle: { body: '#5a3d24', top: '#8a6a45' },
   },
 ];
 

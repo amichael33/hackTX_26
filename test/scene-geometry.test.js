@@ -14,7 +14,7 @@ test('index.html no longer hard-codes the store; sceneMap.js builds it from the 
 });
 
 test('every shelf is width 2, rows 3 (the layout geometry assumes it)', () => {
-  assert.match(builder, /shelf: 'width:2; rows:3'/);
+  assert.match(builder, /shelf: `width:2; rows:3; style:\$\{style\}`/);
 });
 
 test('island tabletop surface is at y 0.80', () => {
