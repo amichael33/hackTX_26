@@ -189,3 +189,10 @@ for (const map of MAPS) {
     }
   });
 }
+
+test('boutique: front windows sit where the town outside hangs its awnings and benches (x = +-2.75)', async () => {
+  const { openingsFor } = await import('../public/js/maps.js');
+  const front = openingsFor(getMap('boutique')).filter((o) => o.wall === 'front' && o.kind === 'window').map((o) => Math.abs(o.c));
+  assert.ok(front.includes(2.75), `front window offsets: ${front}`);
+  assert.equal(getMap('boutique').outside, 'town');
+});

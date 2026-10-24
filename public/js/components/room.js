@@ -128,6 +128,19 @@
       this.wallPlane(wall, o.c, cy, iw, ih, 0, '#cfe6ff', { opacity: 0.14, transparent: true, depthWrite: false, roughness: 0.1 });
       // A sill board inside, for everything but the high factory windows.
       if (st !== 'industrial') this.wallBox(wall, o.c, o.y0 + 0.02, w + 0.2, 0.04, 0.34, 0.06, st === 'castle' ? '#7a756b' : st === 'cottage' ? '#f4f0e6' : '#cfcfd4');
+      if (st === 'cottage') this.cottageWindowDressing(wall, o, iw, ih, cy);
+    },
+    // Cosy touches for a cottage window: a flower box on the sill, curtains at the sides and a rod.
+    cottageWindowDressing: function (wall, o, iw, ih, cy) {
+      var w = o.w, y0 = o.y0, y1 = o.y1;
+      this.wallBox(wall, o.c, y0 + 0.11, w * 0.62, 0.14, 0.2, 0.12, '#8a5a3c');                     // planter
+      this.wallBox(wall, o.c, y0 + 0.2, w * 0.58, 0.05, 0.16, 0.12, '#5f9a4a');                     // leaves
+      var cols = ['#e86a8a', '#f2c14e', '#ffffff', '#c58be8', '#f28a4e'];
+      for (var k = 0; k < 6; k++) this.wallBox(wall, o.c - w * 0.25 + k * w * 0.1, y0 + 0.26 + (k % 2) * 0.03, 0.06, 0.06, 0.06, 0.12, cols[k % cols.length]);
+      [-1, 1].forEach(function (s) {
+        this.wallBox(wall, o.c + s * (w / 2 - 0.12), (y0 + 0.3 + y1) / 2, 0.2, y1 - y0 - 0.3, 0.04, 0.14, '#d9a38a'); // curtain
+      }, this);
+      this.wallBox(wall, o.c, y1 - 0.02, w - 0.04, 0.03, 0.03, 0.16, '#6e4630');                      // rod
     },
     // The front door. It is only for show: it never opens and nothing happens when you walk up to it.
     door: function (wall, o) {
@@ -160,6 +173,22 @@
         knob.setAttribute('radius', 0.035);
         knob.setAttribute('material', { color: '#c9a227', metalness: 0.6, roughness: 0.3 });
         this.el.appendChild(knob); this.built.push(knob);
+        // A shop bell on a bracket above the door, and a hanging OPEN sign (seen from inside, so it reads "OPEN").
+        this.wallBox(wall, o.c + iw * 0.3, hgt + 0.1, 0.16, 0.025, 0.03, 0.14, '#4f3320');
+        var bell = document.createElement('a-cone');
+        bell.setAttribute('position', this.knobPos(wall, o.c + iw * 0.3, hgt + 0.04).join(' '));
+        bell.setAttribute('radius-bottom', 0.05); bell.setAttribute('radius-top', 0.015); bell.setAttribute('height', 0.09);
+        bell.setAttribute('material', { color: '#c9a227', metalness: 0.6, roughness: 0.3, flatShading: true });
+        this.el.appendChild(bell); this.built.push(bell);
+        try {
+          var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+          var c2 = cv.getContext('2d');
+          c2.fillStyle = '#7a3b2e'; c2.fillRect(0, 0, 128, 64);
+          c2.strokeStyle = '#f4f0e6'; c2.lineWidth = 4; c2.strokeRect(5, 5, 118, 54);
+          c2.fillStyle = '#f4f0e6'; c2.font = 'bold 34px sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText('OPEN', 64, 34);
+          var sp = this.knobPos(wall, o.c - iw * 0.18, ih * 0.5);
+          this.plane([sp[0], sp[1], sp[2]], [0, 180, 0], [0.3, 0.15], '#ffffff', { src: cv.toDataURL() });
+        } catch (e) { /* no canvas: skip the sign */ }
       } else if (st === 'industrial') {
         self.wallBox(wall, o.c, ih / 2, iw, ih, 0.06, 0, '#8d9096');                                      // roller shutter
         for (var y = 0.35; y < ih - 0.05; y += 0.3) self.wallBox(wall, o.c, y, iw, 0.03, 0.09, 0, '#6e7177'); // slats

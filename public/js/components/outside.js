@@ -104,6 +104,23 @@
         var geo = new THREE.PlaneGeometry(w, dd); geo.rotateX(-Math.PI / 2);
         return add(geo, flat(color), x || 0, y, z || 0);
       };
+      var cobbleTex = null;
+      var cobbles = function () { // 4x4 stones per tile, each a slightly different grey-brown
+        if (cobbleTex) return cobbleTex;
+        var c = document.createElement('canvas'); c.width = c.height = 128;
+        var x2 = c.getContext('2d'), cr = makeRng('cobbles');
+        x2.fillStyle = '#4f4840'; x2.fillRect(0, 0, 128, 128);
+        for (var r = 0; r < 4; r++) for (var q = 0; q < 4; q++) {
+          var sh = 98 + Math.floor(cr() * 34);
+          x2.fillStyle = 'rgb(' + sh + ',' + (sh - 7) + ',' + (sh - 16) + ')';
+          x2.fillRect(q * 32 + (r % 2 ? 16 : 0) + 2, r * 32 + 2, 28, 28);
+          if (r % 2 && q === 3) x2.fillRect(0, r * 32 + 2, 14, 28); // the half stone wrapping round
+        }
+        cobbleTex = own(new THREE.CanvasTexture(c));
+        cobbleTex.wrapS = cobbleTex.wrapT = THREE.RepeatWrapping;
+        if (THREE.SRGBColorSpace) cobbleTex.colorSpace = THREE.SRGBColorSpace;
+        return cobbleTex;
+      };
       plane(400, 400, -0.06, T.ground);
       var ROAD0 = 2.2, ROAD1 = 7.2; // road lies this far from the wall
       var spanX = hw + 26, spanZ = hd + 26;
@@ -111,7 +128,12 @@
         var alongX = n[1] !== 0;
         var len = alongX ? 2 * spanX : 2 * spanZ;
         var cx = n[0] * (hw + (ROAD0 + ROAD1) / 2), cz = n[1] * (hd + (ROAD0 + ROAD1) / 2);
-        plane(alongX ? len : ROAD1 - ROAD0, alongX ? ROAD1 - ROAD0 : len, -0.05, T.road, cx, cz);
+        var roadPlane = plane(alongX ? len : ROAD1 - ROAD0, alongX ? ROAD1 - ROAD0 : len, -0.05, T.road, cx, cz);
+        if (d.theme === 'town') { // cobblestones: a repeating stone tile over the road
+          var ct = cobbles().clone(); ct.needsUpdate = true;
+          ct.repeat.set((alongX ? len : ROAD1 - ROAD0) / 1.6, (alongX ? ROAD1 - ROAD0 : len) / 1.6);
+          own(ct); roadPlane.material = own(new THREE.MeshBasicMaterial({ map: ct }));
+        }
         plane(alongX ? len : ROAD0, alongX ? ROAD0 : len, -0.045, T.walk, n[0] * (hw + ROAD0 / 2), n[1] * (hd + ROAD0 / 2)); // sidewalk
         plane(alongX ? len : 2.2, alongX ? 2.2 : len, -0.045, T.walk, n[0] * (hw + ROAD1 + 1.1), n[1] * (hd + ROAD1 + 1.1));    // far sidewalk
         if (T.mark) {
@@ -189,6 +211,48 @@
         return { geo: geo, mats: [m, flat(new THREE.Color(color).multiplyScalar(0.8).getStyle())] };
       };
 
+      // --- town dressing on a house front (local +z faces the street): a shop sign, a striped awning, a window box, chimney smoke ---
+      var dress = makeRng('town:dress');
+      var SHOPS = ['BAKERY', 'BOOKS', 'TEA', 'FLOWERS', 'TOYS', 'CHEESE'];
+      var signMats = {};
+      var signMat = function (name, bg) {
+        if (signMats[name]) return signMats[name];
+        var t = tex(128, 32, function (g2, cw, ch) {
+          g2.fillStyle = bg; g2.fillRect(0, 0, cw, ch);
+          g2.strokeStyle = '#f4ecd8'; g2.lineWidth = 2; g2.strokeRect(2, 2, cw - 4, ch - 4);
+          g2.fillStyle = '#f4ecd8'; g2.font = 'bold 20px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(name, cw / 2, ch / 2 + 1);
+        });
+        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+        return (signMats[name] = own(new THREE.MeshBasicMaterial({ map: t })));
+      };
+      var awningMats = {};
+      var awningMat = function (col) {
+        if (awningMats[col]) return awningMats[col];
+        var t = tex(64, 8, function (g2, cw, ch) {
+          for (var i = 0; i < 8; i++) { g2.fillStyle = i % 2 ? '#f4ecd8' : col; g2.fillRect(i * 8, 0, 8, ch); }
+        });
+        return (awningMats[col] = own(new THREE.MeshBasicMaterial({ map: t })));
+      };
+      var smokeMats = [0.55, 0.4, 0.28].map(function (o) { return own(new THREE.MeshBasicMaterial({ color: '#e9e4dc', transparent: true, opacity: o, depthWrite: false })); });
+      var townFront = function (grp, w, dp, h, row, chimPos) {
+        // smoke on every house, since they can be seen from above the street too
+        for (var sm = 0; sm < 3; sm++) {
+          var puff = add(new THREE.SphereGeometry(0.28 + sm * 0.13, 7, 5), smokeMats[sm], chimPos.x + sm * 0.25, chimPos.y + 1.2 + sm * 0.65, chimPos.z, grp);
+          puff.scale.y = 0.8;
+        }
+        if (row !== 0 || dress() < 0.12) return;
+        var ax = -w / 2 + 2, z0 = dp / 2;                     // the ground-floor window sits 2 m from the left edge of each 4 m tile
+        var accent = ['#b5483a', '#3f7a5a', '#3a5f9a', '#c28a2c'][Math.floor(dress() * 4)];
+        var aw = add(new THREE.BoxGeometry(2.6, 0.05, 1.0), awningMat(accent), ax, 2.43, z0 + 0.47, grp);
+        aw.rotation.x = 0.35;
+        var name = SHOPS[Math.floor(dress() * SHOPS.length)];
+        add(new THREE.BoxGeometry(2.2, 0.5, 0.08), signMat(name, '#5b3a29'), ax, 3.0, z0 + 0.04, grp);   // fascia board above the awning
+        add(new THREE.BoxGeometry(1.5, 0.22, 0.28), flat('#7a4a30'), ax, 0.92, z0 + 0.16, grp);          // window box below the sill
+        add(new THREE.BoxGeometry(1.4, 0.1, 0.22), flat('#5f9a4a'), ax, 1.1, z0 + 0.16, grp);
+        var fc = ['#e86a8a', '#f2c14e', '#ffffff', '#c58be8'];
+        for (var fl = 0; fl < 5; fl++) add(new THREE.BoxGeometry(0.12, 0.12, 0.12), flat(fc[(fl + Math.floor(dress() * 4)) % 4]), ax - 0.56 + fl * 0.28, 1.2, z0 + 0.16, grp);
+      };
+
       // --- one building ---
       var placeBuilding = function (cx, cz, rotY, w, dp, h, row) {
         var v = variants[Math.floor(rnd() * variants.length) % variants.length];
@@ -210,6 +274,7 @@
           }
           grp.add(roof); own(r.geo);
           var chim = add(new THREE.BoxGeometry(0.6, 1.6, 0.6), flat('#8a6a5a'), w * 0.25, h + rh * 0.6, dp * 0.15, grp);
+          if (kind === 'house') townFront(grp, w, dp, h, row, chim.position);
         } else if (kind === 'tower') {
           if (rnd() < 0.7) add(new THREE.BoxGeometry(w * 0.4, 1.4, dp * 0.4), flat('#8d9096'), w * 0.1, h + 0.7, 0, grp);   // roof plant
           if (rnd() < 0.3) add(new THREE.CylinderGeometry(0.08, 0.08, 6, 4), flat('#55595e'), -w * 0.25, h + 3, dp * 0.2, grp); // antenna
@@ -223,8 +288,8 @@
       // --- rows of buildings along each side of the shop ---
       var DIST0 = ROAD1 + 2.6;
       var sides = [
-        { n: [1, 0], rot: Math.PI / 2, along: [-(hd + 18), hd + 18], span: 'z' },
-        { n: [-1, 0], rot: -Math.PI / 2, along: [-(hd + 18), hd + 18], span: 'z' },
+        { n: [1, 0], rot: kind === 'house' ? -Math.PI / 2 : Math.PI / 2, along: [-(hd + 18), hd + 18], span: 'z' },   // town houses face the street
+        { n: [-1, 0], rot: kind === 'house' ? Math.PI / 2 : -Math.PI / 2, along: [-(hd + 18), hd + 18], span: 'z' },
         { n: [0, 1], rot: Math.PI, along: [-(hw + 1), hw + 1], span: 'x' },
         { n: [0, -1], rot: 0, along: [-(hw + 1), hw + 1], span: 'x' }
       ];
@@ -305,6 +370,26 @@
           if (d.theme === 'industrial' && rnd() < 0.6) truck(cp[0], cp[1], n[0] === 0); else if (T.cars.length) car(cp[0], cp[1], n[0] === 0);
         }
       });
+
+      if (d.theme === 'town') {
+        // Benches under the shop's front windows and potted shrubs by the door, all beyond the wall's outer face (z = hd + 0.2).
+        var wood = flat('#7a4a30'), iron = flat('#33363b');
+        [-2.75, 2.75].forEach(function (bx) {
+          add(new THREE.BoxGeometry(1.4, 0.07, 0.42), wood, bx, 0.46, hd + 0.7);
+          add(new THREE.BoxGeometry(1.4, 0.36, 0.05), wood, bx, 0.78, hd + 0.5);
+          [-0.6, 0.6].forEach(function (lx) { add(new THREE.BoxGeometry(0.06, 0.44, 0.4), iron, bx + lx, 0.22, hd + 0.7); });
+        });
+        // The shop's own sign above the door and striped awnings over its front windows.
+        add(new THREE.BoxGeometry(1.7, 0.42, 0.08), signMat('BOUTIQUE', '#7a3b2e'), 0, 2.62, hd + 0.26);
+        [-2.75, 2.75].forEach(function (ax2) {
+          var aw2 = add(new THREE.BoxGeometry(1.7, 0.05, 0.8), awningMat('#b5483a'), ax2, 2.5, hd + 0.2 + 0.38);
+          aw2.rotation.x = 0.3;
+        });
+        [-1.1, 1.1].forEach(function (px) {
+          add(new THREE.CylinderGeometry(0.26, 0.2, 0.4, 7), flat('#b5654a'), px, 0.2, hd + 0.6);
+          add(new THREE.SphereGeometry(0.34, 7, 5), flat('#4f8a42'), px, 0.62, hd + 0.6);
+        });
+      }
 
       // --- extras that make each place feel like itself ---
       if (d.theme === 'industrial') {
