@@ -18,7 +18,10 @@
       this.body = document.createElement('a-entity'); // pivot for lean/bob
       this.el.appendChild(this.body);
       this.built.push(this.body);
-      mk('a-capsule', { position: '0 0.85 0', radius: 0.28, length: 0.8, 'segments-cap': 4, 'segments-radial': 8 }, '#3a7bd5', this.body);
+      // Capsule body from certain-to-exist primitives: cylinder + two sphere caps (centered at 0.85)
+      mk('a-cylinder', { position: '0 0.85 0', radius: 0.28, height: 0.8, 'segments-radial': 8 }, '#3a7bd5', this.body);
+      mk('a-sphere', { position: '0 1.25 0', radius: 0.28, 'segments-width': 8, 'segments-height': 6 }, '#3a7bd5', this.body);
+      mk('a-sphere', { position: '0 0.45 0', radius: 0.28, 'segments-width': 8, 'segments-height': 6 }, '#3a7bd5', this.body);
       mk('a-box', { position: '-0.4 1.0 0', width: 0.12, height: 0.6, depth: 0.14 }, '#3a7bd5', this.body);
       mk('a-box', { position: '0.4 1.0 0', width: 0.12, height: 0.6, depth: 0.14 }, '#3a7bd5', this.body);
       this.head = document.createElement('a-entity');
