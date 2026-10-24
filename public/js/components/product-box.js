@@ -1,14 +1,9 @@
-/* Classic script: `product-box` component. A tier-colored cube with an optional thumbnail on its +z face
-   and a billboarded comic price sticker floating above it. */
+/* Classic script: `product-box` component. A brand-colored cube with the product photo (or its background-removed
+   cutout) on its +z face and the comic price sticker stuck on the same face. */
 (function () {
   var geoCache = {}; // size -> BoxGeometry, shared by every box
   var matCache = {}; // color -> MeshStandardMaterial
   var planeGeoCache = {};
-
-  // Preallocated scratch objects: tick runs every frame and must not allocate.
-  var vCam = new THREE.Vector3();
-  var vMesh = new THREE.Vector3();
-  var qParent = new THREE.Quaternion();
 
   function boxGeo(size) {
     return geoCache[size] || (geoCache[size] = new THREE.BoxGeometry(size, size, size));
@@ -40,7 +35,6 @@
       this.el.classList.add('clickable');
       this.mesh = null;
       this.plane = null;
-      this.standee = null;
       this.stickerMesh = null;
       this.stickerCanvas = null;
       this.tilt = 0;
@@ -63,17 +57,6 @@
         this.drawStickerLater();
       }
     },
-    tick: function () {
-      var m = this.stickerMesh;
-      var cam = this.el.sceneEl && this.el.sceneEl.camera;
-      if (!m || !cam) return;
-      cam.getWorldPosition(vCam);
-      m.getWorldPosition(vMesh);
-      // Yaw-only billboard: world yaw toward the camera, minus the parent's world yaw.
-      this.el.object3D.getWorldQuaternion(qParent);
-      var parentYaw = 2 * Math.atan2(qParent.y, qParent.w);
-      m.rotation.set(0, Math.atan2(vCam.x - vMesh.x, vCam.z - vMesh.z) - parentYaw, this.tilt);
-    },
     remove: function () {
       this.removed = true;
       this.el.removeEventListener('click', this.onClick);
@@ -92,16 +75,6 @@
         this.el.removeObject3D('sticker');
         this.stickerMesh = null;
         this.stickerCanvas = null;
-      }
-      if (this.standee) {
-        var st = this.standee;
-        st.traverse(function (o) {
-          if (o.geometry) o.geometry.dispose();
-          // The cardboard material is shared via matCache; only the canvas-textured one is ours.
-          if (o.material && o.material.map) { o.material.map.dispose(); o.material.dispose(); }
-        });
-        this.el.removeObject3D('standee');
-        this.standee = null;
       }
       if (this.plane) {
         if (this.plane.material) {
@@ -127,7 +100,7 @@
         if (self.buildId !== buildId || !self.mesh) return; // removed or rebuilt while loading
         var cut = null;
         try { cut = self.makeCutout(img); } catch (e) { cut = null; } // tainted canvas etc.
-        if (cut) self.buildStandee(cut);
+        if (cut) self.buildCutoutPlane(cut);
         else self.buildThumbPlane(url, buildId);
       };
       img.onerror = function () { /* keep the colored box, no plane */ };
@@ -160,28 +133,18 @@
       out.getContext('2d').drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
       return { canvas: out, aspect: cw / ch };
     },
-    buildStandee: function (cut) {
-      var d = this.data, size = d.size;
+    // The cutout sits on the box's +z face (the box stays visible behind it), fitted inside the face.
+    buildCutoutPlane: function (cut) {
+      var size = this.data.size, fit = size * 0.84;
       var pw, ph;
-      if (cut.aspect >= 1) { pw = size; ph = size / cut.aspect; } else { ph = size; pw = size * cut.aspect; }
+      if (cut.aspect >= 1) { pw = fit; ph = fit / cut.aspect; } else { ph = fit; pw = fit * cut.aspect; }
       var tex = new THREE.CanvasTexture(cut.canvas);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1 });
       var plane = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
-      plane.position.y = -size / 2 + ph / 2; // bottom edge on the surface the box sat on
-      var stand = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.9, ph * 0.25, 0.012), boxMat('#c8a165'));
-      stand.position.set(0, -size / 2 + ph * 0.125, -0.008);
-      var group = new THREE.Group();
-      group.add(plane);
-      group.add(stand);
-      this.standee = group;
-      this.el.setObject3D('standee', group);
-      // Hidden, not removed: the box stays in the raycast target set, so the click area is unchanged.
-      this.mesh.visible = false;
-      if (this.stickerMesh) {
-        var side = size * 0.7;
-        this.stickerMesh.position.y = -size / 2 + ph + side / 2 + 0.02;
-      }
+      plane.position.set(0, size * 0.04, size / 2 + 0.002);
+      this.plane = plane;
+      this.el.setObject3D('thumb', plane);
     },
     buildThumbPlane: function (url, buildId) {
       var d = this.data, self = this;
@@ -191,7 +154,7 @@
         if (self.buildId !== buildId || !self.mesh) { tex.dispose(); return; } // removed or rebuilt while loading
         if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
         var plane = new THREE.Mesh(planeGeo(d.size), new THREE.MeshBasicMaterial({ map: tex }));
-        plane.position.z = d.size / 2 + 0.002;
+        plane.position.set(0, d.size * 0.04, d.size / 2 + 0.002);
         self.plane = plane;
         self.el.setObject3D('thumb', plane);
       }, undefined, function () {
@@ -200,18 +163,18 @@
     },
     buildSticker: function () {
       var d = this.data;
-      var side = d.size * 0.7;
+      var side = d.size * 0.55;
       var canvas = document.createElement('canvas');
       canvas.width = canvas.height = 256;
       var tex = new THREE.CanvasTexture(canvas);
       if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
       var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
       var mesh = new THREE.Mesh(new THREE.PlaneGeometry(side, side), mat);
-      mesh.position.y = d.size / 2 + side / 2 + 0.02;
-      mesh.rotation.order = 'YXZ'; // yaw first, so the z-tilt stays in the sticker's own plane
+      mesh.position.set(d.size * 0.2, -d.size * 0.2, d.size / 2 + 0.01); // lower-right of the +z face
       mesh.renderOrder = 1;
       // Fixed per-product z-tilt of +-10 degrees.
       this.tilt = ((hashSeed(d.productId + ':tilt') % 2001) / 1000 - 1) * (10 * Math.PI / 180);
+      mesh.rotation.z = this.tilt;
       this.stickerMesh = mesh;
       this.stickerCanvas = canvas;
       this.el.setObject3D('sticker', mesh);

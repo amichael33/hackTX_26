@@ -2,7 +2,7 @@
 
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const ROW_TOPS = [0.05, 0.65, 1.25]; // plank top surfaces, local y
-const BOX = 0.3;
+const BOX = 0.45;
 const FRONT_Z = 0.05; // local offset toward the open front
 const ROW_ORDER = [1, 2, 0]; // eye level first, then top, then bottom
 

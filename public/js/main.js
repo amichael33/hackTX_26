@@ -220,7 +220,7 @@ async function runSearch() {
 store.on('phase:SEARCHING', runSearch);
 
 // --- Opening: show the shelves and pop the products in one by one ---
-const BOX_COLOR = '#fbfbfd'; // Apple-white packaging; the zone banners carry the zone cue
+const BOX_COLOR = '#0071e3'; // the store's primary blue (same as the UI's primary buttons)
 const SPAWN_MS = 60;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -230,9 +230,8 @@ const stickerTexts = new Map(); // productId -> Gemini sticker text (applied at 
 function spawnBox(container, slot) {
   const p = slot.product;
   const e = document.createElement('a-entity');
-  const isIsland = slot.zone === 'island';
   e.setAttribute('product-box', {
-    productId: p.id, thumb: p.thumbnail ?? '', color: BOX_COLOR, size: isIsland ? 0.45 : 0.3,
+    productId: p.id, thumb: p.thumbnail ?? '', color: BOX_COLOR, size: 0.45,
     sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
   });
   boxEls.set(p.id, e);
