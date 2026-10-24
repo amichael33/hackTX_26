@@ -136,51 +136,74 @@
     });
   }
 
-  // A wooden wheelbarrow: a deep slanted tub with plank seams and iron bands, a spoked wooden wheel on a fork at the front, two
-  // long handles that rise to hand height at the back (with leather grips) and legs under them, braced between the handles.
+  // A wooden wheelbarrow, built from a few clear parts: a tapered tub (four walls that meet at the corners, a floor and a rim
+  // around the top), two rails that run flat under the tub and then rise into the handles, legs, a braced fork and a spoked
+  // wooden wheel at the front. Origin = floor centre; +z = the handles, toward the player.
+  var plankTex = null;
+  function planks() {
+    if (plankTex) return plankTex;
+    var c = document.createElement('canvas');
+    c.width = 128; c.height = 64;
+    var g = c.getContext('2d');
+    g.fillStyle = '#9a7448'; g.fillRect(0, 0, 128, 64);
+    for (var i = 0; i < 4; i++) { g.fillStyle = i % 2 ? '#a07a4d' : '#946c42'; g.fillRect(i * 32, 0, 32, 64); }    // plank tones
+    g.fillStyle = '#5e4429'; [0, 32, 64, 96].forEach(function (x) { g.fillRect(x, 0, 2, 64); });                       // seams
+    g.fillStyle = 'rgba(70,45,20,0.25)'; for (var k = 0; k < 24; k++) g.fillRect((k * 53) % 128, (k * 29) % 64, 1, 8); // grain
+    g.fillStyle = '#2b2b2b'; g.fillRect(0, 10, 128, 5); g.fillRect(0, 49, 128, 5);                                      // iron bands
+    plankTex = new THREE.CanvasTexture(c);
+    if (THREE.SRGBColorSpace) plankTex.colorSpace = THREE.SRGBColorSpace;
+    return plankTex;
+  }
+  // A flat four-cornered panel (bottom-left, bottom-right, top-right, top-left) with its UVs, visible from both sides.
+  function panelGeo(bl, br, tr, tl) {
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([].concat(bl, br, tr, tl), 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    geo.setIndex([0, 1, 2, 0, 2, 3]);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
   function buildWheelbarrow(g) {
     var add = newPart(g);
-    var wood = mat('#8a6a45'), dark = mat('#4f3320'), seam = mat('#6e5234'), iron = mat('#2b2b2b'), leather = mat('#3a2a18'), rim = mat('#a07d52');
-    var RAIL_LO = [-0.4, 0.2], RAIL_HI = [0.72, 0.46];                         // [z, y] of the front and rear ends of the handles
-    var span = RAIL_HI[0] - RAIL_LO[0], rise = RAIL_HI[1] - RAIL_LO[1];
-    var railLen = Math.sqrt(span * span + rise * rise), tilt = -Math.atan2(rise, span);
-    var railY = function (z) { return RAIL_LO[1] + (z - RAIL_LO[0]) / span * rise; };
-    // Handles: long rails rising toward the player, a grip on each end, and a brace between them.
+    var dark = mat('#4f3320'), iron = mat('#2b2b2b'), wood = mat('#9a7448'), rim = mat('#b08a56'), leather = mat('#3a2a18');
+
+    // --- the tub: floor at y 0.335, walls flaring out to the top rim at y 0.615 ---
+    var YB = 0.335, YT = 0.615, ZC = -0.05, WB = 0.17, LB = 0.26, WT = 0.31, LT = 0.39;
+    add(box(2 * WB, 0.025, 2 * LB), wood, 0, YB + 0.0125, ZC);
+    var wallMat = new THREE.MeshStandardMaterial({ map: planks(), roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
+    var wall = function (bl, br, tr, tl) { var m = new THREE.Mesh(panelGeo(bl, br, tr, tl), wallMat); g.add(m); };
+    wall([-WB, YB, ZC - LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [-WT, YT, ZC - LT]); // left
+    wall([WB, YB, ZC + LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [WT, YT, ZC + LT]);     // right
+    wall([-WB, YB, ZC - LB], [WB, YB, ZC - LB], [WT, YT, ZC - LT], [-WT, YT, ZC - LT]);   // front (toward the wheel)
+    wall([WB, YB, ZC + LB], [-WB, YB, ZC + LB], [-WT, YT, ZC + LT], [WT, YT, ZC + LT]);   // back (toward the player)
+    // Rim: the long sides run the full length, the front and back sit between them.
+    [-1, 1].forEach(function (s) { add(box(0.04, 0.035, 2 * LT + 0.04), rim, s * WT, YT, ZC); });
+    [-1, 1].forEach(function (s) { add(box(2 * WT - 0.04, 0.035, 0.04), rim, 0, YT, ZC + s * LT); });
+
+    // --- the frame: rails flat under the tub, then rising into the handles ---
+    var RZ0 = -0.5, RZ1 = 0.35, HZ1 = 0.85, RY = 0.3, HY1 = 0.52;
+    var hl = Math.sqrt((HZ1 - RZ1) * (HZ1 - RZ1) + (HY1 - RY) * (HY1 - RY)), ha = -Math.atan2(HY1 - RY, HZ1 - RZ1);
     [-1, 1].forEach(function (s) {
-      add(box(0.04, 0.04, railLen), dark, s * 0.17, (RAIL_LO[1] + RAIL_HI[1]) / 2, (RAIL_LO[0] + RAIL_HI[0]) / 2, tilt, 0, 0);
-      add(box(0.05, 0.05, 0.2), leather, s * 0.17, RAIL_HI[1] + 0.012, RAIL_HI[0] + 0.1, tilt, 0, 0);                              // grip
-      add(box(0.035, railY(0.42) - 0.02, 0.035), dark, s * 0.17, (railY(0.42) - 0.02) / 2, 0.42);                                  // leg
-      add(box(0.07, 0.02, 0.12), dark, s * 0.17, 0.01, 0.42);                                                                      // foot
+      var x = s * 0.2;
+      add(box(0.045, 0.045, RZ1 - RZ0), dark, x, RY, (RZ0 + RZ1) / 2);                                  // flat rail under the tub
+      add(box(0.045, 0.045, hl), dark, x, (RY + HY1) / 2, (RZ1 + HZ1) / 2, ha, 0, 0);                 // handle, rising toward the player
+      add(box(0.05, 0.05, 0.17), leather, x, HY1 + 0.002, HZ1 + 0.075);                                 // leather grip
+      var legTop = RY + (0.62 - RZ1) / (HZ1 - RZ1) * (HY1 - RY) - 0.03;
+      add(box(0.04, legTop, 0.04), dark, x, legTop / 2, 0.62);                                            // leg
+      add(box(0.07, 0.02, 0.14), dark, x, 0.01, 0.62);                                                    // foot
+      // Fork arm: from the front of the rail down to the wheel's axle.
+      add(box(0.03, 0.03, 0.17), dark, s * 0.065, 0.245, -0.56, -Math.atan2(0.11, 0.12), 0, 0);
     });
-    add(box(0.3, 0.035, 0.035), dark, 0, railY(0.55) - 0.005, 0.55);                                                               // rear brace
-    add(box(0.3, 0.035, 0.035), dark, 0, railY(-0.3) - 0.005, -0.3);                                                               // front brace
-    // The tub: floor, two slanted sides, a leaning front and a low back, with plank seams and two iron bands on each outside face.
-    add(box(0.38, 0.025, 0.52), wood, 0, 0.31, 0);
-    var panel = function (w, h, x, y, z, rx, rz, alongZ) {
-      var grp = new THREE.Group();
-      grp.position.set(x, y, z); grp.rotation.set(rx, 0, rz);
-      g.add(grp);
-      var put = newPart(grp);
-      put(alongZ ? box(0.025, h, w) : box(w, h, 0.025), wood, 0, 0, 0);
-      for (var i = -1; i <= 1; i++) {                                                                                             // plank seams
-        put(alongZ ? box(0.006, h, 0.008) : box(0.008, h, 0.006), seam, alongZ ? -0.0135 : i * w / 4, 0, alongZ ? i * w / 4 : 0.0135);
-      }
-      [-0.07, 0.07].forEach(function (by) {                                                                                       // iron bands
-        put(alongZ ? box(0.006, 0.022, w + 0.01) : box(w + 0.01, 0.022, 0.006), iron, alongZ ? -0.0145 : 0, by, alongZ ? 0 : 0.0145);
-      });
-      put(alongZ ? box(0.035, 0.03, w) : box(w, 0.03, 0.035), rim, 0, h / 2, 0);                                                    // top rim
-    };
-    panel(0.54, 0.26, -0.235, 0.44, 0, 0, 20 * DEG, true);                      // left side (leans out)
-    panel(0.54, 0.26, 0.235, 0.44, 0, 0, -20 * DEG, true);                      // right side
-    panel(0.44, 0.26, 0, 0.44, -0.3, -22 * DEG, 0, false);                      // front board, leaning forward
-    panel(0.4, 0.14, 0, 0.375, 0.27, 0, 0, false);                              // low back board
-    // The front wheel: an iron tyre, a wooden wheel with crossed spokes, on a fork that reaches back to the handles.
-    add(wheelGeo(0.17, 0.05), iron, 0, 0.17, -0.5, 0, 0, Math.PI / 2);
-    add(wheelGeo(0.15, 0.054), wood, 0, 0.17, -0.5, 0, 0, Math.PI / 2);
-    [0, 60, 120].forEach(function (a) { add(box(0.058, 0.28, 0.016), dark, 0, 0.17, -0.5, a * DEG, 0, 0); });
-    add(box(0.14, 0.03, 0.03), dark, 0, 0.17, -0.5);                                                                              // axle
-    var fl = Math.sqrt(0.1 * 0.1 + 0.03 * 0.03), fa = -Math.atan2(RAIL_LO[1] - 0.17, RAIL_LO[0] + 0.5);
-    [-1, 1].forEach(function (s) { add(box(0.025, 0.03, fl + 0.02), dark, s * 0.07, 0.185, -0.45, fa, 0, 0); });                   // fork arms
+    add(box(0.4, 0.035, 0.035), dark, 0, 0.3, 0.12);                                                        // brace between the rails, under the tub
+    add(box(0.4, 0.035, 0.035), dark, 0, 0.4, 0.56);                                                        // brace between the handles
+
+    // --- the wheel: iron tyre, wooden disc and spokes, on an axle ---
+    var WY = 0.19, WZ = -0.62;
+    add(wheelGeo(0.19, 0.06), iron, 0, WY, WZ, 0, 0, Math.PI / 2);
+    add(wheelGeo(0.165, 0.064), wood, 0, WY, WZ, 0, 0, Math.PI / 2);
+    [0, 60, 120].forEach(function (a) { add(box(0.068, 0.3, 0.018), dark, 0, WY, WZ, a * DEG, 0, 0); });
+    add(box(0.17, 0.028, 0.028), dark, 0, WY, WZ);                                                          // axle
   }
 
   // Per-variant: model builder, drawn scale, how far ahead of the player it rolls, its footprint radius for collisions
@@ -189,7 +212,7 @@
     cart:        { build: buildCart,        scale: 1.3, ahead: 1.17, radius: 0.364, grid: { cols: 4, rows: 3, px: 0.13, pz: 0.13,  y: 0.45 + 0.02 + CUBE / 2, z: 0 } },
     basket:      { build: buildBasket,      scale: 1.4, ahead: 1.2,  radius: 0.4,   grid: { cols: 4, rows: 3, px: 0.13, pz: 0.125, y: 0.3 + 0.03 + CUBE / 2,  z: 0 } },
     dolly:       { build: buildDolly,       scale: 1.3, ahead: 1.25, radius: 0.42,  grid: { cols: 4, rows: 3, px: 0.13, pz: 0.13,  y: 0.2 + 0.035 + CUBE / 2, z: -0.02 } },
-    wheelbarrow: { build: buildWheelbarrow, scale: 1.3, ahead: 1.7,  radius: 0.55,  grid: { cols: 3, rows: 3, px: 0.125, pz: 0.13, y: 0.3225 + CUBE / 2,     z: 0 } }
+    wheelbarrow: { build: buildWheelbarrow, scale: 1.3, ahead: 1.9,  radius: 0.62,  grid: { cols: 3, rows: 3, px: 0.115, pz: 0.13, y: 0.3475 + CUBE / 2,  z: -0.05 } }
   };
   var STEP_FRACTIONS = [1, 0.89, 0.78, 0.67, 0.56, 0.44, 0.39];
 

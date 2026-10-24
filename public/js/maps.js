@@ -7,6 +7,7 @@ export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You 
 // Optional per-map styling (all have defaults, see the helpers below):
 //   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
+//   islandStyle: { base, top, plinth? } colors of the "Best Matches" island table;
 //   windows: { style, width, sill, head, max } and door: { style, width, height, personnel? } (see openingsFor), outside: city | town | industrial | medieval;
 //   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach, gator } (see riverFor; gator puts an alligator in it) and lightBz (z of the second light);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
@@ -62,6 +63,7 @@ export const MAPS = [
     windows: { style: 'cottage', width: 1.2, sill: 0.9, head: 2.3, max: 2 },
     door: { style: 'cottage', width: 1.1, height: 2.2 },
     outside: 'town',
+    islandStyle: { base: '#f6ede0', top: '#c98b5b' },
   },
   {
     id: 'warehouse',
@@ -86,6 +88,7 @@ export const MAPS = [
     // A roller shutter with a small personnel door in the wall beside it (decor only; `gap` = clear wall between them).
     door: { style: 'industrial', width: 3.4, height: 3.6, personnel: { width: 0.95, height: 2.1, gap: 0.45 } },
     outside: 'industrial',
+    islandStyle: { base: '#4a4f57', top: '#8d9096', plinth: '#2b2b2f' },
   },
   {
     id: 'castle',
@@ -114,6 +117,7 @@ export const MAPS = [
     windows: { style: 'castle', width: 1.1, sill: 1.6, head: 3.8, max: 3 },
     door: { style: 'castle', width: 2.0, height: 3.0 },
     outside: 'medieval',
+    islandStyle: { base: '#7d786f', top: '#6b4a2c', plinth: '#625e57' }, // a stone block with a timber top
     deskStyle: { body: '#5a3d24', top: '#8a6a45' },
   },
 ];

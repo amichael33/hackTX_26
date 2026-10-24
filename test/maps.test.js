@@ -219,3 +219,15 @@ test('warehouse: the personnel door beside the roller shutter clears the windows
   }
   for (const id of ['classic', 'boutique', 'castle']) assert.equal(openingsFor(getMap(id)).find((o) => o.kind === 'door').personnel, undefined);
 });
+
+test('every map can style its island table; the castle one is not the shop-white default', () => {
+  const hex = /^#[0-9a-f]{6}$/i;
+  for (const m of MAPS) {
+    const st = m.islandStyle;
+    if (!st) continue;
+    assert.ok(hex.test(st.base) && hex.test(st.top), `${m.id} island colors`);
+    if (st.plinth) assert.ok(hex.test(st.plinth), `${m.id} plinth`);
+  }
+  const castle = getMap('castle').islandStyle;
+  assert.ok(castle && castle.base !== '#f5f5f7' && castle.top !== '#d9bf98', 'the castle table has its own look');
+});

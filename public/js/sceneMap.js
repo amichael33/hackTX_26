@@ -15,10 +15,13 @@ function el(tag, attrs = {}, parent) {
 function buildIsland(map, parent) {
   const { island, room } = map;
   const g = el('a-entity', { id: 'island', position: `${island.x} 0 ${island.z}` }, parent);
-  const wood = 'color:#d9bf98; flatShading:true; roughness:0.9; metalness:0';
-  const white = 'color:#f5f5f7; flatShading:true; roughness:0.9; metalness:0';
+  // The table's look comes from the map (islandStyle): a base, a top, and an optional darker plinth around its foot.
+  const st = map.islandStyle ?? {};
+  const wood = `color:${st.top ?? '#d9bf98'}; flatShading:true; roughness:0.9; metalness:0`;
+  const white = `color:${st.base ?? '#f5f5f7'}; flatShading:true; roughness:0.9; metalness:0`;
   el('a-box', { position: '0 0.77 0', width: 2, height: 0.06, depth: 1.2, material: wood }, g);
   el('a-box', { position: '0 0.37 0', width: 1.4, height: 0.74, depth: 0.7, material: white }, g);
+  if (st.plinth) el('a-box', { position: '0 0.06 0', width: 1.5, height: 0.12, depth: 0.8, material: `color:${st.plinth}; flatShading:true; roughness:0.9; metalness:0` }, g);
   // Suspended banner: wires from the ceiling to the banner's top corners (y 2.08).
   const wireH = room.height - 2.08, wireY = (room.height + 2.08) / 2;
   for (const x of [-0.78, 0.78]) el('a-cylinder', { position: `${x} ${wireY} 0`, radius: 0.004, height: wireH, material: 'color:#1d1d1f' }, g);
