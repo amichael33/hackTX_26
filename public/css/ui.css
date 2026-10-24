@@ -1,17 +1,24 @@
-html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, sans-serif; }
+html, body { margin: 0; height: 100%; background: #f5f5f7; color: #1d1d1f; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; }
+button, input { font-family: inherit; }
+/* Frosted Apple-style panel look shared by all overlays */
+#subtitle, #chat-bar, #chat-log-list, #product-card, #location-panel {
+  background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 18px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); color: #1d1d1f;
+}
 #intro {
   position: fixed; inset: 0; z-index: 10;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; background: rgba(16, 20, 28, 0.88); color: #fff; text-align: center; padding: 16px;
+  gap: 16px; background: rgba(245, 245, 247, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  color: #1d1d1f; text-align: center; padding: 16px;
 }
 #intro.hidden { display: none; }
-#intro h1 { margin: 0; font-size: 2.2rem; }
-#intro p { margin: 0; opacity: 0.85; max-width: 28rem; }
+#intro h1 { margin: 0; font-size: 2.6rem; font-weight: 600; letter-spacing: -0.02em; }
+#intro p { margin: 0; color: #6e6e73; max-width: 28rem; }
 #enter-btn {
-  font-size: 1.2rem; padding: 12px 28px; border: 0; border-radius: 8px;
-  background: #ffcf33; color: #222; font-weight: 700; cursor: pointer;
+  font-size: 1.1rem; padding: 12px 28px; border: 0; border-radius: 980px;
+  background: #0071e3; color: #fff; font-weight: 600; cursor: pointer;
 }
-#enter-btn:hover { background: #ffdb66; }
+#enter-btn:hover { background: #0077ed; }
 
 /* --- HUD: subtitle + chat bar, bottom of screen --- */
 #hud {
@@ -24,27 +31,29 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
 #subtitle {
   display: flex; align-items: center; gap: 10px;
   width: min(720px, 100%); box-sizing: border-box;
-  background: rgba(10, 12, 18, 0.82); color: #fff;
-  border-radius: 10px; padding: 10px 14px;
+  padding: 10px 14px;
 }
 #subtitle-text { flex: 1; margin: 0; font-size: 1.1rem; line-height: 1.35; min-height: 1.35em; }
 #subtitle-controls { display: flex; gap: 6px; flex-shrink: 0; }
 #subtitle-controls button, #chat-log-toggle {
-  font: inherit; font-size: 0.85rem; padding: 5px 10px; border: 0; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.2); color: #fff; cursor: pointer;
+  font: inherit; font-size: 0.85rem; padding: 5px 12px; border: 0; border-radius: 980px;
+  background: #e8e8ed; color: #1d1d1f; cursor: pointer;
 }
-#subtitle-controls button:hover, #chat-log-toggle:hover { background: rgba(255, 255, 255, 0.32); }
-#chat-bar { width: min(720px, 100%); }
+#subtitle-controls button:hover, #chat-log-toggle:hover { background: #dcdce1; }
+#chat-bar { width: min(720px, 100%); box-sizing: border-box; padding: 8px; }
 #chat-form { display: flex; gap: 8px; }
 #chat-input {
   flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 10px 12px;
-  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #111;
+  border: 0; border-radius: 980px; background: rgba(255, 255, 255, 0.9); color: #1d1d1f; outline: none;
 }
+#chat-input:focus, #location-input:focus { box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.35); }
 #chat-input:disabled { opacity: 0.6; }
 #send-btn, #mic-btn {
-  font: inherit; font-weight: 700; padding: 10px 16px; border: 0; border-radius: 8px;
-  background: #ffcf33; color: #222; cursor: pointer;
+  font: inherit; font-weight: 600; padding: 10px 18px; border: 0; border-radius: 980px;
+  background: #0071e3; color: #fff; cursor: pointer;
 }
+#send-btn:hover:not(:disabled) { background: #0077ed; }
+#mic-btn { background: #e8e8ed; color: #1d1d1f; }
 #send-btn:disabled, #mic-btn:disabled { opacity: 0.5; cursor: default; }
 #mic-btn { touch-action: none; user-select: none; -webkit-user-select: none; }
 #mic-btn.listening { background: #e53935; color: #fff; animation: mic-pulse 1s ease-in-out infinite; }
@@ -60,16 +69,16 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
   pointer-events: none;
 }
 #chat-log > * { pointer-events: auto; }
-#chat-log-toggle { background: rgba(10, 12, 18, 0.82); }
+#chat-log-toggle { background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
 #chat-log-list {
   list-style: none; margin: 0; padding: 8px; width: 100%; box-sizing: border-box;
   flex: 1; min-height: 0; overflow-y: auto;
-  background: rgba(10, 12, 18, 0.82); border-radius: 10px; color: #fff; font-size: 0.9rem;
+  font-size: 0.9rem;
 }
 #chat-log.collapsed #chat-log-list { display: none; }
 #chat-log-list li { margin: 0 0 8px; padding: 6px 8px; border-radius: 8px; line-height: 1.3; }
-#chat-log-list .log-clerk { background: rgba(255, 207, 51, 0.22); }
-#chat-log-list .log-user { background: rgba(255, 255, 255, 0.16); text-align: right; }
+#chat-log-list .log-clerk { background: rgba(0, 113, 227, 0.1); }
+#chat-log-list .log-user { background: #e8e8ed; text-align: right; }
 
 /* --- Location panel: shown only in the LOCATION phase --- */
 #location-panel[hidden], #location-form[hidden] { display: none; }
@@ -77,52 +86,55 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
   position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 6;
   width: min(460px, calc(100% - 24px)); box-sizing: border-box;
   display: flex; flex-direction: column; gap: 10px; padding: 14px;
-  background: rgba(10, 12, 18, 0.88); color: #fff; border-radius: 12px;
 }
 #location-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 #location-buttons button, #location-submit {
-  flex: 1; font: inherit; font-weight: 700; padding: 10px 14px; border: 0; border-radius: 8px;
-  background: #ffcf33; color: #222; cursor: pointer;
+  flex: 1; font: inherit; font-weight: 600; padding: 10px 14px; border: 0; border-radius: 980px;
+  background: #0071e3; color: #fff; cursor: pointer;
 }
+#location-buttons button:hover:not(:disabled), #location-submit:hover:not(:disabled) { background: #0077ed; }
+#type-loc-btn { background: #e8e8ed !important; color: #1d1d1f !important; }
+#type-loc-btn:hover:not(:disabled) { background: #dcdce1 !important; }
 #location-buttons button:disabled, #location-submit:disabled { opacity: 0.5; cursor: default; }
 #location-buttons button[hidden] { display: none; }
 #location-form { display: flex; gap: 8px; }
 #location-input {
   flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 10px 12px;
-  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); color: #111;
+  border: 0; border-radius: 980px; background: rgba(255, 255, 255, 0.9); color: #1d1d1f; outline: none;
 }
-#location-privacy { margin: 0; font-size: 0.8rem; opacity: 0.75; }
+#location-privacy { margin: 0; font-size: 0.8rem; color: #6e6e73; }
 
 /* --- Product card --- */
 #product-card[hidden] { display: none; }
 #product-card {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
   width: min(360px, calc(100% - 24px)); box-sizing: border-box; padding: 18px 18px 16px;
-  background: rgba(10, 12, 18, 0.94); color: #fff; border-radius: 12px;
 }
 #product-card h2 { margin: 0 28px 8px 0; font-size: 1.05rem; line-height: 1.25; }
 #product-card p { margin: 4px 0; font-size: 0.95rem; }
-#card-price { font-size: 1.4rem !important; font-weight: 700; color: #ffcf33; }
-#card-source, #card-rating { opacity: 0.8; }
+#card-price { font-size: 1.4rem !important; font-weight: 600; color: #1d1d1f; }
+#card-source, #card-rating { color: #6e6e73; }
 #card-close {
   position: absolute; right: 8px; top: 6px; width: 32px; height: 32px; border: 0; border-radius: 8px;
-  background: transparent; color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer;
+  background: transparent; color: #6e6e73; font-size: 1.6rem; line-height: 1; cursor: pointer;
 }
 #card-buy {
-  display: inline-block; margin-top: 10px; padding: 10px 22px; border-radius: 8px;
-  background: #ffcf33; color: #222; font-weight: 700; text-decoration: none;
+  display: inline-block; margin-top: 10px; padding: 10px 22px; border-radius: 980px;
+  background: #0071e3; color: #fff; font-weight: 600; text-decoration: none;
 }
+#card-buy:hover { background: #0077ed; }
 #card-buy[hidden] { display: none; }
 
 /* --- Browsing: New search button + controls hint --- */
 #new-search-btn {
-  position: fixed; top: 14px; right: 14px; z-index: 6;
-  font: inherit; font-size: 0.95rem; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 8px;
-  background: #ffcf33; color: #222; cursor: pointer;
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
+  font: inherit; font-size: 0.95rem; font-weight: 600; padding: 8px 18px; border: 0; border-radius: 980px;
+  background: #0071e3; color: #fff; cursor: pointer;
 }
-#new-search-btn:hover { background: #ffdb66; }
+#new-search-btn:hover { background: #0077ed; }
 #new-search-btn[hidden], #browse-hint[hidden] { display: none; }
 #browse-hint {
-  margin: 0; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem;
-  background: rgba(10, 12, 18, 0.7); color: rgba(255, 255, 255, 0.85);
+  margin: 0; padding: 6px 14px; border-radius: 980px; font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  color: #6e6e73; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }

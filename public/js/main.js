@@ -183,34 +183,9 @@ async function runSearch() {
 store.on('phase:SEARCHING', runSearch);
 
 // --- Opening: show the shelves and pop the products in one by one ---
-const TIER_COLORS = { budget: '#4caf50', mid: '#2196f3', premium: '#9c27b0' };
+const BOX_COLOR = '#fbfbfd'; // Apple-white packaging; the zone banners carry the zone cue
 const SPAWN_MS = 60;
-// Zone signs sit above each zone, facing into the room.
-const SIGNS = [
-  { text: 'Budget picks', position: '-7.1 2.4 0', rotation: '0 90 0' },
-  { text: 'Premium', position: '7.1 2.4 0', rotation: '0 -90 0' },
-  { text: 'You might also need', position: '0 2.4 -9.1', rotation: '0 0 0' },
-  { text: 'More like this', position: '0 2.4 0.6', rotation: '0 0 0', width: 7 },
-  { text: 'Best matches', position: '0 1.6 0.7', rotation: '0 0 0', width: 4 },
-];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function showSigns() {
-  const shelves = document.getElementById('shelves');
-  shelves.querySelectorAll('[data-zone-sign]').forEach((e) => e.remove());
-  for (const s of SIGNS) {
-    const t = document.createElement('a-text');
-    t.setAttribute('data-zone-sign', '');
-    t.setAttribute('value', s.text);
-    t.setAttribute('align', 'center');
-    t.setAttribute('color', '#ffffff');
-    t.setAttribute('width', s.width ?? 6);
-    t.setAttribute('position', s.position);
-    t.setAttribute('rotation', s.rotation);
-    t.setAttribute('side', 'double');
-    shelves.appendChild(t);
-  }
-}
 
 const boxEls = new Map();       // productId -> product-box element, for later sticker updates
 const stickerTexts = new Map(); // productId -> Gemini sticker text (applied at spawn if it arrived early)
@@ -220,7 +195,7 @@ function spawnBox(container, slot) {
   const e = document.createElement('a-entity');
   const isIsland = slot.zone === 'island';
   e.setAttribute('product-box', {
-    productId: p.id, thumb: p.thumbnail ?? '', color: TIER_COLORS[p.tier] ?? TIER_COLORS.mid, size: isIsland ? 0.45 : 0.3,
+    productId: p.id, thumb: p.thumbnail ?? '', color: BOX_COLOR, size: isIsland ? 0.45 : 0.3,
     sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
   });
   boxEls.set(p.id, e);
@@ -239,7 +214,6 @@ async function runOpening() {
   const { products, query } = store.get();
   const saying = clerkSay('Go take a look!');
   document.getElementById('shelves').setAttribute('visible', 'true');
-  showSigns();
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
   boxEls.clear();
@@ -305,7 +279,6 @@ onNewSearch(() => {
   boxEls.clear();
   stickerTexts.clear();
   document.getElementById('shelves').setAttribute('visible', 'false');
-  document.querySelectorAll('[data-zone-sign]').forEach((e) => e.remove());
   hideProductCard();
   store.set({ products: [], query: null, messages: [] });
   say('What else can I find for you?').catch((err) => console.error(err));

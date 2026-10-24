@@ -12,10 +12,12 @@
   <script src="js/components/clerk.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
+  <script src="js/components/zone-banner.js"></script>
   <script src="js/sticker.js"></script>
   <script src="js/cutout.js"></script>
   <script src="js/components/product-box.js"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap">
   <link rel="stylesheet" href="css/ui.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -39,25 +41,28 @@
 
     <a-entity id="shelves" visible="false">
       <!-- left wall, facing +x -->
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 -5" rotation="0 90 0"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 0" rotation="0 90 0"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="-7.2 0 5" rotation="0 90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 -5" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 0" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-7.2 0 5" rotation="0 90 0"><a-entity zone-banner="text:Budget Picks; width:2" position="0 2 0.02"></a-entity></a-entity>
       <!-- right wall, facing -x -->
-      <a-entity shelf="width:2; rows:3" position="7.2 0 -5" rotation="0 -90 0"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="7.2 0 0" rotation="0 -90 0"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="7.2 0 5" rotation="0 -90 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="7.2 0 -5" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="7.2 0 0" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="7.2 0 5" rotation="0 -90 0"><a-entity zone-banner="text:Premium; width:2" position="0 2 0.02"></a-entity></a-entity>
       <!-- back wall, facing +z -->
-      <a-entity shelf="width:2; rows:3" position="-4 0 -9.2"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="0 0 -9.2"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="4 0 -9.2"></a-entity>
-      <a-entity rack="width:1.5" position="-6 0 -8"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-4 0 -9.2"><a-entity zone-banner="text:You Might Also Need; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="0 0 -9.2"><a-entity zone-banner="text:You Might Also Need; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="4 0 -9.2"><a-entity zone-banner="text:You Might Also Need; width:2" position="0 2 0.02"></a-entity></a-entity>
       <!-- center units -->
-      <a-entity shelf="width:2; rows:3" position="-3 0 0"></a-entity>
-      <a-entity shelf="width:2; rows:3" position="3 0 0"></a-entity>
+      <a-entity shelf="width:2; rows:3" position="-3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>
+      <a-entity shelf="width:2; rows:3" position="3 0 0"><a-entity zone-banner="text:More Like This; width:2" position="0 2 0.02"></a-entity></a-entity>
       <!-- island -->
       <a-entity id="island" position="0 0 0">
-        <a-box position="0 0.75 0" width="2" height="0.1" depth="1.2" material="color:#c9a27a; flatShading:true"></a-box>
-        <a-box position="0 0.35 0" width="1.6" height="0.7" depth="0.9" material="color:#8a5a3c; flatShading:true"></a-box>
+        <a-box position="0 0.77 0" width="2" height="0.06" depth="1.2" material="color:#d9bf98; flatShading:true; roughness:0.9; metalness:0"></a-box>
+        <a-box position="0 0.37 0" width="1.4" height="0.74" depth="0.7" material="color:#f5f5f7; flatShading:true; roughness:0.9; metalness:0"></a-box>
+        <!-- suspended banner: wires from the ceiling (y 4.0) to the banner's top corners (y 1.88) -->
+        <a-cylinder position="-0.78 2.94 0" radius="0.004" height="2.12" material="color:#1d1d1f"></a-cylinder>
+        <a-cylinder position="0.78 2.94 0" radius="0.004" height="2.12" material="color:#1d1d1f"></a-cylinder>
+        <a-entity zone-banner="text:Best Matches; width:1.6" position="0 1.75 0"></a-entity>
       </a-entity>
     </a-entity>
     <a-entity id="products"></a-entity>
