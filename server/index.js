@@ -14,4 +14,4 @@ const app = createApp({
 });
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => console.log(`store server listening on :${port}`));
+app.listen(port, process.env.NODE_ENV === 'production' ? '127.0.0.1' : undefined, () => console.log(`store server listening on :${port}`));

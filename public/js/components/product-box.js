@@ -147,7 +147,7 @@
       ctx.drawImage(img, 0, 0, w, h);
       var id = ctx.getImageData(0, 0, w, h); // throws if tainted
       var res = SC.removeEdgeBackground(id.data, w, h);
-      if (res.removedFraction < 0.04) return null;
+      if (res.removedFraction < 0.04 || res.removedFraction > 0.9) return null; // plain photo or white-on-white eaten
       var bb = SC.alphaBBox(id.data, w, h);
       if (!bb) return null;
       ctx.putImageData(id, 0, 0);

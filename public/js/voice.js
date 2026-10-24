@@ -20,7 +20,7 @@ export function pickVoice(voices) {
   if (!voices || !voices.length) return null;
   return (
     voices.find((v) => v.name === 'Google US English') ||
-    voices.find((v) => /aria|jenny/i.test(v.name)) ||
+    voices.find((v) => /aria|jenny/i.test(v.name) && /^en/i.test(v.lang || '')) ||
     voices.find((v) => /microsoft zira/i.test(v.name)) ||
     voices.find((v) => v.lang === 'en-US' || v.lang === 'en_US') ||
     voices.find((v) => /^en([-_]|$)/i.test(v.lang)) ||

@@ -176,8 +176,8 @@ function renderPhase(state) {
   chatBar.hidden = state.phase === 'INTRO';
   logEl.hidden = state.phase === 'INTRO';
   if (!chatting && document.activeElement === chatInput) chatInput.blur(); // disabled inputs may not fire blur
-  locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
   if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
+  locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
   newSearchBtn.hidden = state.phase !== 'BROWSING';
   browseHint.hidden = state.phase !== 'BROWSING';
   chatInput.disabled = !chatting;
