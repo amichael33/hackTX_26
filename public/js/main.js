@@ -1,11 +1,11 @@
 import { store, movementEnabled } from './store.js';
-import { isDemoPage, postChat, postGeocode, postSearch, postStickers } from './api.js';
+import { isDemoPage, postChat, postGeocode, postSearch, postSimilar, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
-import { layoutStore } from './layoutStore.js';
+import { layoutStore, layoutSimilar } from './layoutStore.js';
 
 window.store = store; // console debugging
 
@@ -240,10 +240,22 @@ function spawnBox(container, slot) {
   container.appendChild(e);
 }
 
+const SIMILAR_TITLE = 'Similar Finds';
+const SIMILAR_EMPTY = 'Nothing Similar Right Now';
+const SIMILAR_TRIGGER_Z = -6.2; // walking this far back loads Similar Finds
+function setSimilarBanners(text) {
+  for (const id of ['banner-similar-1', 'banner-similar-2']) document.getElementById(id)?.setAttribute('zone-banner', 'text', text);
+}
+let similarTriggeredRun = -1; // the openingRun that already triggered Similar Finds
+let similarPoll = null;
+function stopSimilarPoll() { clearInterval(similarPoll); similarPoll = null; }
+
 let openingRun = 0; // run token: bumped by every opening and every reset so stale async work bails out
 
 async function runOpening() {
   const run = ++openingRun;
+  stopSimilarPoll();
+  setSimilarBanners(SIMILAR_TITLE);
   const live = () => run === openingRun && store.get().phase === 'OPENING';
   const { products, query, replay } = store.get();
   if (replay) store.set({ replay: null });
@@ -285,6 +297,51 @@ async function runOpening() {
   }
   await saying;
 }
+// Once per opening, the first walk to the back wall during BROWSING fetches Similar Finds.
+async function triggerSimilar(run) {
+  similarTriggeredRun = run;
+  const { query, products, location } = store.get();
+  say('More like this coming up!').catch((err) => console.error(err));
+  let res = null;
+  try {
+    const titles = [...products].sort((a, b) => a.relevance - b.relevance).slice(0, 5).map((p) => p.title);
+    res = await postSimilar({ query, city: location?.city, exclude: products.map((p) => p.id), titles });
+  } catch (err) {
+    console.warn('similar failed', err);
+  }
+  if (run !== openingRun) return; // New search or replay owns the store now
+  const found = Array.isArray(res?.products) ? res.products : [];
+  if (!found.length) { setSimilarBanners(SIMILAR_EMPTY); return; }
+  const slots = layoutSimilar(found);
+  const container = document.getElementById('products');
+  const items = slots.map((sl) => ({ id: sl.product.id, title: sl.product.title, price: sl.product.price, tier: sl.product.tier }));
+  postStickers({ items }).then((r) => {
+    if (run !== openingRun) return;
+    for (const s of r?.stickers ?? []) {
+      if (!s || typeof s.id !== 'string' || typeof s.sticker_text !== 'string' || !s.sticker_text) continue;
+      stickerTexts.set(s.id, s.sticker_text);
+      boxEls.get(s.id)?.setAttribute('product-box', 'sticker', s.sticker_text);
+    }
+  }).catch(() => { /* keep fallbacks */ });
+  store.set({ products: [...products, ...slots.map((sl) => sl.product)] }); // so clicking a similar box opens its card
+  for (const slot of slots) {
+    if (run !== openingRun) return;
+    try { spawnBox(container, slot); } catch (err) { console.error(err); }
+    await sleep(SPAWN_MS);
+  }
+}
+
+function armSimilarPoll(run) {
+  stopSimilarPoll();
+  similarPoll = setInterval(() => {
+    if (run !== openingRun || store.get().phase !== 'BROWSING') return stopSimilarPoll();
+    const rig = document.getElementById('rig');
+    if (similarTriggeredRun === run || !rig) return;
+    if (rig.object3D.position.z < SIMILAR_TRIGGER_Z) { stopSimilarPoll(); triggerSimilar(run).catch((err) => console.error(err)); }
+  }, 250);
+}
+store.on('phase:BROWSING', () => armSimilarPoll(openingRun));
+
 store.on('phase:OPENING', () => { runOpening().catch((err) => console.error(err)); });
 
 document.querySelector('a-scene').addEventListener('product-selected', (e) => {
@@ -336,6 +393,8 @@ enterBtn.addEventListener('click', () => {
 // --- New search: back to chatting with an empty store ---
 function resetStore({ silent = false } = {}) {
   openingRun++; // ignore any late sticker results from the previous run
+  stopSimilarPoll();
+  setSimilarBanners(SIMILAR_TITLE);
   store.setPhase('CHATTING');
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
