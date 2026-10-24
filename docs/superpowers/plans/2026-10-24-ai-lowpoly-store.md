@@ -428,3 +428,328 @@ API contracts (JSON in, JSON out):
   - stickers and the disco ball are unchanged;
   - the overlays look like frosted Apple panels.
 - [ ] **Step 5: Commit** `feat: apple-store look and banner signs`
+
+---
+
+# Part 2: Cart, Saved Searches, Similar Finds (Tasks 12-15)
+
+**Spec:** [docs/superpowers/specs/2026-10-24-cart-saved-searches-similar-design.md](../specs/2026-10-24-cart-saved-searches-similar-design.md). The user approved it. Read it before working on Tasks 12-15.
+
+**Goal:** Shoppers can save products to a cart, which shows in a right-side widget and in a 3D cart that follows them. They can reopen past searches with zero API calls. Walking to the back fills a "Similar Finds" shelf once per store.
+
+**Prerequisite:** Task 11 and the final-review fix wave are merged. These tasks modify `main.js`, `ui.js` and `ui.css` after those changes.
+
+## Global Constraints (Part 2)
+- Data is device-only, in browser `localStorage`. No accounts, no server storage. Keys: `store.cart.v1` and `store.searches.v1`.
+- Caps:
+  - cart: **50** items;
+  - 3D cart: shows the newest **12**;
+  - saved searches: **10**;
+  - Similar Finds: **12** products from **2** generated queries;
+  - `/api/similar`: **10/min** per IP, with a **25 s** client timeout.
+- The back-wall trigger fires when rig z < **-6.2**, only in BROWSING, once per opened store.
+- **No new npm dependencies.** Earlier rulings still bind:
+  - R7: components are classic scripts.
+  - R8: the rig carries look-controls.
+  - R17/R26: shelf geometry is frozen and `SHELF_UNITS` is unchanged. The geometry guard test must keep passing.
+- All user-visible text that comes from data uses `textContent`.
+
+## Review Focus (Part 2)
+1. **Storage blocked, full or corrupt.** The app keeps working in memory and never throws. Tests in Task 12 and Task 14.
+2. **The same product added twice, or add/remove spam.** Exactly one entry, and the widget and the 3D cart stay in sync. Test in Task 12.
+3. **New search or replay while Similar Finds is still loading.** No late products may appear in the new store. Handled by the opening run token in Task 15, plus a manual check.
+4. **Walking to the back before the store has finished opening (OPENING).** Nothing fires until BROWSING. Handled by Task 15's trigger guard, plus a manual check.
+5. **A replayed search whose thumbnail URLs have expired.** The products fall back to tier boxes through the existing product-box path. Manual check in Task 14.
+
+## File Structure (Part 2)
+```
+public/js/storage.js          safeLocalStorage(), memoryStorage()   (DOM-free; Task 12)
+public/js/cart.js             createCart()                          (DOM-free; Task 12)
+public/js/savedSearches.js    createSavedSearches()                 (DOM-free; Task 14)
+public/js/components/shopping-cart.js   3D cart (classic script; Task 13)
+server/lib/similar.js         generateSimilarQueries()              (Task 15)
+test/{storage,cart,savedSearches,similar}.test.js
+```
+
+---
+
+### Task 12: Cart store + card button + right-side widget
+
+**Files:**
+- Create: `public/js/storage.js`, `public/js/cart.js`, `test/storage.test.js`, `test/cart.test.js`.
+- Modify: `public/js/ui.js`, `public/js/main.js`, `public/index.html`, `public/css/ui.css`.
+
+**Interfaces:**
+- Consumes:
+  - `showProductCard(p)` and `hideProductCard()` from ui.js;
+  - the `product-selected` handler in main.js;
+  - `formatPrice` from text.js;
+  - `imgUrl` from api.js.
+- Produces:
+  - `storage.js`:
+    - `memoryStorage() -> {getItem, setItem, removeItem}`.
+    - `safeLocalStorage() -> same shape`. It returns `window.localStorage` if a test write and remove of the key `__probe__` succeeds; otherwise it returns `memoryStorage()`. It never throws, even when `window` is undefined.
+  - `cart.js`:
+    - `createCart(storage = safeLocalStorage(), key = 'store.cart.v1') -> { items(), add(product), remove(id), has(id), clear(), total(), on('change', fn) -> unsubscribe }`.
+    - Items are `CartItem = {id, title, price, extracted_price, source, link, thumbnail, savedAt}`.
+    - `items()` returns a copy, newest first.
+    - `add` returns false when the id is already in the cart or the cart is full (50).
+    - `total()` rounds to cents.
+    - Every change is saved to storage. If `setItem` throws, the error is swallowed.
+    - On load, drop invalid JSON, non-array data, and items without a string `id` or a finite `extracted_price`.
+  - `ui.js` additions:
+    - `setCardInCart(inCart: boolean)`: the card button reads "Add to cart" or "In cart ✓ · Remove".
+    - `onCardCart(fn: () => void)`.
+    - `renderCart(items: CartItem[], total: number)`.
+    - `onCartRemove(fn: (id) => void)`.
+    - `showWidgetTab('cart'|'searches')`.
+  - Widget DOM:
+    - `#cart-widget`: a frosted panel on the right edge, with collapse tab `#cart-tab` and count badge `#cart-count`.
+    - Tab buttons `#tab-cart` and `#tab-searches`.
+    - Panes `#cart-pane` and `#searches-pane`. `#searches-pane` shows "No past searches yet." until Task 14.
+  - The chat log (`#chat-log` and its toggle) moves to the **left** edge.
+  - `main.js`:
+    - holds a module-level `cart = createCart()`;
+    - remembers which product the card is showing;
+    - on every cart change, re-renders the widget and calls `scene.emit('cart-changed', { items: cart.items() })` (Task 13 listens for this). It also does both once at boot.
+
+- [ ] **Step 1: Failing tests.**
+  - `storage.test.js`:
+    - `memoryStorage` round-trips a value.
+    - `safeLocalStorage()` under Node, where there is no `window`, returns a working memory storage.
+  - `cart.test.js`, using a `memoryStorage()` fake:
+    - `add` then `has` → true, and `items()[0].id` matches.
+    - Adding the same id twice keeps 1 item, and the second `add` returns false.
+    - The 51st distinct add returns false, and length stays 50.
+    - `remove` and `clear` work.
+    - `total()` of 19.99 + 0.01 + 5.5 === 25.5.
+    - Persistence: a second `createCart` on the same storage sees the items.
+    - Storage seeded with `'{bad'` → `items()` is `[]`.
+    - Storage seeded with `[{"id":1},{"id":"a","extracted_price":3,"title":"t"}]` → only `'a'` survives.
+    - With a storage whose `setItem` throws, `add` still returns true and `has` is true.
+    - `on('change')` fires once per successful change and not on a rejected duplicate.
+- [ ] **Step 2:** Run `npm test`. Expected: FAIL (modules missing).
+- [ ] **Step 3:** Implement `storage.js` and `cart.js`.
+- [ ] **Step 4:** Run `npm test`. Expected: PASS.
+- [ ] **Step 5:** Implement the card button, the widget, the log move, and the main.js wiring.
+  - Widget rows show:
+    - a 40 px thumbnail, or a white swatch when there is none;
+    - the title, clamped to 2 lines;
+    - the price;
+    - a **Buy** link (`target=_blank rel=noopener`, hidden when the link is null);
+    - a remove ×.
+  - The footer reads `"N items · $total"`. The empty state reads "Click a product and press Add to cart."
+  - The widget is visible from CHATTING onward and hidden in INTRO and LOCATION. Its list scrolls when it overflows.
+- [ ] **Step 6:** Run `npm test` and `node --check` on the changed browser files, and curl the assets from port 3000 (expect 200).
+  - **Manual check:**
+    - Adding from the card works, and the button toggles.
+    - The badge and total update.
+    - × removes an item.
+    - Reloading keeps the cart.
+    - The log sits on the left and the widget on the right, and neither overlaps New search.
+- [ ] **Step 7: Commit** `feat: cart with right-side widget`
+
+---
+
+### Task 13: 3D shopping cart
+
+**Files:**
+- Create: `public/js/components/shopping-cart.js`.
+- Modify:
+  - `public/index.html`: add the script tag, and `<a-entity id="cart3d" shopping-cart>` as a child of the scene, **not** inside `#rig`.
+  - `public/js/main.js`: visibility.
+
+**Interfaces:**
+- Consumes:
+  - the scene event `cart-changed` with `{items: CartItem[]}` (Task 12);
+  - `#rig`, which carries look-controls (R8).
+- Produces the `shopping-cart` component, schema `{ rig: selector (default '#rig'), max: number (default 12) }`.
+  - **Model:**
+    - a basket of thin `#c7c7cc` boxes, 0.55 wide × 0.35 tall × 0.4 deep, open on top;
+    - a handle bar;
+    - 4 wheels in `#1d1d1f`;
+    - flat-shaded, with geometries and materials shared inside the component.
+  - **Following the player:**
+    - Each tick, copy the rig's world x/z and the rig's **yaw only** (rig `object3D.rotation.y`).
+    - Place the cart 0.9 m ahead along that yaw, with the basket bottom at world y 0.45.
+    - Use preallocated vectors and allocate nothing per frame.
+  - **Contents:**
+    - On `cart-changed`, rebuild the contents from the newest `max` items.
+    - Each item is a 0.12 cube in a 4×3 grid on the basket floor.
+    - The cube's top face shows the thumbnail (`'/api/img?u='+encodeURIComponent(thumb)`, crossOrigin anonymous). Items without a thumbnail stay white `#fbfbfd`.
+    - An item that is new since the last render pops in with a scale animation, 0 → 1 over 250 ms.
+    - Dispose old textures, materials and geometries. A build token drops stale texture callbacks.
+  - **Not `.clickable`.**
+  - `main.js` makes `#cart3d` visible only when `phase === 'BROWSING'`, inside its existing `applyState`.
+
+- [ ] **Step 1:** Implement the component and the wiring.
+- [ ] **Step 2:** Run `npm test` (the existing suite must still pass), `node --check` on the new file, and curl (expect 200).
+  - **Manual check:**
+    - The cart rolls ahead as you walk and turns with you.
+    - It does **not** tilt when you look up or down.
+    - Items appear in the basket, and new ones pop in.
+    - It is hidden outside BROWSING.
+    - It never blocks clicks on low-shelf products.
+- [ ] **Step 3: Commit** `feat: 3d shopping cart follows the player`
+
+---
+
+### Task 14: Saved searches + Past searches tab + replay
+
+**Files:**
+- Create: `public/js/savedSearches.js`, `test/savedSearches.test.js`.
+- Modify:
+  - `public/js/store.js`: the initial state gains `replay: null`;
+  - `public/js/main.js`;
+  - `public/js/ui.js`.
+
+**Interfaces:**
+- Consumes:
+  - `safeLocalStorage` and `memoryStorage` (Task 12);
+  - `#searches-pane` and `showWidgetTab` (Task 12);
+  - `runSearch`, `runOpening`, `stickerTexts` and the New-search reset (main.js).
+- Produces:
+  - `savedSearches.js`:
+    - `createSavedSearches(storage = safeLocalStorage(), key = 'store.searches.v1') -> { list(), save({query, city, products, stickers}), updateStickers(id, stickers), get(id), remove(id) }`.
+    - Entries are `SavedSearch = {id, query, city, products, stickers, savedAt}`, where:
+      - `products` is capped at 30;
+      - `stickers` is `{[productId]: text}`;
+      - `id` is `String(savedAt)` plus a random suffix.
+    - `list()` is newest first.
+    - `save` keeps at most 10 entries. A new entry with the same `query.query` (case-insensitive, trimmed) and the same `city` replaces the older one.
+    - If a write throws a quota error, drop the oldest entry and retry once. If that fails too, skip saving. It never throws.
+    - Corrupt data is dropped on load.
+  - `ui.js`:
+    - `renderPastSearches(list: SavedSearch[])`: rows of `"query · city · N items · <relative time>"`.
+    - `onPastSearchPick(fn: (id) => void)`.
+  - `main.js`:
+    - **Refactor** the New-search handler body into `resetStore({ silent = false })`. When `silent` is true it skips the line "What else can I find for you?". Behavior is otherwise unchanged.
+    - **Saving:** when an opening starts with real products and no `replay`, call `savedSearches.save({query, city: location.city, products, stickers: {}})`. When `/api/stickers` resolves for that run, call `updateStickers(entry.id, map)`.
+    - **Replay:** on `onPastSearchPick(id)`:
+      - It is allowed only in CHATTING or BROWSING; otherwise ignore it.
+      - If in BROWSING, call `resetStore({silent:true})` first.
+      - Then `store.set({ replay: entry })` and `setPhase('SEARCHING')`.
+    - When `store.get().replay` is set, `runSearch`:
+      - skips `/api/search`, the wait line and the spin;
+      - sets `products = replay.products` and `query = replay.query`;
+      - calls `setPhase('OPENING')`.
+    - `runOpening` with a replay:
+      - reads `replay` at its start, then clears `store.replay` to null;
+      - seeds `stickerTexts` from `replay.stickers`;
+      - **skips `postStickers`**;
+      - does not save the search again.
+
+- [ ] **Step 1: Failing tests** (`savedSearches.test.js`, using `memoryStorage`):
+  - After 11 saves of distinct queries, `list().length === 10` and the oldest is gone.
+  - Saving "Apple Watch" and then "apple watch " with the same city leaves 1 entry, the newer one.
+  - The same query with a different city keeps 2 entries.
+  - Products are capped at 30.
+  - `updateStickers` persists, and a new instance sees the change.
+  - Corrupt storage → `list()` is `[]`.
+  - A storage whose `setItem` throws `{name:'QuotaExceededError'}` on the first call and succeeds on the second: `save` succeeds and the oldest entry is dropped.
+  - A storage that always throws: `save` does not throw.
+- [ ] **Step 2:** Run `npm test`. Expected: FAIL.
+- [ ] **Step 3:** Implement `savedSearches.js`.
+- [ ] **Step 4:** Run `npm test`. Expected: PASS.
+- [ ] **Step 5:** Implement the tab, the `resetStore` refactor, saving, and the replay wiring.
+- [ ] **Step 6:** Run `npm test` and `node --check`, and curl.
+  - **Manual check:**
+    - A finished search appears in Past searches.
+    - Picking it from CHATTING or BROWSING rebuilds the store, and the DevTools Network tab shows **no** `/api/search` or `/api/stickers` calls.
+    - Stickers show the saved jokes.
+    - Reloading keeps the list.
+    - An old replay with dead thumbnails shows white boxes.
+- [ ] **Step 7: Commit** `feat: saved searches with zero-api replay`
+
+---
+
+### Task 15: Similar Finds at the back wall
+
+**Files:**
+- Create: `server/lib/similar.js`, `test/similar.test.js`.
+- Modify:
+  - `public/js/layoutStore.js` and `test/layout.test.js`;
+  - `server/app.js`;
+  - `public/js/api.js`;
+  - `public/js/main.js`;
+  - `public/index.html`: change the banners on the back-middle (x=0) and back-right (x=4) units to `Similar Finds`, with ids `banner-similar-1` and `banner-similar-2`.
+
+**Interfaces:**
+- Consumes:
+  - `SHELF_UNITS` (unchanged);
+  - the per-query cache `runQuery(q, location)` in app.js;
+  - `normalizeShoppingResults` and `assignTiers` (serp.js);
+  - `demoProducts`;
+  - `llm` (llm.js);
+  - `spawnBox`, `openingRun` and `stickerTexts` (main.js);
+  - `postStickers`;
+  - the `zone-banner` `text` property.
+- Produces:
+  - `layoutStore.js`:
+    - `ZONES.back` is built from `SHELF_UNITS.back[0]` only: the x=-4 unit, 6 slots.
+    - New `ZONES.similar` is built from `SHELF_UNITS.back[1]` and `[2]`: 12 slots.
+    - `similar` is **not** in `SPILL_ORDER`, and `layoutStore` never places products there.
+    - New export `layoutSimilar(products) -> Slot[]`: at most 12 products, in `relevance` order, with `zone: 'similar'`.
+  - `similar.js`: `generateSimilarQueries({ query: Query, titles: string[] }, llm) -> Promise<string[]>`.
+    - It makes one llm call with schema `{queries: string[]}`. The prompt asks for exactly 2 shopping searches that are similar to the main query but not the same product, for example a different style, brand or form factor.
+    - Normalize the result:
+      - trim and drop empties;
+      - drop case-insensitive duplicates of each other and of `query.query` and `query.extra_queries`;
+      - cap at 2.
+    - If llm throws, return `[]`.
+  - Route `POST /api/similar`:
+    - Body: `{query, city, exclude, titles}`. Caps: `exclude` 100, `titles` 5, each title 120 characters.
+    - Rate limit: `limit(10)`.
+    - When `demoMode` is on, `body.demo === true`, or the key is missing, return `{products: <up to 12 demoProducts whose ids ∉ exclude, mapped to similar:true, related:false>, queries: [], demo: true}`.
+    - Otherwise:
+      1. `queries = await generateSimilarQueries(...)`. If it is empty, return `{products: [], queries: []}`.
+      2. Run the queries in parallel through `runQuery(q, city)`, catching each one's error separately.
+      3. `normalizeShoppingResults` the results, map them to `similar: true, related: false`, drop excluded ids, dedupe by id, cap at 12, then `assignTiers`.
+      4. Return `{products, queries}`.
+    - If every query fails, return demo products as above, with `demo: true`.
+    - The response is always 200, except 429.
+  - `api.js`: `postSimilar(body)` with a 25000 ms timeout. It forwards `demo: true` the same way `postSearch` does when the page was loaded with `?demo=1`.
+  - `main.js`:
+    - While in BROWSING, poll every 250 ms. When `rig.object3D.position.z < -6.2` and this opening's run hasn't triggered yet, call `triggerSimilar(run)`.
+      - Clear the poll when the phase leaves BROWSING.
+      - Track "triggered" per `openingRun`, so replay and New search re-arm it.
+    - `triggerSimilar`:
+      1. The clerk says "More like this coming up!".
+      2. Call `postSimilar({ query, city: location.city, exclude: products.map(p => p.id), titles: top 5 titles by relevance })`.
+      3. If `run !== openingRun`, drop the result.
+      4. Otherwise, spawn the `layoutSimilar(products)` slots into `#products` 60 ms apart, using the same path as `spawnBox`.
+      5. Then make one `postStickers` call for them, gated on the token.
+    - If the result is empty, failed or a 429, set both banners' `zone-banner` `text` to `Nothing Similar Right Now`.
+    - Every reset and opening sets both banner texts back to `Similar Finds`.
+  - `Product` gains an optional `similar?: boolean`.
+
+- [ ] **Step 1: Failing tests:**
+  - `test/layout.test.js` (added to the existing tests):
+    - With 30 mixed products, no slot has zone `similar`, the `back` zone holds at most 6, and all 30 are still placed.
+    - `layoutSimilar` of 15 products returns 12 slots, all with `zone === 'similar'`, `position.x > -1` and `position.z < -8`, at unique positions.
+    - `layoutSimilar([])` → `[]`.
+  - `test/similar.test.js`:
+    - `generateSimilarQueries` with a fake llm returning `['Thocky 75% keyboard', 'mechanical keyboard creamy sound', 'GASKET mount keyboard', 'gasket mount keyboard', '']`, for the query `'mechanical keyboard creamy sound'` → `['Thocky 75% keyboard', 'GASKET mount keyboard']`.
+    - A throwing llm → `[]`.
+    - The route, with a fake llm returning 2 queries and a fake fetch returning 10 items each:
+      - exactly 2 fetch calls;
+      - excluded ids are absent;
+      - `products.length <= 12`;
+      - every product has `similar === true`.
+    - The llm returns only the main query → 0 fetch calls and `{products: []}`.
+    - `demoMode` → demo items not in `exclude`, with `demo === true` and no fetch.
+    - The 11th call in a minute → 429.
+- [ ] **Step 2:** Run `npm test`. Expected: FAIL.
+- [ ] **Step 3:** Implement the layout changes, `similar.js` and the route.
+- [ ] **Step 4:** Run `npm test`. Expected: PASS, including the R26 geometry guard.
+- [ ] **Step 5:** Implement `postSimilar`, the trigger, the spawning and the banner text updates, and add the banner ids to index.html.
+- [ ] **Step 6:** Run `npm test` and `node --check`, and curl.
+  - **Manual check:**
+    - The back-middle and back-right shelves start empty under "Similar Finds".
+    - Walking to the back during OPENING does nothing.
+    - In BROWSING, walking back triggers once: the clerk line plays, then up to 12 items pop in with stickers.
+    - Walking away and back again does not trigger it a second time.
+    - New search while it is loading leaves no leftovers.
+    - `?demo=1` fills from demo stock.
+    - Removing the SerpApi key falls back to demo stock.
+- [ ] **Step 7: Commit** `feat: similar finds load at the back wall`
