@@ -24,6 +24,7 @@ function initialState() {
     voice: { micAvailable: false, ttsMuted: false },
     query: null,
     products: [],
+    extras: [], // leftover results that did not fit on the shelves, kept for future features
     messages: [],
     inputFocused: false,
     replay: null,

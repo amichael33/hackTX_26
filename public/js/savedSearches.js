@@ -2,7 +2,8 @@
 import { safeLocalStorage } from './storage.js';
 
 const MAX_ENTRIES = 10;
-const MAX_PRODUCTS = 30;
+const MAX_PRODUCTS = 60;
+const MAX_EXTRAS = 40;
 const norm = (s) => String(s ?? '').trim().toLowerCase();
 
 function valid(e) {
@@ -38,13 +39,14 @@ export function createSavedSearches(storage = safeLocalStorage(), key = 'store.s
   return {
     list: () => list.map((e) => ({ ...e })),
     get: (id) => { const e = list.find((x) => x.id === id); return e ? { ...e } : null; },
-    save({ query, city, products, stickers }) {
+    save({ query, city, products, stickers, extras }) {
       if (!query || typeof query.query !== 'string' || !Array.isArray(products) || !products.length) return null;
       const savedAt = Math.max(Date.now(), lastAt + 1); // strictly increasing: stable newest-first order
       lastAt = savedAt;
       const entry = {
         id: String(savedAt) + Math.random().toString(36).slice(2, 7),
         query, city: city ?? null, products: products.slice(0, MAX_PRODUCTS),
+        extras: Array.isArray(extras) ? extras.slice(0, MAX_EXTRAS) : [],
         stickers: stickers && typeof stickers === 'object' ? { ...stickers } : {}, savedAt,
       };
       const prev = list;

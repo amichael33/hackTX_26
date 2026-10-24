@@ -66,6 +66,6 @@ test('POST /api/stickers', async () => {
   assert.equal(r.json.stickers[0].sticker_text, 'CHEAP!');
   assert.deepEqual((await post({ llm }, {})).json, { stickers: [] });
   assert.deepEqual((await post({ llm }, { items: 'x' })).json, { stickers: [] });
-  const many = Array.from({ length: 40 }, (_, i) => ({ id: 'i' + i, title: 't', price: '$1', tier: 'mid' }));
-  assert.equal((await post({ llm: async () => ({}) }, { items: many })).json.stickers.length, 30);
+  const many = Array.from({ length: 70 }, (_, i) => ({ id: 'i' + i, title: 't', price: '$1', tier: 'mid' }));
+  assert.equal((await post({ llm: async () => ({}) }, { items: many })).json.stickers.length, 60);
 });

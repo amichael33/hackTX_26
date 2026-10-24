@@ -38,15 +38,15 @@ async function search(deps, body) {
 }
 const Q = { query: 'wireless mouse', extra_queries: [] };
 
-test('route: Amazon items are merged (max 8, one per 3 Google items) with contiguous relevance', async () => {
+test('route: Amazon items are merged (max 16, one per 3 Google items) with contiguous relevance', async () => {
   const urls = [];
   const fetchImpl = async (u) => { urls.push(String(u)); return ok(String(u).includes('engine=amazon') ? amazonJson(16) : google(12)); };
   const { products } = await search({ fetchImpl, serpApiKey: 'k', amazon: true }, { query: Q });
   assert.equal(urls.filter((u) => u.includes('engine=amazon')).length, 1);
   assert.ok(urls.find((u) => u.includes('engine=amazon')).includes('k=wireless%20mouse'));
   const az = products.filter((p) => p.source === 'Amazon');
-  assert.equal(az.length, 8);
-  assert.equal(products.length, 20);
+  assert.equal(az.length, 16);
+  assert.equal(products.length, 28);
   assert.deepEqual(products.map((p) => p.relevance), products.map((_, i) => i));
   assert.equal(products[3].source, 'Amazon'); // after the first three Google items
   assert.equal(new Set(products.map((p) => p.id)).size, products.length);

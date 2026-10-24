@@ -177,17 +177,18 @@ async function runSearch() {
     store.set({ status: 'thinking' });
     const { query, location, replay } = store.get();
     if (replay) { // zero-API replay: the saved products go straight to the shelves
-      store.set({ products: replay.products, query: replay.query });
+      store.set({ products: replay.products, extras: replay.extras ?? [], query: replay.query });
       store.setPhase('OPENING');
       return;
     }
     const waiting = clerkSay(SEARCH_WAIT);
     document.getElementById('clerk')?.emit('spin');
     let servedDemo = false;
+    let extras = [];
     searchWasDemo = false;
     let pending = true;
     const searching = postSearch({ query, city: location?.city }).then(
-      (res) => { servedDemo = res?.demo === true; return res?.products ?? []; },
+      (res) => { servedDemo = res?.demo === true; extras = Array.isArray(res?.extras) ? res.extras : []; return res?.products ?? []; },
       (err) => {
         console.warn('search failed', err);
         return err?.status === 429 ? { limited: true } : null; // null = request failed, distinct from an empty result
@@ -205,7 +206,7 @@ async function runSearch() {
       return;
     }
     if (Array.isArray(products) && products.length) {
-      store.set({ products });
+      store.set({ products, extras });
       searchWasDemo = servedDemo;
       if (servedDemo && !isDemoPage) await clerkSay(SEARCH_OFFLINE);
       store.setPhase('OPENING');
@@ -271,7 +272,7 @@ async function runOpening() {
   if (replay) {
     for (const [id, text] of Object.entries(replay.stickers ?? {})) if (typeof text === 'string' && text) stickerTexts.set(id, text);
   } else if (!searchWasDemo && !isDemoPage) {
-    saved = savedSearches.save({ query, city: store.get().location?.city, products, stickers: {} });
+    saved = savedSearches.save({ query, city: store.get().location?.city, products, extras: store.get().extras, stickers: {} });
     renderPastSearches(savedSearches.list());
   }
   // Fire the batched sticker copy now; boxes spawn with fallback text and are upgraded when it lands.
@@ -405,7 +406,7 @@ function resetStore({ silent = false } = {}) {
   document.getElementById('shelves').setAttribute('visible', 'false');
   hideProductCard();
   cardProduct = null;
-  store.set({ products: [], query: null, messages: [], replay: null });
+  store.set({ products: [], extras: [], query: null, messages: [], replay: null });
   if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
 }
 

@@ -31,11 +31,14 @@ test('same query different city keeps both', () => {
   assert.equal(s.list().length, 2);
 });
 
-test('products capped at 30', () => {
+test('products capped at 60, extras at 40', () => {
   const s = createSavedSearches(memoryStorage());
-  const e = s.save({ ...mk('x'), products: prods(50) });
-  assert.equal(e.products.length, 30);
-  assert.equal(s.get(e.id).products.length, 30);
+  const e = s.save({ ...mk('x'), products: prods(80), extras: prods(70) });
+  assert.equal(e.products.length, 60);
+  assert.equal(e.extras.length, 40);
+  assert.equal(s.get(e.id).products.length, 60);
+  assert.equal(s.get(e.id).extras.length, 40);
+  assert.deepEqual(s.save({ ...mk('y'), products: prods(2) }).extras, []);
 });
 
 test('updateStickers persists across instances', () => {

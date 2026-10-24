@@ -15,10 +15,11 @@ const publicDir = path.join(here, '..', 'public');
 const demoProducts = JSON.parse(readFileSync(path.join(here, 'data', 'demoProducts.json'), 'utf8'));
 
 const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
-const MAX_PRODUCTS = 30;
-const MAX_RELATED = 6;
+const MAX_PRODUCTS = 60; // what goes on the shelves (the store holds 70)
+const MAX_RELATED = 12;
+const MAX_EXTRAS = 40;   // leftovers kept back for future features, never shown on the shelves
 const MAX_SIMILAR = 12;
-const MAX_AMAZON = 8; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
+const MAX_AMAZON = 16; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
 
 function pluralize(w) {
   if (/[^aeiou]y$/i.test(w)) return w.slice(0, -1) + 'ies';
@@ -137,10 +138,13 @@ export function createApp(deps = {}) {
         relatedAll.push(...r);
       }
       // Reserve up to MAX_RELATED slots for related items; main fills the rest up to MAX_PRODUCTS.
-      const relatedKept = dedupe(relatedAll).slice(0, MAX_RELATED);
+      const relatedDeduped = dedupe(relatedAll);
+      const relatedKept = relatedDeduped.slice(0, MAX_RELATED);
       const mainKept = main.slice(0, MAX_PRODUCTS - relatedKept.length);
       const products = assignTiers([...mainKept, ...relatedKept]);
-      res.json({ products });
+      // Everything that did not fit on the shelves is kept (tiered on its own) for later features.
+      const leftovers = assignTiers([...main.slice(mainKept.length), ...relatedDeduped.slice(MAX_RELATED)].slice(0, MAX_EXTRAS));
+      res.json({ products, extras: leftovers });
     } catch (err) {
       console.warn('search failed:', err.message);
       res.json({ products: demoProducts, demo: true });
@@ -183,7 +187,7 @@ export function createApp(deps = {}) {
     res.json(await chatTurn(req.body || {}, deps.llm));
   });
 
-  const MAX_STICKER_ITEMS = 30;
+  const MAX_STICKER_ITEMS = 60;
   app.post('/api/stickers', stickersLimit, async (req, res) => {
     const items = req.body?.items;
     if (!Array.isArray(items)) return res.json({ stickers: [] });

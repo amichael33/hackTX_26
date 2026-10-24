@@ -9,7 +9,7 @@ Built at hackTX 26.
 ## What it does
 
 - **Chat with Bob.** Text or push-to-talk mic. Bob talks back with browser text-to-speech and subtitles. Gemini works out what you want and when to search.
-- **Live results.** Google Shopping (biased to your city) plus Amazon, up to 30 products per search.
+- **Live results.** Google Shopping (biased to your city) plus Amazon, up to 60 products per search on the shelves. Up to 40 more are kept back as extras for later features.
 - **A low-poly store in 3D.** Walk around with WASD. The best matches sit on the island, budget picks on the left wall, premium on the right, and related items on the back wall.
 - **Retailer-colored boxes.** Target is red, Walmart is blue, Amazon is orange, and so on. Unknown stores get a color of their own. Product photos have their background removed and sit on the box.
 - **Funny price stickers.** Gemini writes a 4-word joke for each price, stuck on the box.

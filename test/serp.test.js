@@ -134,12 +134,13 @@ const forty = { shopping_results: Array.from({ length: 40 }, (_, i) => ({
   title: 'K' + i, product_id: 'id' + i, extracted_price: 10 + i, price: '$' + (10 + i), product_link: 'https://x', source: 's',
 })) };
 
-test('route: 40 results -> 30 products, and an identical second request is cached', async () => {
+test('route: 40 results -> 40 products, no extras, and an identical second request is cached', async () => {
   const f = fakeFetch(() => ok(forty));
   const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
   const first = await postSearch(app, { query: Q, city: CITY });
   assert.equal(first.status, 200);
-  assert.equal(first.json.products.length, 30);
+  assert.equal(first.json.products.length, 40);
+  assert.deepEqual(first.json.extras, []);
   assert.equal(first.json.products[0].id, 'id0');
   assert.ok(first.json.products.every((p) => p.tier));
   assert.equal(f.calls.length, 1);
@@ -151,14 +152,14 @@ test('route: 40 results -> 30 products, and an identical second request is cache
 test('route: empty shopping_results -> {products: []} (no demo)', async () => {
   const app = createApp({ fetchImpl: fakeFetch(() => ok({ shopping_results: [] })), serpApiKey: 'k' });
   const r = await postSearch(app, { query: Q, city: CITY });
-  assert.deepEqual(r.json, { products: [] });
+  assert.deepEqual(r.json, { products: [], extras: [] });
 });
 
 test('route: "no results" error message is EMPTY, not failure', async () => {
   const f = fakeFetch(() => ok({ error: "Google hasn't returned any results for this query." }));
   const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
   const r = await postSearch(app, { query: Q, city: CITY });
-  assert.deepEqual(r.json, { products: [] });
+  assert.deepEqual(r.json, { products: [], extras: [] });
   assert.equal(f.calls.length, 1, 'no location retry for an empty result');
 });
 
@@ -223,18 +224,33 @@ test('route: extra_queries fan out, marked related, main results first', async (
   assert.equal(r.json.products[0].title, Q.query);
 });
 
-test('route: 40 main + 5 related -> 30 products with 5 related and 25 main', async () => {
+test('route: 40 main + 5 related -> 45 products with 5 related and 40 main', async () => {
   const relatedItems = { shopping_results: Array.from({ length: 5 }, (_, i) => ({
     title: 'R' + i, product_id: 'rel' + i, extracted_price: 15 + i, price: '$' + (15 + i), product_link: 'https://r', source: 's',
   })) };
   const f = fakeFetch((url) => (new URL(url).searchParams.get('q') === 'keycaps' ? ok(relatedItems) : ok(forty)));
   const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
   const r = await postSearch(app, { query: { ...Q, extra_queries: ['keycaps'] }, city: CITY });
-  assert.equal(r.json.products.length, 30);
+  assert.equal(r.json.products.length, 45);
   assert.equal(r.json.products.filter((p) => p.related).length, 5);
-  assert.equal(r.json.products.filter((p) => !p.related).length, 25);
+  assert.equal(r.json.products.filter((p) => !p.related).length, 40);
   const related = r.json.products.filter((p) => p.related);
   assert.ok(related.every((p) => p.relevance >= 40), 'related relevance continues after main');
+});
+
+test('route: more than fits on the shelves -> 40 main + 12 related on the shelves, the rest kept as extras', async () => {
+  const items = (prefix, n) => ({ shopping_results: Array.from({ length: n }, (_, i) => ({
+    title: prefix + i, product_id: prefix + i, extracted_price: 10 + i, price: '$' + (10 + i), product_link: 'https://r', source: 's',
+  })) });
+  const f = fakeFetch((url) => ok(new URL(url).searchParams.get('q') === 'keycaps' ? items('rel', 80) : items('m', 40)));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const r = await postSearch(app, { query: { ...Q, extra_queries: ['keycaps'] }, city: CITY });
+  assert.equal(r.json.products.length, 52);
+  assert.equal(r.json.products.filter((p) => p.related).length, 12);
+  assert.equal(r.json.extras.length, 40);
+  assert.ok(r.json.extras.every((p) => p.related && p.tier));
+  const ids = [...r.json.products, ...r.json.extras].map((p) => p.id);
+  assert.equal(new Set(ids).size, ids.length, 'no product is on both lists');
 });
 
 test('route: body demo:true -> demo products, no fetch, not cached', async () => {
