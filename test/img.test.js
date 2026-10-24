@@ -66,3 +66,19 @@ test('upstream network error -> 502', async () => {
     assert.equal((await get('https://serpapi.com/a.png')).status, 502);
   });
 });
+
+test('responses carry nosniff and CSP sandbox headers', async () => {
+  await withApp(okFetch(), async (get) => {
+    const res = await get('https://serpapi.com/images/a.png');
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(res.headers.get('content-security-policy'), 'sandbox');
+  });
+});
+
+test('urls with an explicit port are rejected with 400', async () => {
+  await withApp(neverCalled, async (get) => {
+    assert.equal((await get('https://serpapi.com:8443/a.png')).status, 400);
+    assert.equal((await get('https://lh3.googleusercontent.com:22/a')).status, 400);
+  });
+});

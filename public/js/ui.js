@@ -12,6 +12,8 @@ const logEl = $('chat-log');
 const logList = $('chat-log-list');
 const logToggle = $('chat-log-toggle');
 const chatBar = $('chat-bar');
+const newSearchBtn = $('new-search-btn');
+const browseHint = $('browse-hint');
 const chatForm = $('chat-form');
 const chatInput = $('chat-input');
 const sendBtn = $('send-btn');
@@ -176,6 +178,8 @@ function renderPhase(state) {
   if (!chatting && document.activeElement === chatInput) chatInput.blur(); // disabled inputs may not fire blur
   locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
   if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
+  newSearchBtn.hidden = state.phase !== 'BROWSING';
+  browseHint.hidden = state.phase !== 'BROWSING';
   chatInput.disabled = !chatting;
   sendBtn.disabled = !chatting;
   renderMic(state);
@@ -267,6 +271,10 @@ export function showProductCard(p) {
   cardBuy.hidden = !link;
   card.hidden = false;
   store.set({ inputFocused: true }); // keeps WASD from moving the player while the card is open
+}
+
+export function onNewSearch(handler) {
+  newSearchBtn.addEventListener('click', handler);
 }
 
 export function hideProductCard() {

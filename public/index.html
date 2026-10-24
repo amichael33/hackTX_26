@@ -11,6 +11,7 @@
   <script src="js/components/desk.js"></script>
   <script src="js/components/clerk.js"></script>
   <script src="js/components/bounds.js"></script>
+  <script src="js/components/disco-ball.js"></script>
   <script src="js/sticker.js"></script>
   <script src="js/cutout.js"></script>
   <script src="js/components/product-box.js"></script>
@@ -23,6 +24,8 @@
     <a-entity light="type:hemisphere; color:#ffffff; groundColor:#8a7a6a; intensity:0.9"></a-entity>
     <a-entity light="type:point; color:#fff4e0; intensity:0.6; distance:30" position="0 3.5 0"></a-entity>
     <a-entity light="type:point; color:#fff4e0; intensity:0.5; distance:20" position="0 3.5 6"></a-entity>
+
+    <a-entity disco-ball position="0 3.5 0"></a-entity>
 
     <a-entity room="width:16; depth:20; height:4"></a-entity>
 
@@ -91,6 +94,7 @@
         <button id="mute-btn" type="button" aria-pressed="false">Mute</button>
       </div>
     </div>
+    <p id="browse-hint" hidden>Esc closes the card &middot; WASD to move &middot; drag to look</p>
     <div id="chat-bar" hidden>
       <form id="chat-form">
         <input id="chat-input" type="text" autocomplete="off" placeholder="Tell the clerk what you want..." aria-label="Message the clerk" disabled>
@@ -99,6 +103,7 @@
       </form>
     </div>
   </div>
+  <button id="new-search-btn" type="button" hidden>New search</button>
   <div id="product-card" role="dialog" aria-modal="false" aria-labelledby="card-title" hidden>
     <button id="card-close" type="button" aria-label="Close">&times;</button>
     <h2 id="card-title"></h2>

@@ -236,3 +236,26 @@ test('route: 40 main + 5 related -> 30 products with 5 related and 25 main', asy
   const related = r.json.products.filter((p) => p.related);
   assert.ok(related.every((p) => p.relevance >= 40), 'related relevance continues after main');
 });
+
+test('route: body demo:true -> demo products, no fetch, not cached', async () => {
+  const f = fakeFetch(() => ok(forty));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const r = await postSearch(app, { query: Q, city: CITY, demo: true });
+  assert.equal(f.calls.length, 0);
+  assert.deepEqual(r.json.products, demo);
+  // a later non-demo request must hit SerpApi (demo result was not cached)
+  const live = await postSearch(app, { query: Q, city: CITY });
+  assert.equal(f.calls.length, 1);
+  assert.equal(live.json.products[0].id, 'id0');
+});
+
+test('route: cache key includes extra_queries (different extras -> separate fetch rounds)', async () => {
+  const f = fakeFetch(() => ok(forty));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  await postSearch(app, { query: { ...Q, extra_queries: ['hdmi cable'] }, city: CITY });
+  assert.equal(f.calls.length, 2);
+  await postSearch(app, { query: { ...Q, extra_queries: ['usb hub'] }, city: CITY });
+  assert.equal(f.calls.length, 4);
+  await postSearch(app, { query: { ...Q, extra_queries: ['hdmi cable'] }, city: CITY });
+  assert.equal(f.calls.length, 4, 'same extras are a cache hit');
+});

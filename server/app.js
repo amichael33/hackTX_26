@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,17 @@ const MAX_RELATED = 6;
 // deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, serveStatic?, geocodeTimeoutMs? }
 export function createApp(deps = {}) {
   const app = express();
+  app.set('trust proxy', 'loopback'); // Caddy on localhost: honor X-Forwarded-For so limits are per client
+  // Limiters live inside createApp so every app (and test) gets fresh counters.
+  const limit = (max) => rateLimit({
+    windowMs: 60_000, max, standardHeaders: true, legacyHeaders: false,
+    handler: (req, res) => res.status(429).json({ error: 'slow down' }),
+  });
+  const chatLimit = limit(30);
+  const stickersLimit = limit(30);
+  const searchLimit = limit(10);
+  const geocodeLimit = limit(10);
+  const imgLimit = limit(300);
   app.use(express.json({ limit: '50kb' }));
   const cache = createCache(SEARCH_TTL_MS);
   const fetchImpl = deps.fetchImpl ?? fetch;
@@ -43,13 +55,14 @@ export function createApp(deps = {}) {
 
   // Main query plus up to 2 extra_queries (related). Main failure -> demo products; extra failure is dropped.
   // Empty results return {products: []} so the clerk can say nothing matched.
-  app.post('/api/search', async (req, res) => {
+  app.post('/api/search', searchLimit, async (req, res) => {
     const query = req.body?.query ?? {};
     const city = req.body?.city || undefined;
     if (!query.query) return res.status(400).json({ error: 'missing query' });
-    if (deps.demoMode || !deps.serpApiKey) return res.json({ products: demoProducts });
+    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoProducts });
 
-    const key = JSON.stringify([query.query, query.min_price, query.max_price, city]);
+    const extraKey = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2).map(String).sort();
+    const key = JSON.stringify([query.query, query.min_price, query.max_price, city, extraKey]);
     const cached = cache.get(key);
     if (cached !== undefined) return res.json({ products: cached });
 
@@ -82,12 +95,12 @@ export function createApp(deps = {}) {
     }
   });
 
-  app.post('/api/chat', async (req, res) => {
+  app.post('/api/chat', chatLimit, async (req, res) => {
     res.json(await chatTurn(req.body || {}, deps.llm));
   });
 
   const MAX_STICKER_ITEMS = 30;
-  app.post('/api/stickers', async (req, res) => {
+  app.post('/api/stickers', stickersLimit, async (req, res) => {
     const items = req.body?.items;
     if (!Array.isArray(items)) return res.json({ stickers: [] });
     const valid = items.filter((it) => it && typeof it === 'object' && it.id != null).slice(0, MAX_STICKER_ITEMS);
@@ -96,7 +109,7 @@ export function createApp(deps = {}) {
 
   // Privacy: coordinates are rounded to 2 decimals (~1 km) before leaving the server
   // and are NEVER logged (no console.*, no error logging with the request body).
-  app.post('/api/geocode', async (req, res) => {
+  app.post('/api/geocode', geocodeLimit, async (req, res) => {
     try {
       const lat = Number(req.body?.lat);
       const lng = Number(req.body?.lng);
@@ -112,11 +125,11 @@ export function createApp(deps = {}) {
   const IMG_HOSTS = ['gstatic.com', 'googleusercontent.com', 'serpapi.com'];
   const IMG_MAX_BYTES = 2 * 1024 * 1024;
   const IMG_TIMEOUT_MS = 8000;
-  app.get('/api/img', async (req, res) => {
+  app.get('/api/img', imgLimit, async (req, res) => {
     let url;
     try { url = new URL(String(req.query.u ?? '')); } catch { return res.status(400).end(); }
     const host = url.hostname.toLowerCase();
-    if (url.protocol !== 'https:' || !IMG_HOSTS.some((h) => host === h || host.endsWith('.' + h))) {
+    if (url.protocol !== 'https:' || url.port !== '' || !IMG_HOSTS.some((h) => host === h || host.endsWith('.' + h))) {
       return res.status(400).end();
     }
     try {
@@ -134,7 +147,12 @@ export function createApp(deps = {}) {
         if (total > IMG_MAX_BYTES) return res.status(502).end();
         chunks.push(chunk);
       }
-      res.set({ 'Content-Type': type, 'Cache-Control': 'public, max-age=86400' });
+      res.set({
+        'Content-Type': type,
+        'Cache-Control': 'public, max-age=86400',
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
+      });
       res.send(Buffer.concat(chunks));
     } catch {
       res.status(502).end();

@@ -2,7 +2,7 @@ import { store, movementEnabled } from './store.js';
 import { postChat, postGeocode, postSearch, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch } from './ui.js';
 import { layoutStore } from './layoutStore.js';
 
 window.store = store; // console debugging
@@ -10,6 +10,7 @@ window.store = store; // console debugging
 const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can find stuff in your area?";
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
 const GREETING = 'Hi! Welcome in. What are you shopping for today?';
+const RATE_LIMITED = 'Whoa, one sec!';
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
 const scene = document.querySelector('a-scene');
@@ -130,7 +131,7 @@ async function runTurn(text) {
     res = await postChat({ messages, location: store.get().location });
   } catch (err) {
     console.warn('chat failed', err);
-    await say(CHAT_FALLBACK);
+    await say(err?.status === 429 ? RATE_LIMITED : CHAT_FALLBACK);
     return;
   }
 
@@ -156,7 +157,7 @@ async function runSearch() {
       (res) => res?.products ?? [],
       (err) => {
         console.warn('search failed', err);
-        return null; // null = request failed, distinct from an empty result
+        return err?.status === 429 ? 'limited' : null; // null = request failed, distinct from an empty result
       },
     );
     const [products] = await Promise.all([searching, waiting]);
@@ -164,6 +165,11 @@ async function runSearch() {
     if (products?.length) {
       store.set({ products });
       store.setPhase('OPENING');
+      return;
+    }
+    if (products === 'limited') {
+      store.setPhase('CHATTING'); // keep the conversation so the player can just ask again
+      await clerkSay(RATE_LIMITED);
       return;
     }
     await clerkSay(products === null ? SEARCH_FAILED : SEARCH_EMPTY);
@@ -224,7 +230,11 @@ function spawnBox(container, slot) {
   container.appendChild(e);
 }
 
+let openingRun = 0; // run token: bumped by every opening and every reset so stale async work bails out
+
 async function runOpening() {
+  const run = ++openingRun;
+  const live = () => run === openingRun && store.get().phase === 'OPENING';
   const { products, query } = store.get();
   const saying = clerkSay('Go take a look!');
   document.getElementById('shelves').setAttribute('visible', 'true');
@@ -236,6 +246,7 @@ async function runOpening() {
   // Fire the batched sticker copy now; boxes spawn with fallback text and are upgraded when it lands.
   postStickers({ items: products.map((p) => ({ id: p.id, title: p.title, price: p.price, tier: p.tier })) })
     .then((res) => {
+      if (run !== openingRun) return; // a newer run or a reset owns the maps now
       for (const s of res?.stickers ?? []) {
         if (!s || typeof s.id !== 'string' || typeof s.sticker_text !== 'string' || !s.sticker_text) continue;
         stickerTexts.set(s.id, s.sticker_text);
@@ -244,12 +255,16 @@ async function runOpening() {
       }
     })
     .catch(() => { /* keep fallbacks */ });
-  const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
-  for (const slot of slots) {
-    spawnBox(container, slot);
-    await sleep(SPAWN_MS);
+  try {
+    const slots = layoutStore(products, { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null });
+    for (const slot of slots) {
+      if (!live()) return;
+      try { spawnBox(container, slot); } catch (err) { console.error(err); }
+      await sleep(SPAWN_MS);
+    }
+  } finally {
+    if (live()) store.setPhase('BROWSING');
   }
-  store.setPhase('BROWSING');
   await saying;
 }
 store.on('phase:OPENING', () => { runOpening().catch((err) => console.error(err)); });
@@ -277,4 +292,20 @@ enterBtn.addEventListener('click', () => {
   try { window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) { /* unsupported */ }
   intro.classList.add('hidden');
   store.setPhase('LOCATION');
+});
+
+// --- New search: back to chatting with an empty store ---
+onNewSearch(() => {
+  if (store.get().phase !== 'BROWSING') return;
+  openingRun++; // ignore any late sticker results from the previous run
+  store.setPhase('CHATTING');
+  const container = document.getElementById('products');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  boxEls.clear();
+  stickerTexts.clear();
+  document.getElementById('shelves').setAttribute('visible', 'false');
+  document.querySelectorAll('[data-zone-sign]').forEach((e) => e.remove());
+  hideProductCard();
+  store.set({ products: [], query: null, messages: [] });
+  say('What else can I find for you?').catch((err) => console.error(err));
 });

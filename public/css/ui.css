@@ -113,3 +113,16 @@ html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, 
   background: #ffcf33; color: #222; font-weight: 700; text-decoration: none;
 }
 #card-buy[hidden] { display: none; }
+
+/* --- Browsing: New search button + controls hint --- */
+#new-search-btn {
+  position: fixed; top: 14px; right: 14px; z-index: 6;
+  font: inherit; font-size: 0.95rem; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 8px;
+  background: #ffcf33; color: #222; cursor: pointer;
+}
+#new-search-btn:hover { background: #ffdb66; }
+#new-search-btn[hidden], #browse-hint[hidden] { display: none; }
+#browse-hint {
+  margin: 0; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem;
+  background: rgba(10, 12, 18, 0.7); color: rgba(255, 255, 255, 0.85);
+}
