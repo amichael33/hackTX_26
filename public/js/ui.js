@@ -420,13 +420,13 @@ export function renderPastSearches(list) {
     row.type = 'button';
     row.className = 'search-row';
     const n = e.products.length;
-    row.textContent = `${e.query.query} · ${e.city ?? ''} · ${n} ${n === 1 ? 'item' : 'items'} · ${timeAgo(e.savedAt)}`;
+    row.textContent = `${e.query.query} Â· ${e.city ?? ''} Â· ${n} ${n === 1 ? 'item' : 'items'} Â· ${timeAgo(e.savedAt)}`;
     row.addEventListener('click', () => pickHandler?.(e.id));
     const rm = document.createElement('button');
     rm.type = 'button';
     rm.className = 'search-remove';
     rm.setAttribute('aria-label', 'Delete saved search');
-    rm.textContent = '×';
+    rm.textContent = 'Ã—';
     rm.addEventListener('click', () => searchRemoveHandler?.(e.id));
     li.append(row, rm);
     ul.append(li);

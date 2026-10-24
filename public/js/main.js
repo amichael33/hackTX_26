@@ -2,13 +2,16 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget } from './ui.js';
 import { createCart } from './cart.js';
+import { createSavedSearches } from './savedSearches.js';
 import { layoutStore } from './layoutStore.js';
 
 window.store = store; // console debugging
 
 const cart = createCart();
+const savedSearches = createSavedSearches();
+renderPastSearches(savedSearches.list());
 let cardProduct = null; // the product the card is showing, or null
 let peeked = false; // the widget auto-expands once per session, on the first add
 
@@ -157,13 +160,21 @@ const SEARCH_EMPTY = 'Hmm, nothing matched. Want to try something else?';
 const SEARCH_OFFLINE = "Our back room's offline, so here's our showroom stock!";
 const SEARCH_FAILED = "Hmm, I couldn't reach the back room. Want to try again?";
 
+let searchWasDemo = false; // demo stock is not worth saving
+
 async function runSearch() {
   try {
     store.set({ status: 'thinking' });
-    const { query, location } = store.get();
+    const { query, location, replay } = store.get();
+    if (replay) { // zero-API replay: the saved products go straight to the shelves
+      store.set({ products: replay.products, query: replay.query });
+      store.setPhase('OPENING');
+      return;
+    }
     const waiting = clerkSay(SEARCH_WAIT);
     document.getElementById('clerk')?.emit('spin');
     let servedDemo = false;
+    searchWasDemo = false;
     let pending = true;
     const searching = postSearch({ query, city: location?.city }).then(
       (res) => { servedDemo = res?.demo === true; return res?.products ?? []; },
@@ -185,6 +196,7 @@ async function runSearch() {
     }
     if (Array.isArray(products) && products.length) {
       store.set({ products });
+      searchWasDemo = servedDemo;
       if (servedDemo && !isDemoPage) await clerkSay(SEARCH_OFFLINE);
       store.setPhase('OPENING');
       return;
@@ -227,15 +239,23 @@ let openingRun = 0; // run token: bumped by every opening and every reset so sta
 async function runOpening() {
   const run = ++openingRun;
   const live = () => run === openingRun && store.get().phase === 'OPENING';
-  const { products, query } = store.get();
+  const { products, query, replay } = store.get();
+  if (replay) store.set({ replay: null });
   const saying = clerkSay('Go take a look!');
   document.getElementById('shelves').setAttribute('visible', 'true');
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
   boxEls.clear();
   stickerTexts.clear();
+  let saved = null;
+  if (replay) {
+    for (const [id, text] of Object.entries(replay.stickers ?? {})) if (typeof text === 'string' && text) stickerTexts.set(id, text);
+  } else if (!searchWasDemo && !isDemoPage) {
+    saved = savedSearches.save({ query, city: store.get().location?.city, products, stickers: {} });
+    renderPastSearches(savedSearches.list());
+  }
   // Fire the batched sticker copy now; boxes spawn with fallback text and are upgraded when it lands.
-  postStickers({ items: products.map((p) => ({ id: p.id, title: p.title, price: p.price, tier: p.tier })) })
+  if (!replay) postStickers({ items: products.map((p) => ({ id: p.id, title: p.title, price: p.price, tier: p.tier })) })
     .then((res) => {
       if (run !== openingRun) return; // a newer run or a reset owns the maps now
       for (const s of res?.stickers ?? []) {
@@ -244,6 +264,7 @@ async function runOpening() {
         const el = boxEls.get(s.id);
         if (el) el.setAttribute('product-box', 'sticker', s.sticker_text);
       }
+      if (saved) { savedSearches.updateStickers(saved.id, Object.fromEntries(stickerTexts)); renderPastSearches(savedSearches.list()); }
     })
     .catch(() => { /* keep fallbacks */ });
   try {
@@ -307,8 +328,7 @@ enterBtn.addEventListener('click', () => {
 });
 
 // --- New search: back to chatting with an empty store ---
-onNewSearch(() => {
-  if (store.get().phase !== 'BROWSING') return;
+function resetStore({ silent = false } = {}) {
   openingRun++; // ignore any late sticker results from the previous run
   store.setPhase('CHATTING');
   const container = document.getElementById('products');
@@ -318,6 +338,28 @@ onNewSearch(() => {
   document.getElementById('shelves').setAttribute('visible', 'false');
   hideProductCard();
   cardProduct = null;
-  store.set({ products: [], query: null, messages: [] });
-  say('What else can I find for you?').catch((err) => console.error(err));
+  store.set({ products: [], query: null, messages: [], replay: null });
+  if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
+}
+
+onNewSearch(() => {
+  if (store.get().phase !== 'BROWSING') return;
+  resetStore();
+});
+
+// --- Past searches: replay a saved search without any API calls ---
+onPastSearchPick((id) => {
+  const { phase, status } = store.get();
+  if (phase !== 'CHATTING' && phase !== 'BROWSING') return;
+  if (status === 'thinking') return; // a chat turn is in flight
+  const entry = savedSearches.get(id);
+  if (!entry) return;
+  if (phase === 'BROWSING') resetStore({ silent: true });
+  closeWidget();
+  store.set({ replay: entry });
+  store.setPhase('SEARCHING');
+});
+onPastSearchRemove((id) => {
+  savedSearches.remove(id);
+  renderPastSearches(savedSearches.list());
 });

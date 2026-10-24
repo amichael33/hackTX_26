@@ -177,5 +177,11 @@ button, input { font-family: inherit; }
 .cart-buy { flex-shrink: 0; font-size: 0.8rem; font-weight: 600; padding: 5px 12px; border-radius: 980px; background: #0071e3; color: #fff; text-decoration: none; }
 .cart-remove { flex-shrink: 0; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #6e6e73; font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .cart-remove:hover { background: #e8e8ed; }
-#cart-empty, #searches-empty { margin: 4px 2px; font-size: 0.9rem; color: #6e6e73; }
+#cart-empty, .searches-empty { margin: 4px 2px; font-size: 0.9rem; color: #6e6e73; }
 #cart-footer { margin: 0; font-size: 0.9rem; font-weight: 600; text-align: right; }
+.searches-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; }
+.searches-list li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+.search-row { flex: 1; min-width: 0; font: inherit; font-size: 0.85rem; text-align: left; padding: 8px 4px; border: 0; background: transparent; color: #1d1d1f; cursor: pointer; }
+.search-row:hover { background: #e8e8ed; }
+.search-remove { flex-shrink: 0; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #6e6e73; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.search-remove:hover { background: #e8e8ed; }
