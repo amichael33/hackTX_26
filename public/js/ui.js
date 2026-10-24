@@ -1,6 +1,6 @@
 // Overlay wiring: chat bar, subtitle typewriter, chat log, mute/skip.
 import { store } from './store.js';
-import { speak, cancelSpeech } from './voice.js';
+import { speak, cancelSpeech, createRecognizer } from './voice.js';
 import { formatPrice } from './text.js';
 
 const CHAR_MS = 35;
@@ -16,6 +16,7 @@ const chatForm = $('chat-form');
 const chatInput = $('chat-input');
 const sendBtn = $('send-btn');
 const muteBtn = $('mute-btn');
+const micBtn = $('mic-btn');
 const skipBtn = $('skip-btn');
 const locPanel = $('location-panel');
 const shareBtn = $('share-loc-btn');
@@ -177,7 +178,67 @@ function renderPhase(state) {
   if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
   chatInput.disabled = !chatting;
   sendBtn.disabled = !chatting;
+  renderMic(state);
 }
+// --- Push-to-talk mic (hold to talk; fills the input, never auto-sends) ---
+let recognizer = null;
+let micBase = ''; // what the player had typed when they pressed the mic
+
+function renderMic(state) {
+  const busy = state.status === 'speaking' || state.status === 'thinking' || state.phase !== 'CHATTING';
+  micBtn.disabled = busy;
+  micBtn.classList.toggle('listening', state.status === 'listening');
+  if (state.status === 'speaking' && recognizer) recognizer.stop();
+}
+
+function micFill(text) {
+  chatInput.value = micBase && text ? `${micBase} ${text}` : (micBase || text);
+}
+
+function micIdle() {
+  if (store.get().status === 'listening') store.set({ status: 'idle' });
+}
+
+function hideMic() {
+  micBtn.hidden = true;
+  const voice = store.get().voice;
+  store.set({ voice: { ...voice, micAvailable: false } });
+}
+
+recognizer = createRecognizer({
+  onPartial: micFill,
+  onFinal: micFill,
+  onEnd: micIdle,
+  onError(code) {
+    if (code === 'not-allowed' || code === 'service-not-allowed') {
+      micIdle();
+      hideMic();
+      clerkSay("No problem, just type instead.");
+    } else {
+      if (code === 'network') console.warn('speech recognition network error');
+      micIdle(); // no-speech, aborted, network, others: back to idle silently
+    }
+  },
+});
+{
+  const voice = store.get().voice;
+  store.set({ voice: { ...voice, micAvailable: recognizer !== null } });
+  micBtn.hidden = recognizer === null;
+}
+
+micBtn.addEventListener('pointerdown', (e) => {
+  if (!recognizer || micBtn.disabled || e.button > 0) return;
+  const s = store.get();
+  if (s.status !== 'idle' || s.phase !== 'CHATTING') return;
+  micBase = chatInput.value.trim();
+  cancelSpeech(); // nothing should be speaking, but never let TTS feed the mic
+  if (recognizer.start()) store.set({ status: 'listening' });
+});
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+  micBtn.addEventListener(ev, () => recognizer?.stop());
+}
+micBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+
 renderPhase(store.get());
 store.on('change', (state) => renderPhase(state));
 

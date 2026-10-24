@@ -1,4 +1,4 @@
-// Clerk text-to-speech via browser SpeechSynthesis (mic half is added in Task 9).
+// Clerk text-to-speech (SpeechSynthesis) and push-to-talk recognition (SpeechRecognition).
 import { store } from './store.js';
 import { splitSentences } from './text.js';
 
@@ -86,4 +86,58 @@ export function speak(text, { onStart, onEnd } = {}) {
   // If audio never starts (blocked), still report start so the UI is not stuck.
   setTimeout(markStarted, 1500);
   next();
+}
+
+// Push-to-talk recognizer. Returns null when the browser has no SpeechRecognition (e.g. Firefox).
+// onPartial(text): transcript so far (final + interim). onFinal(text): once per start(), when the
+// utterance is final (or when recognition ends with unfinalized text). onError(code): SpeechRecognition error code.
+// onEnd() (optional): recognition has fully ended. start() returns false if it did not start.
+export function createRecognizer({ onPartial, onFinal, onError, onEnd } = {}) {
+  const Ctor = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  if (!Ctor) return null;
+  let rec;
+  try { rec = new Ctor(); } catch (e) { return null; }
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  rec.continuous = false;
+
+  let running = false;
+  let transcript = '';
+  let delivered = false;
+  const deliver = () => {
+    if (delivered) return;
+    delivered = true;
+    if (transcript.trim()) onFinal?.(transcript.trim());
+  };
+
+  rec.onresult = (e) => {
+    let text = '';
+    let isFinal = false;
+    for (let i = 0; i < e.results.length; i++) {
+      text += e.results[i][0].transcript;
+      if (e.results[i].isFinal) isFinal = true;
+    }
+    transcript = text;
+    if (isFinal) deliver();
+    else onPartial?.(text.trim());
+  };
+  rec.onerror = (e) => { onError?.(e.error); };
+  rec.onend = () => {
+    running = false;
+    deliver();
+    onEnd?.();
+  };
+
+  return {
+    start() {
+      if (running) return false;
+      transcript = '';
+      delivered = false;
+      try { rec.start(); running = true; return true; } catch (e) { return false; /* InvalidStateError: already started */ }
+    },
+    stop() {
+      if (!running) return;
+      try { rec.stop(); } catch (e) { /* ignore */ }
+    },
+  };
 }
