@@ -1,6 +1,6 @@
 // Builds the A-Frame scene for a map (maps.js): room, shelves, island, corkboard, desk, clerk, lights, spawn and collision.
 // Everything else in the scene (products, smoke, cart) is independent of the map.
-import { labelFor, shelfStyleFor, obstaclesFor, boundsFor, accentPanelFor, riverFor, walkHeight } from './maps.js';
+import { labelFor, shelfStyleFor, obstaclesFor, boundsFor, accentPanelFor, riverFor, walkHeight, openingsFor } from './maps.js';
 import { setMap as setLayoutMap } from './layoutStore.js';
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@ export function applyMap(map, { preview = false } = {}) {
   window.StoreCollide?.setMap({ obstacles: obstaclesFor(map), halfW: map.room.width / 2, halfD: map.room.depth / 2, heightAt: map.river ? (x, z) => walkHeight(map, x, z) : null });
 
   const { room, spawn, desk, clerk, board } = map;
-  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain', panelX: accentPanelFor(map).x, panelW: accentPanelFor(map).width });
+  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain', panelX: accentPanelFor(map).x, panelW: accentPanelFor(map).width, openings: JSON.stringify(openingsFor(map)) });
 
   const rig = $('rig');
   if (rig) {
@@ -56,6 +56,7 @@ export function applyMap(map, { preview = false } = {}) {
   }
 
   $('cart3d')?.setAttribute('shopping-cart', 'variant', map.cartVariant ?? 'cart');
+  $('outside')?.setAttribute('outside', { theme: map.outside ?? 'city', width: room.width, depth: room.depth });
   buildFeatures(map);
   buildShelves(map, { clothes: false, visible: preview });
 }
@@ -68,7 +69,12 @@ function buildFeatures(map) {
   const rv = riverFor(map);
   if (!rv) return;
   el('a-entity', { river: `length:${rv.halfW * 2}; width:${rv.width}; bank:${rv.bank}`, position: `0 0 ${rv.z}` }, box);
-  if (rv.gator) el('a-entity', { alligator: `range:${rv.halfW - 2.5}; sway:${Math.max(0.2, rv.width / 2 - 0.5)}; avoid:${rv.bridges.map((b) => b.x).join(',')}; avoidHalf:${rv.bridges[0].width / 2 + 2.3}`, position: `0 0.04 ${rv.z}` }, box);
+  if (rv.gator) {
+    // Two gators: the second is smaller, a bit yellower, swims the other way and keeps its distance from the first.
+    const common = `range:${rv.halfW - 2.5}; sway:${Math.max(0.2, rv.width / 2 - 0.5)}; avoid:${rv.bridges.map((b) => b.x).join(',')}; avoidHalf:${rv.bridges[0].width / 2 + 2.3}`;
+    el('a-entity', { alligator: common, position: `0 0.04 ${rv.z}` }, box);
+    el('a-entity', { alligator: `${common}; slot:1; scale:0.85; tint:#5a6e2a; startDir:-1; speed:0.8`, position: `0 0.04 ${rv.z}` }, box);
+  }
   for (const b of rv.bridges) {
     el('a-entity', { bridge: `width:${b.width}; length:${b.zEnd - b.zStart}; arch:${b.arch}`, position: `${b.x} 0 ${(b.zStart + b.zEnd) / 2}` }, box);
   }

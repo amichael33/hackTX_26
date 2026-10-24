@@ -148,11 +148,44 @@ test('the castle: a courtyard between the desk and the spawn, a river across the
   assert.equal(walkHeight(getMap('classic'), 0, 5), 0);
 });
 
-test('the castle river has an alligator, which keeps clear of the bridges', async () => {
+test('the castle river has two alligators, which keep clear of the bridges', async () => {
   const { riverFor } = await import('../public/js/maps.js');
   assert.equal(riverFor(getMap('castle')).gator, true);
   for (const id of ['classic', 'boutique', 'warehouse']) assert.equal(riverFor(getMap(id)), null);
   // sceneMap hands the bridge positions to the alligator, so it surfaces beside a bridge (not hidden under the deck).
   const src = (await import('node:fs')).readFileSync(new URL('../public/js/sceneMap.js', import.meta.url), 'utf8');
-  assert.match(src, /alligator: `range:.*avoid:\$\{rv\.bridges\.map/);
+  assert.match(src, /const common = `range:.*avoid:\$\{rv\.bridges\.map/);
+  assert.equal((src.match(/alligator: /g) ?? []).length, 2, 'two alligators');
 });
+
+for (const map of MAPS) {
+  test(`map "${map.id}": windows and the front door sit in the walls, clear of shelves and each other`, async () => {
+    const { openingsFor } = await import('../public/js/maps.js');
+    const ops = openingsFor(map);
+    const hw = map.room.width / 2, hd = map.room.depth / 2, h = map.room.height;
+    const doors = ops.filter((o) => o.kind === 'door'), wins = ops.filter((o) => o.kind === 'window');
+    assert.equal(doors.length, 1);
+    assert.equal(doors[0].wall, 'front');
+    assert.equal(doors[0].c, 0);
+    assert.equal(doors[0].y0, 0);
+    assert.ok(doors[0].y1 <= h - 0.3, 'door fits under the ceiling');
+    assert.ok(wins.length >= 4, `${map.id} has ${wins.length} windows`);
+    assert.ok(wins.some((o) => o.wall === 'left') && wins.some((o) => o.wall === 'right') && wins.some((o) => o.wall === 'front'));
+    for (const o of ops) {
+      const len = o.wall === 'left' || o.wall === 'right' ? map.room.depth : map.room.width;
+      assert.ok(o.c - o.w / 2 >= -len / 2 + 0.5 && o.c + o.w / 2 <= len / 2 - 0.5, `${o.wall} opening at ${o.c} leaves the wall`);
+      assert.ok(o.y1 <= h - 0.3 && o.y1 > o.y0 && o.y0 >= 0, 'opening height');
+      assert.ok(o.kind === 'door' || o.y0 >= 0.8 || map.windows.style === 'industrial', 'window sill is not at the floor');
+    }
+    for (const wall of ['left', 'right', 'front']) {
+      const here = ops.filter((o) => o.wall === wall).sort((a, b) => a.c - b.c);
+      for (let i = 1; i < here.length; i++) assert.ok(here[i - 1].c + here[i - 1].w / 2 + 0.3 <= here[i].c - here[i].w / 2, `${map.id} ${wall}: openings overlap`);
+    }
+    // Side windows never face a shelf unit on the same wall.
+    for (const o of wins.filter((x) => x.wall === 'left' || x.wall === 'right')) {
+      for (const u of map.units.filter((x) => Math.abs(x.rotY) === 90 && Math.sign(x.x) === (o.wall === 'left' ? -1 : 1))) {
+        assert.ok(o.c + o.w / 2 <= u.z - 1 || o.c - o.w / 2 >= u.z + 1, `${map.id}: a window faces the shelf unit at z ${u.z}`);
+      }
+    }
+  });
+}

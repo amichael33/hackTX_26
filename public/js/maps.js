@@ -7,6 +7,7 @@ export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You 
 // Optional per-map styling (all have defaults, see the helpers below):
 //   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
+//   windows: { style, width, sill, head, max } and door: { style, width, height } (see openingsFor), outside: city | town | industrial | medieval;
 //   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach, gator } (see riverFor; gator puts an alligator in it) and lightBz (z of the second light);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
 export const DEFAULT_SHELF_STYLE = 'oak';
@@ -35,6 +36,9 @@ export const MAPS = [
     shelfStyles: { center: 'cubby' },
     clerkOutfit: 'suit',
     cartVariant: 'cart',
+    windows: { style: 'modern', width: 1.6, sill: 0.9, head: 2.7, max: 3 },
+    door: { style: 'modern', width: 1.8, height: 2.3 },
+    outside: 'city',
   },
   {
     id: 'boutique',
@@ -55,6 +59,9 @@ export const MAPS = [
     shelfStyles: { left: 'cubby', right: 'cubby', back: 'cubby' },
     clerkOutfit: 'apron',
     cartVariant: 'basket',
+    windows: { style: 'cottage', width: 1.2, sill: 0.9, head: 2.3, max: 2 },
+    door: { style: 'cottage', width: 1.1, height: 2.2 },
+    outside: 'town',
   },
   {
     id: 'warehouse',
@@ -75,6 +82,9 @@ export const MAPS = [
     shelfStyles: { left: 'rack', right: 'rack', back: 'rack', center: 'rack' },
     clerkOutfit: 'hivis',
     cartVariant: 'dolly',
+    windows: { style: 'industrial', width: 2.6, sill: 3.0, head: 4.2, max: 4 },
+    door: { style: 'industrial', width: 3.4, height: 3.6 },
+    outside: 'industrial',
   },
   {
     id: 'castle',
@@ -100,6 +110,9 @@ export const MAPS = [
     lightBz: 8,
     clerkOutfit: 'tabard',
     cartVariant: 'wheelbarrow',
+    windows: { style: 'castle', width: 1.1, sill: 1.6, head: 3.8, max: 3 },
+    door: { style: 'castle', width: 2.0, height: 3.0 },
+    outside: 'medieval',
     deskStyle: { body: '#5a3d24', top: '#8a6a45' },
   },
 ];
@@ -168,6 +181,43 @@ export function accentPanelFor(map, margin = 1) {
   left = Math.max(-wall, left - margin);
   right = Math.min(wall, right + margin);
   return { x: (left + right) / 2, width: right - left };
+}
+
+// Windows and the front door, as openings in the walls. Side-wall windows go in the free gaps between the shelf units
+// (never in front of a shelf), spread evenly; the door is in the middle of the front wall with a window each side of it.
+// wall: left | right | front | back. c = centre along the wall (z for left/right, x for front/back). y0..y1 = bottom..top.
+export function openingsFor(map) {
+  const { room, units } = map, W = map.windows, D = map.door;
+  const hw = room.width / 2, hd = room.depth / 2;
+  const out = [];
+  if (D) out.push({ wall: 'front', kind: 'door', style: D.style, c: 0, w: D.width, y0: 0, y1: D.height });
+  if (!W) return out;
+  const win = (wall, c) => ({ wall, kind: 'window', style: W.style, c: Math.round(c * 100) / 100, w: W.width, y0: W.sill, y1: W.head });
+  const MARGIN = 0.5; // clear wall between a window and a shelf unit or the front/back wall
+  for (const [wall, sign] of [['left', -1], ['right', 1]]) {
+    const taken = units.filter((u) => Math.abs(u.rotY) === 90 && Math.sign(u.x) === sign).map((u) => [u.z - 1 - MARGIN, u.z + 1 + MARGIN]).sort((a, b) => a[0] - b[0]);
+    const gaps = [];
+    let cursor = -hd + 2;
+    for (const [a, b] of taken) { if (a > cursor) gaps.push([cursor, a]); cursor = Math.max(cursor, b); }
+    if (cursor < hd - 2) gaps.push([cursor, hd - 2]);
+    const spots = [];
+    for (const [a, b] of gaps) {
+      const room_ = b - a;
+      const n = Math.floor((room_ + 1.2) / (W.width + 1.6)); // windows in this gap, with some wall between them
+      for (let i = 0; i < n; i++) spots.push(a + ((i + 0.5) * room_) / n);
+    }
+    // Keep the ones nearest the middle of the wall if there are more than `max`.
+    spots.sort((p, q) => Math.abs(p) - Math.abs(q));
+    spots.slice(0, W.max).forEach((c) => out.push(win(wall, c)));
+  }
+  // Front wall: windows each side of the door.
+  const per = Math.max(1, Math.min(2, Math.floor((hw - 1.2 - D.width / 2 - 1) / (W.width + 1.6)) + 1));
+  for (let i = 0; i < per; i++) {
+    const x = D.width / 2 + 1.6 + W.width / 2 + i * (W.width + 1.6);
+    if (x + W.width / 2 > hw - 0.8) break;
+    out.push(win('front', -x), win('front', x));
+  }
+  return out;
 }
 
 // Where the player may walk: half the room minus a margin (the walls are 0.5 m inside the player bounds).

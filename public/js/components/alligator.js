@@ -4,7 +4,7 @@
    mouth (the `gator-mouth` event asks main.js to fill `mouthEl` with a product-box). The entity sits on the river's centre line at water level; it swims along x.
    Purely visual: the player can never reach the water (see obstaclesFor in maps.js). */
 (function () {
-  var GREEN = '#3f6b2f', DARK = '#2f4f22', BELLY = '#8aa35a';
+  var BELLY = '#8aa35a';
   var SPEED = 0.55;       // metres per second
   var SNAP_RANGE = 3.4;   // the player this close makes it snap
   var WATCH_RANGE = 6.5;  // the player this close makes it stop patrolling, swim over and face them
@@ -18,15 +18,19 @@
       sway: { default: 0.35 },  // how far it wanders across the river (z)
       rig: { type: 'selector', default: '#rig' },
       avoid: { type: 'array', default: [] },       // x of each bridge: it surfaces beside them, where it can be seen, not under the deck
-      avoidHalf: { default: 3.5 }                   // how far from a bridge's centre it keeps (clear of the bridge's side walls)
+      avoidHalf: { default: 3.5 },                  // how far from a bridge's centre it keeps (clear of the bridge's side walls)
+      // For a second gator: its own size and colour, direction and pace, and `slot`, which keeps it a couple of metres from the
+      // first when both swim over to the player.
+      scale: { default: 1 }, tint: { default: '#3f6b2f' }, startDir: { default: 1 }, speed: { default: 1 }, slot: { default: 0 }
     },
     init: function () {
       this.owned = [];
       this.root = new THREE.Group();            // moves and turns
       this.el.setObject3D('alligator', this.root);
+      var tint = new THREE.Color(this.data.tint), darker = tint.clone().multiplyScalar(0.72);
       var mats = {
-        green: new THREE.MeshStandardMaterial({ color: GREEN, roughness: 0.8, flatShading: true }),
-        dark: new THREE.MeshStandardMaterial({ color: DARK, roughness: 0.9, flatShading: true }),
+        green: new THREE.MeshStandardMaterial({ color: tint, roughness: 0.8, flatShading: true }),
+        dark: new THREE.MeshStandardMaterial({ color: darker, roughness: 0.9, flatShading: true }),
         belly: new THREE.MeshStandardMaterial({ color: BELLY, roughness: 0.9, flatShading: true }),
         eye: new THREE.MeshStandardMaterial({ color: '#e8c820', emissive: '#a08a10', emissiveIntensity: 0.5, flatShading: true }),
         pupil: new THREE.MeshBasicMaterial({ color: '#111111' }),
@@ -86,10 +90,11 @@
       this.showAt = 0;
       this.lift = 0;          // 0..1: how far the head is raised
       this.vec = new THREE.Vector3();
-      this.t = 0;
-      this.dir = 1;       // 1 = swimming toward +x
-      this.yaw = 0;       // current heading (0 faces +x, PI faces -x)
-      this.x = -this.data.range;
+      this.t = this.data.slot * 2.1; // out of step with the other gator's sway and bob
+      this.dir = this.data.startDir;   // 1 = swimming toward +x
+      this.yaw = this.dir > 0 ? 0 : Math.PI; // current heading (0 faces +x, PI faces -x)
+      this.x = -this.dir * this.data.range;
+      this.root.scale.setScalar(this.data.scale);
       this.root.position.x = this.x;
     },
     tick: function (time, delta) {
@@ -114,14 +119,15 @@
           var bx = Number(d.avoid[bi]);
           if (Math.abs(tx - bx) < d.avoidHalf) tx = bx + (bx < 0 ? 1 : -1) * d.avoidHalf; // toward the middle of the hall, in open water
         }
+        tx += d.slot * (tx < 0 ? 2.6 : -2.6); // the second gator keeps a couple of metres from the first
         tx = Math.max(-d.range, Math.min(d.range, tx));
         var gap = tx - this.x;
-        if (Math.abs(gap) > 0.25) this.x += Math.sign(gap) * Math.min(Math.abs(gap), SPEED * 1.6 * dt);
+        if (Math.abs(gap) > 0.25) this.x += Math.sign(gap) * Math.min(Math.abs(gap), SPEED * 1.6 * d.speed * dt);
         var fdx = px - (base.x + this.root.position.x), fdz = pz - (base.z + this.root.position.z);
         if (fdx * fdx + fdz * fdz > 0.2) this.faceYaw = Math.atan2(-fdz, fdx); // facing +x is 0, and rotation.y turns +x toward -z
       } else {
         // Patrol along the river and turn around at each end.
-        this.x += this.dir * SPEED * dt;
+        this.x += this.dir * SPEED * d.speed * dt;
         if (this.x > d.range) { this.x = d.range; this.dir = -1; }
         else if (this.x < -d.range) { this.x = -d.range; this.dir = 1; }
       }

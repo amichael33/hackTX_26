@@ -16,6 +16,7 @@
   <script src="js/components/river.js"></script>
   <script src="js/components/bridge.js"></script>
   <script src="js/components/alligator.js"></script>
+  <script src="js/components/outside.js"></script>
   <script src="js/collide.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
@@ -42,7 +43,7 @@
 
     <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
     <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
-      <a-entity camera="near: 0.1; far: 60" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+      <a-entity camera="near: 0.1; far: 130" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
     </a-entity>
 
     <a-entity id="cart3d" shopping-cart></a-entity>
@@ -52,6 +53,7 @@
 
     <a-entity id="smoke" smoke></a-entity>
 
+    <a-entity id="outside"></a-entity>
     <a-entity id="features"></a-entity>
     <a-entity id="shelves" visible="false"></a-entity>
     <a-entity id="products"></a-entity>
