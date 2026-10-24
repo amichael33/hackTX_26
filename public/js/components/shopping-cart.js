@@ -2,7 +2,7 @@
    pitch) and shows the saved items as little cubes with their thumbnail on top. Fed by the scene's
    `cart-changed` event ({ items }). Not clickable. */
 (function () {
-  var SCALE = 1.8;          // the whole cart (and its items) is drawn this much larger
+  var SCALE = 1.3;          // the whole cart (and its items) is drawn this much larger
   var AHEAD = 0.9 * SCALE;  // metres in front of the rig
   var BASKET_BOTTOM = 0.45; // local y of the basket underside
   var POP_MS = 250;
