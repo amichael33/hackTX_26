@@ -154,6 +154,24 @@
     if (THREE.SRGBColorSpace) plankTex.colorSpace = THREE.SRGBColorSpace;
     return plankTex;
   }
+  // Darker wood with the same short slanted grain strokes as the planks, for the frame. On a long thin beam the strokes
+  // stretch along its length, which reads as grain running down the timber.
+  var grainMat = null;
+  function frameWood() {
+    if (grainMat) return grainMat;
+    var c = document.createElement('canvas');
+    c.width = c.height = 64;
+    var g = c.getContext('2d');
+    g.fillStyle = '#6e4d2f'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#7a5738'; g.fillRect(0, 0, 32, 64);                                  // two tones, like adjoining boards
+    g.strokeStyle = '#4a321c'; g.lineWidth = 2;
+    for (var k = 0; k < 16; k++) { var x = (k * 23) % 64, y = (k * 37) % 56; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 3, y + 9); g.stroke(); }
+    g.fillStyle = '#4a321c'; g.fillRect(31, 0, 2, 64);
+    var tex = new THREE.CanvasTexture(c);
+    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+    grainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, flatShading: true });
+    return grainMat;
+  }
   // A flat four-cornered panel (bottom-left, bottom-right, top-right, top-left) with its UVs, visible from both sides.
   function panelGeo(bl, br, tr, tl) {
     var geo = new THREE.BufferGeometry();
@@ -166,7 +184,8 @@
 
   function buildWheelbarrow(g) {
     var add = newPart(g);
-    var dark = mat('#4f3320'), iron = mat('#2b2b2b'), wood = mat('#9a7448'), rim = mat('#b08a56'), leather = mat('#3a2a18');
+    var dark = frameWood(), iron = mat('#2b2b2b'), wood = mat('#9a7448'), rim = mat('#b08a56'), leather = mat('#3a2a18');
+    var plank = new THREE.MeshStandardMaterial({ map: planks(), roughness: 0.95, flatShading: true }); // wheel disc: the tub's planks
 
     // --- the tub: floor at y 0.335, walls flaring out to the top rim at y 0.615 ---
     var YB = 0.335, YT = 0.615, ZC = -0.05, WB = 0.17, LB = 0.26, WT = 0.31, LT = 0.39;
@@ -201,7 +220,7 @@
     // --- the wheel: iron tyre, wooden disc and spokes, on an axle ---
     var WY = 0.19, WZ = -0.62;
     add(wheelGeo(0.19, 0.06), iron, 0, WY, WZ, 0, 0, Math.PI / 2);
-    add(wheelGeo(0.165, 0.064), wood, 0, WY, WZ, 0, 0, Math.PI / 2);
+    add(wheelGeo(0.165, 0.064), plank, 0, WY, WZ, 0, 0, Math.PI / 2);
     [0, 60, 120].forEach(function (a) { add(box(0.068, 0.3, 0.018), dark, 0, WY, WZ, a * DEG, 0, 0); });
     add(box(0.17, 0.028, 0.028), dark, 0, WY, WZ);                                                          // axle
   }
