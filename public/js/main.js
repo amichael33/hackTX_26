@@ -234,10 +234,10 @@ function puff(x, y, z, opts) {
 }
 
 // A thick cloud over every shelf unit and the island, so the shelves seem to appear out of the smoke.
-const SHELVES_SMOKE_MS = 900;
+const SHELVES_SMOKE_MS = 600;
 function smokeOverShelves() {
-  for (const u of Object.values(SHELF_UNITS).flat()) puff(u.x, 1.0, u.z, { size: 2.6, count: 10, spread: 1.8, life: 2400 });
-  puff(0, 1.0, 0, { size: 2.6, count: 10, spread: 1.8, life: 2400 });
+  for (const u of Object.values(SHELF_UNITS).flat()) puff(u.x, 1.0, u.z, { size: 1.8, count: 5, spread: 1.4, life: 1400 });
+  puff(0, 1.0, 0, { size: 1.8, count: 5, spread: 1.4, life: 1400 });
 }
 
 function spawnBox(container, slot) {
@@ -248,7 +248,7 @@ function spawnBox(container, slot) {
     sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
   });
   boxEls.set(p.id, e);
-  puff(slot.position.x, slot.position.y, slot.position.z, { size: 0.9, count: 5, life: 1300 });
+  puff(slot.position.x, slot.position.y, slot.position.z, { size: 0.9, count: 5, life: 1200 });
   e.setAttribute('position', slot.position);
   e.setAttribute('rotation', slot.rotation);
   e.setAttribute('scale', '0.001 0.001 0.001');

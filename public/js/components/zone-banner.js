@@ -30,10 +30,11 @@
       var panelGeo = new THREE.BoxGeometry(d.width, d.height, 0.04);
       var panelMat = new THREE.MeshStandardMaterial({ color: '#fbfbfd', roughness: 0.85, metalness: 0 });
       var panel = new THREE.Mesh(panelGeo, panelMat);
-      var edgeGeo = new THREE.BoxGeometry(d.width, 0.012, 0.046);
+      // Wider and lower than the panel by 2 mm, so none of its faces share a plane with the panel's (z-fighting).
+      var edgeGeo = new THREE.BoxGeometry(d.width + 0.004, 0.012, 0.046);
       var edgeMat = new THREE.MeshStandardMaterial({ color: '#1d1d1f', roughness: 0.6, metalness: 0 });
       var edge = new THREE.Mesh(edgeGeo, edgeMat);
-      edge.position.set(0, -d.height / 2 + 0.006, 0);
+      edge.position.set(0, -d.height / 2 + 0.004, 0);
 
       var canvas = document.createElement('canvas');
       canvas.width = 1024; canvas.height = 128;

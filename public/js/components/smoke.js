@@ -4,19 +4,18 @@
   var POOL = 360;
   var puffTex = null;
 
-  // One shared texture: a few overlapping soft blobs so each puff looks cloudy, not like a perfect disc.
+  // One shared texture: a single smooth round puff, solid in the middle and fading evenly to nothing at the edge.
   function texture() {
     if (puffTex) return puffTex;
     var c = document.createElement('canvas');
     c.width = c.height = 128;
     var g = c.getContext('2d');
-    [[64, 64, 56], [44, 70, 34], [84, 58, 36], [60, 40, 30], [66, 88, 30]].forEach(function (b) {
-      var grad = g.createRadialGradient(b[0], b[1], 0, b[0], b[1], b[2]);
-      grad.addColorStop(0, 'rgba(255,255,255,0.9)');
-      grad.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = grad;
-      g.fillRect(0, 0, 128, 128);
-    });
+    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
     puffTex = new THREE.CanvasTexture(c);
     if (THREE.SRGBColorSpace) puffTex.colorSpace = THREE.SRGBColorSpace;
     return puffTex;
@@ -30,7 +29,7 @@
       this.next = 0; // ring-buffer cursor: the oldest particle is recycled when the pool is full
       var tex = texture();
       for (var i = 0; i < POOL; i++) {
-        var mat = new THREE.SpriteMaterial({ map: tex, color: '#b4b6c0', transparent: true, opacity: 0, depthWrite: false });
+        var mat = new THREE.SpriteMaterial({ map: tex, color: '#d4d6dc', transparent: true, opacity: 0, depthWrite: false });
         var s = new THREE.Sprite(mat);
         s.visible = false;
         s.renderOrder = 3;
@@ -82,7 +81,7 @@
         p.s.position.z += p.vz * sec;
         p.s.material.rotation += p.vr * sec;
         p.s.scale.setScalar(p.s0 + (p.s1 - p.s0) * (1 - (1 - k) * (1 - k))); // ease-out swell
-        p.s.material.opacity = Math.min(1, k * 6) * (1 - k) * 1.0; // quick fade-in, long fade-out
+        p.s.material.opacity = Math.min(1, k * 6) * (1 - k) * 0.8; // quick fade-in, long fade-out
       }
     }
   });
