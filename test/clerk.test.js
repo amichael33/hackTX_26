@@ -36,13 +36,43 @@ test('ready with empty query is downgraded', async () => {
   assert.equal(r.ready, false);
 });
 
-test('llm throws returns fallback', async () => {
+test('llm throws with no user text returns fallback', async () => {
   const llm = async () => { throw new Error('boom'); };
-  const r = await chatTurn({ messages: [u('x')], location: loc }, llm);
+  const r = await chatTurn({ messages: [], location: loc }, llm);
   assert.deepEqual(r, {
     ready: false, reply_to_player: FALLBACK, query: '',
     min_price: null, max_price: null, preferences: [], extra_queries: [],
   });
+});
+
+test('llm throws with a user message -> ready with last user text as query', async () => {
+  const llm = async () => { throw new Error('boom'); };
+  const r = await chatTurn({ messages: [u('hi'), c('what?'), u('  pink workout tops  ')], location: loc }, llm);
+  assert.deepEqual(r, {
+    ready: true, reply_to_player: 'Great, let me pull some options for you!', query: 'pink workout tops',
+    min_price: null, max_price: null, preferences: [], extra_queries: [],
+  });
+});
+
+test('llm throw fallback caps query at 100 chars', async () => {
+  const llm = async () => { throw new Error('boom'); };
+  const r = await chatTurn({ messages: [u('x'.repeat(300))], location: loc }, llm);
+  assert.equal(r.query.length, 100);
+});
+
+test('MAX_TURNS reached and llm says not ready -> forced ready with last user text', async () => {
+  const msgs = [u('a'), c('b'), u('b'), c('b'), u('c'), c('b'), u('red shoes')];
+  const r = await chatTurn({ messages: msgs, location: loc }, fakeLlm({ ready: false, query: '', reply_to_player: 'More?' }));
+  assert.equal(r.ready, true);
+  assert.equal(r.query, 'red shoes');
+  assert.equal(r.reply_to_player, 'Great, let me pull some options for you!');
+});
+
+test('MAX_TURNS forced ready prefers the model query', async () => {
+  const msgs = [u('a'), c('b'), u('b'), c('b'), u('c'), c('b'), u('red shoes')];
+  const r = await chatTurn({ messages: msgs, location: loc }, fakeLlm({ ready: false, query: 'running shoes', reply_to_player: 'More?' }));
+  assert.equal(r.ready, true);
+  assert.equal(r.query, 'running shoes');
 });
 
 test('missing llm or non-array messages gives fallback', async () => {

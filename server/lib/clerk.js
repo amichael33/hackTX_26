@@ -43,6 +43,14 @@ function relatedQueries(v, query) {
   return out.slice(0, 2);
 }
 
+function lastUserText(msgs) {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m && m.role === 'user' && typeof m.text === 'string' && m.text.trim()) return m.text.trim().slice(0, 100).trim();
+  }
+  return '';
+}
+
 function normalize(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const query = typeof r.query === 'string' ? r.query.trim() : '';
@@ -73,9 +81,17 @@ export async function chatTurn({ messages, location } = {}, llm) {
   if (userCount >= MAX_TURNS) system += ` ${LAST_TURN}`;
   try {
     if (typeof llm !== 'function') throw new Error('no llm configured');
-    return normalize(await llm({ system, messages: msgs, schema: CLERK_SCHEMA }));
+    const out = normalize(await llm({ system, messages: msgs, schema: CLERK_SCHEMA }));
+    if (!out.ready && userCount >= MAX_TURNS) {
+      // Turn cap is enforced here too: never leave the shopper without a search.
+      const query = out.query || lastUserText(msgs);
+      if (query) return { ...out, ready: true, query, reply_to_player: HANDOFF_REPLY };
+    }
+    return out;
   } catch (err) {
     console.error('chatTurn failed:', err.message);
+    const query = lastUserText(msgs);
+    if (query) return normalize({ ready: true, query, reply_to_player: HANDOFF_REPLY });
     return normalize({ ready: false, reply_to_player: FALLBACK_REPLY });
   }
 }

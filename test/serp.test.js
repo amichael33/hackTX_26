@@ -249,13 +249,40 @@ test('route: body demo:true -> demo products, no fetch, not cached', async () =>
   assert.equal(live.json.products[0].id, 'id0');
 });
 
-test('route: cache key includes extra_queries (different extras -> separate fetch rounds)', async () => {
+test('route: cache is per SerpApi query (new extras fetch only the new extra)', async () => {
   const f = fakeFetch(() => ok(forty));
   const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
   await postSearch(app, { query: { ...Q, extra_queries: ['hdmi cable'] }, city: CITY });
   assert.equal(f.calls.length, 2);
   await postSearch(app, { query: { ...Q, extra_queries: ['usb hub'] }, city: CITY });
-  assert.equal(f.calls.length, 4);
+  assert.equal(f.calls.length, 3, 'main is reused; only the new extra is fetched');
   await postSearch(app, { query: { ...Q, extra_queries: ['hdmi cable'] }, city: CITY });
-  assert.equal(f.calls.length, 4, 'same extras are a cache hit');
+  assert.equal(f.calls.length, 3, 'repeat request makes 0 fetches');
+});
+
+test('route: a query warmed as main is reused as an extra', async () => {
+  const f = fakeFetch(() => ok(forty));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  await postSearch(app, { query: { ...Q, query: 'keycaps' }, city: CITY });
+  assert.equal(f.calls.length, 1);
+  await postSearch(app, { query: { ...Q, extra_queries: ['Keycaps '] }, city: CITY });
+  assert.equal(f.calls.length, 2, 'only the main query is fetched; keycaps came from cache');
+});
+
+test('route: failed queries are not cached', async () => {
+  let fail = true;
+  const f = fakeFetch(() => (fail ? bad(500) : ok(forty)));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const r1 = await postSearch(app, { query: Q });
+  assert.equal(r1.json.demo, true);
+  fail = false;
+  const r2 = await postSearch(app, { query: Q });
+  assert.equal(r2.json.products[0].id, 'id0');
+});
+
+test('route: demo products carry demo:true (fetch failure, missing key, demoMode)', async () => {
+  const failing = createApp({ fetchImpl: async () => { throw new Error('down'); }, serpApiKey: 'k' });
+  assert.equal((await postSearch(failing, { query: Q, city: CITY })).json.demo, true);
+  assert.equal((await postSearch(createApp({}), { query: Q })).json.demo, true);
+  assert.equal((await postSearch(createApp({ serpApiKey: 'k', demoMode: true }), { query: Q })).json.demo, true);
 });
