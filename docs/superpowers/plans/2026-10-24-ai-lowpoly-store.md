@@ -551,6 +551,53 @@ test/{storage,cart,savedSearches,similar}.test.js
 
 ---
 
+### Task 12b: Player collision with fixtures (user request: "walking through things")
+
+**Files:**
+- Create: `public/js/collide.js`, `test/collide.test.js`.
+- Modify: `public/js/components/bounds.js`, and `public/index.html` (one script tag).
+
+**Interfaces:**
+- **Consumes:** `SHELF_UNITS` from `layoutStore.js`. The test uses it only as a guard.
+- **Produces:**
+  - `public/js/collide.js` is a **classic script** (R7) with no import/export. It assigns `globalThis.StoreCollide = { OBSTACLES, PLAYER_RADIUS, resolve }`.
+  - Load it in `<head>` before `bounds.js`.
+  - Tests load it with `await import('../public/js/collide.js')` and then read `globalThis.StoreCollide`, the same pattern as `cutout.js`.
+  - `PLAYER_RADIUS = 0.3`.
+  - `OBSTACLES: {minX, maxX, minZ, maxZ}[]` holds axis-aligned footprints in world x/z:
+    - **11 shelf units.** Each is 2 wide × 0.5 deep, centered on its unit position. A unit with rotY ±90 swaps its extents (0.5 in x, 2 in z).
+    - **Island:** x −1..1, z −0.6..0.6.
+    - **Desk counter:** x −1.65..1.65, z 6.05..6.95.
+    - **Desk return:** x 1.35..2.25, z 4.65..6.55.
+    - **Clerk:** x −0.35..0.35, z 5.45..6.15.
+  - `resolve(pos: {x, z}, r = PLAYER_RADIUS, obstacles = OBSTACLES) -> pos` mutates `pos` and returns it. It allocates nothing. It runs two passes over the obstacles:
+    - Outside a rectangle: find the closest point on it. If the distance is less than `r`, push out along the vector from that point by `r − distance`.
+    - Center inside a rectangle: push out along the axis of least penetration to that side's edge plus `r`.
+- `bounds` component: after its existing room clamp, call `StoreCollide.resolve(this.el.object3D.position)`. object3D.position has `x`/`z`, so pass it directly. Room bounds are unchanged.
+
+- [ ] **Step 1: Failing tests** (`test/collide.test.js`), using a single test rectangle `{minX:0,maxX:2,minZ:0,maxZ:1}` and r 0.3:
+  - `{x:-0.1, z:0.5}` → x === -0.3 (pushed out to the left), z unchanged.
+  - `{x:2.1, z:0.5}` → x === 2.3.
+  - `{x:1, z:-0.2}` → z === -0.3.
+  - `{x:1, z:1.1}` → z === 1.3.
+  - Inside, near the left edge, `{x:0.1, z:0.5}` → x === -0.3.
+  - Corner `{x:-0.1, z:-0.1}` → the distance to (0,0) is ≥ 0.3 − 1e-9.
+  - Clear `{x:-1, z:-1}` → unchanged.
+  - Guard: for every unit in `SHELF_UNITS` (flattened), `OBSTACLES` contains a rectangle with the expected footprint, compared to 3 decimals.
+  - The default spawn `{x:0, z:9}` is unchanged by `resolve`.
+  - A point at the back-wall trigger line, `{x:-2, z:-8.5}` (between units), stays reachable: its z ends up ≤ -6.2.
+- [ ] **Step 2:** Run `npm test`. Expected: FAIL.
+- [ ] **Step 3:** Implement `collide.js` and wire it into `bounds`.
+- [ ] **Step 4:** Run `npm test` (expected: PASS), `node --check` on both files, and curl the assets (expected: 200).
+  - **Manual check:**
+    - You can't walk through any shelf, the island, the desk or the clerk.
+    - Walking diagonally into a shelf slides along it.
+    - You can still walk around the desk into the store.
+    - You can reach the back wall and trigger Similar Finds once Task 15 lands.
+- [ ] **Step 5: Commit** `feat: player collides with shelves, island, desk`
+
+---
+
 ### Task 13: 3D shopping cart
 
 **Files:**
