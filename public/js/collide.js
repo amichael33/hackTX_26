@@ -1,5 +1,5 @@
 /* Classic script (also parses as an ES module under Node): circle-vs-rectangle collision on the x/z floor plane.
-   Exposes globalThis.StoreCollide = { OBSTACLES, PLAYER_RADIUS, resolve }.
+   Exposes globalThis.StoreCollide = { OBSTACLES, PLAYER_RADIUS, resolve, circleClear }.
    Shelf footprints mirror SHELF_UNITS in layoutStore.js (guarded by test/collide.test.js). */
 (function (root) {
   var PLAYER_RADIUS = 0.3;
@@ -67,5 +67,20 @@
     return pos;
   }
 
-  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve };
+  // True when a circle at (x, z) overlaps no obstacle and stays inside the room interior (x +-8, z +-10).
+  // Allocates nothing.
+  function circleClear(x, z, r, obstacles) {
+    if (obstacles === undefined) obstacles = OBSTACLES;
+    if (x < -(8 - r) || x > 8 - r || z < -(10 - r) || z > 10 - r) return false;
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      var cx = x < o.minX ? o.minX : (x > o.maxX ? o.maxX : x);
+      var cz = z < o.minZ ? o.minZ : (z > o.maxZ ? o.maxZ : z);
+      var dx = x - cx, dz = z - cz;
+      if (dx * dx + dz * dz < r * r) return false;
+    }
+    return true;
+  }
+
+  root.StoreCollide = { OBSTACLES: OBSTACLES, PLAYER_RADIUS: PLAYER_RADIUS, resolve: resolve, circleClear: circleClear };
 })(globalThis);

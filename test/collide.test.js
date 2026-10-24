@@ -92,3 +92,12 @@ test('fixtures are present with the brief footprints', () => {
   assert.ok(has({ minX: 1.35, maxX: 2.25, minZ: 4.65, maxZ: 6.55 }), 'desk return');
   assert.ok(has({ minX: -0.35, maxX: 0.35, minZ: 5.45, maxZ: 6.15 }), 'clerk');
 });
+
+test('circleClear: free floor, fixtures, room edge, island margin', () => {
+  const { circleClear } = globalThis.StoreCollide;
+  assert.equal(circleClear(0, 3, 0.28), true);
+  assert.equal(circleClear(3, 0, 0.28), false);
+  assert.equal(circleClear(-7.9, 3, 0.28), false);
+  assert.equal(circleClear(0, 0.85, 0.28), false);
+  assert.equal(circleClear(0, 0.9, 0.28), true);
+});

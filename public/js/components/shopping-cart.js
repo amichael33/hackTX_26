@@ -5,6 +5,8 @@
   var AHEAD = 0.9;          // metres in front of the rig
   var BASKET_BOTTOM = 0.45; // local y of the basket underside
   var POP_MS = 250;
+  var CART_RADIUS = 0.28;
+  var STEPS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35];
   var CUBE = 0.12;
   var COLS = 4, ROWS = 3;
   var PITCH_X = 0.13, PITCH_Z = 0.13;
@@ -33,7 +35,8 @@
   AFRAME.registerComponent('shopping-cart', {
     schema: {
       rig: { type: 'selector', default: '#rig' },
-      max: { type: 'number', default: 12 }
+      max: { type: 'number', default: 12 },
+      enabled: { type: 'boolean', default: false } // phase visibility, set by main.js applyState
     },
     init: function () {
       var self = this;
@@ -44,7 +47,8 @@
       this.popping = [];        // { group, t } entries animating 0 -> 1
       this.items = new THREE.Group();
       this.buildModel();
-      this.el.object3D.visible = false; // main.js shows it in BROWSING
+      this.blocked = false; // true while no clear spot ahead of the player exists
+      this.el.object3D.visible = false; // main.js enables it in BROWSING
       this.onCart = function (e) { self.setItems((e.detail && e.detail.items) || []); };
       this.el.sceneEl.addEventListener('cart-changed', this.onCart);
     },
@@ -80,6 +84,9 @@
       }
       g.add(this.items);
       this.el.setObject3D('cart', g);
+    },
+    update: function () {
+      this.el.object3D.visible = this.data.enabled && !this.blocked;
     },
     setItems: function (list) {
       this.clearItems();
@@ -135,11 +142,24 @@
     },
     tick: function (time, delta) {
       var o = this.el.object3D;
-      if (!o.visible) return;
+      if (!this.data.enabled) { o.visible = false; return; }
       var rig = this.data.rig;
       if (rig) {
         var r = rig.object3D, yaw = r.rotation.y;
-        o.position.set(r.position.x - Math.sin(yaw) * AHEAD, 0, r.position.z - Math.cos(yaw) * AHEAD);
+        var sx = -Math.sin(yaw), sz = -Math.cos(yaw);
+        var C = window.StoreCollide;
+        var d = AHEAD, found = !C || !C.circleClear;
+        if (!found) {
+          // Pull the cart back toward the player until its footprint is clear of fixtures and walls.
+          for (var step = 0; step < STEPS.length; step++) {
+            d = STEPS[step];
+            if (C.circleClear(r.position.x + sx * d, r.position.z + sz * d, CART_RADIUS)) { found = true; break; }
+          }
+        }
+        this.blocked = !found;
+        o.visible = found;
+        if (!found) return;
+        o.position.set(r.position.x + sx * d, 0, r.position.z + sz * d);
         o.rotation.set(0, yaw, 0);
       }
       var p = this.popping;

@@ -28,7 +28,7 @@ function applyState(state) {
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
-  if (cart3d) cart3d.object3D.visible = state.phase === 'BROWSING';
+  if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', state.phase === 'BROWSING');
 }
 
 function boot() {
