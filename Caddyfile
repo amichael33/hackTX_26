@@ -1,0 +1,6 @@
+yourname.tech {
+    encode zstd gzip
+    root * /var/www/store/public
+    file_server
+    reverse_proxy /api/* localhost:3000
+}
