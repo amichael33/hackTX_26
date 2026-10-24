@@ -138,11 +138,24 @@
         return tex(128, 128, function (g2, w, h) {
           g2.fillStyle = base; g2.fillRect(0, 0, w, h);
           if (kind === 'tower') {
-            for (var cx2 = 0; cx2 < 2; cx2++) for (var cy2 = 0; cy2 < 2; cy2++) {
-              var lit = ((variant * 7 + cx2 * 3 + cy2 * 5) % 5) === 0;
-              g2.fillStyle = lit ? '#ffeaa0' : '#6f93b8';
-              g2.fillRect(cx2 * 64 + 10, cy2 * 64 + 12, 44, 38);
-              if (!lit) { g2.fillStyle = 'rgba(255,255,255,0.28)'; g2.fillRect(cx2 * 64 + 10, cy2 * 64 + 12, 44, 12); }
+            // Window layouts differ per variant: grid, ribbon curtain wall, narrow three-across, mullioned grid, vertical fins.
+            var win = function (x, y, ww, hh, lit) {
+              g2.fillStyle = lit ? '#ffeaa0' : '#6f93b8'; g2.fillRect(x, y, ww, hh);
+              if (!lit) { g2.fillStyle = 'rgba(255,255,255,0.28)'; g2.fillRect(x, y, ww, Math.max(4, hh * 0.3)); }
+            };
+            var tv = variant % 5;
+            if (tv === 1) {
+              for (var ry = 0; ry < 2; ry++) { win(0, ry * 64 + 12, 128, 38, false); g2.fillStyle = base; for (var mx = 32; mx < 128; mx += 32) g2.fillRect(mx - 1, ry * 64 + 12, 3, 38); }
+            } else if (tv === 2) {
+              for (var c3 = 0; c3 < 3; c3++) for (var r3 = 0; r3 < 2; r3++) win(c3 * 43 + 8, r3 * 64 + 10, 27, 44, ((c3 * 5 + r3 * 3 + variant) % 4) === 0);
+            } else if (tv === 3) {
+              for (var c4 = 0; c4 < 2; c4++) for (var r4 = 0; r4 < 2; r4++) { win(c4 * 64 + 8, r4 * 64 + 10, 48, 44, ((c4 + r4 * 2 + variant) % 6) === 0); g2.fillStyle = base; g2.fillRect(c4 * 64 + 30, r4 * 64 + 10, 4, 44); g2.fillRect(c4 * 64 + 8, r4 * 64 + 30, 48, 3); }
+            } else if (tv === 4) {
+              win(0, 0, 128, 128, false); g2.fillStyle = base;
+              for (var fx = 0; fx < 128; fx += 21) g2.fillRect(fx, 0, 9, 128);
+              g2.fillRect(0, 60, 128, 8);
+            } else {
+              for (var cx2 = 0; cx2 < 2; cx2++) for (var cy2 = 0; cy2 < 2; cy2++) win(cx2 * 64 + 10, cy2 * 64 + 12, 44, 38, ((variant * 7 + cx2 * 3 + cy2 * 5) % 5) === 0);
             }
           } else if (kind === 'house') {
             g2.fillStyle = '#5b4a3a'; g2.fillRect(38, 22, 52, 66);                       // window frame
@@ -163,6 +176,10 @@
           }
         });
       };
+      var crnd = makeRng('city:details');
+      var cpick = function (a) { return a[Math.floor(crnd() * a.length) % a.length]; };
+      var SHOPS = [['CAFE', '#7a4f2f'], ['BOOKS', '#2c5aa0'], ['SHOES', '#c0392b'], ['PIZZA', '#2e8b57'], ['BANK', '#1f2933'], ['FLORIST', '#a04f7a'], ['TECH', '#3d4046']];
+      var lampMat = flat('#33363b');
       var variants = [];
       var kind = T.buildings;
       for (var vi = 0; vi < 5; vi++) variants.push({ tex: facade(kind, T.palette[vi % T.palette.length], vi), color: T.palette[vi % T.palette.length], v: vi });
@@ -239,7 +256,7 @@
             var h = between(HEIGHT[kind][row][0], HEIGHT[kind][row][1]);
             var uc = u + w / 2, off = dist0 + dp / 2;
             var cx = sd.span === 'z' ? sd.n[0] * (hw + off) : uc, cz = sd.span === 'z' ? uc : sd.n[1] * (hd + off);
-            if (rnd() < (row ? 0.85 : 0.92)) placeBuilding(cx, cz, sd.rot, w, dp, h, row);
+            if (rnd() < (row ? 0.85 : 0.92)) { var bg = placeBuilding(cx, cz, sd.rot, w, dp, h, row); if (d.theme === 'city' && row === 0 && bg) cityStorefront(bg, w, dp, sd.n[0] ? -1 : 1); }
             u += w + between(0.8, 2.8);
           }
         }
@@ -257,7 +274,6 @@
           add(new THREE.SphereGeometry(1.5 * s, 8, 6), flat(pick(['#5f9a4a', '#6aa84f', '#4f8a42', '#7fb05a'])), x, 3.0 * s, z);
         }
       };
-      var lampMat = flat('#33363b');
       var lamp = function (x, z) {
         if (T.lamps === 'torch') {
           add(new THREE.CylinderGeometry(0.07, 0.09, 2.2, 6), flat('#4f3320'), x, 1.1, z);
@@ -305,6 +321,67 @@
           if (d.theme === 'industrial' && rnd() < 0.6) truck(cp[0], cp[1], n[0] === 0); else if (T.cars.length) car(cp[0], cp[1], n[0] === 0);
         }
       });
+
+
+      // --- city only: storefronts, crosswalk, traffic lights, a bus stop and pedestrians. Own random stream, so the rest of the layout is unchanged. ---
+      function cityStorefront(grp, w, dp, fs) {
+        var shop = cpick(SHOPS), awn = cpick(['#c0392b', '#2c5aa0', '#2e8b57', '#e0a526', '#7a4fa0']);
+        var fz = fs * (dp / 2);
+        add(new THREE.BoxGeometry(w * 0.9, 3.0, 0.1), flat('#2b3a4a'), 0, 1.6, fz + fs * 0.07, grp);                 // shop window
+        add(new THREE.BoxGeometry(1.5, 2.5, 0.12), flat('#e8f0f8'), (crnd() - 0.5) * w * 0.4, 1.35, fz + fs * 0.09, grp); // lit door
+        var aw = add(new THREE.BoxGeometry(w * 0.82, 0.08, 1.0), flat(awn), 0, 3.35, fz + fs * 0.5, grp);               // awning
+        aw.rotation.x = fs * 0.22;
+        var cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+        var cg = cv.getContext('2d'); cg.fillStyle = shop[1]; cg.fillRect(0, 0, 256, 64);
+        cg.fillStyle = '#ffffff'; cg.font = 'bold 40px sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle'; cg.fillText(shop[0], 128, 34);
+        var st = own(new THREE.CanvasTexture(cv)); if (THREE.SRGBColorSpace) st.colorSpace = THREE.SRGBColorSpace;
+        var sg2 = new THREE.PlaneGeometry(Math.min(w * 0.6, 4.2), 0.75), sm = add(sg2, own(new THREE.MeshBasicMaterial({ map: st })), 0, 4.0, fz + fs * 0.07, grp);
+        if (fs < 0) sm.rotation.y = Math.PI;
+      }
+      function trafficLight(x, z, faceZ) {
+        add(new THREE.CylinderGeometry(0.06, 0.08, 3.6, 6), lampMat, x, 1.8, z);
+        var head = add(new THREE.BoxGeometry(0.34, 1.0, 0.3), flat('#1d1d1f'), x, 3.9, z);
+        [['#e0392b', 4.2], ['#e0a526', 3.9], ['#3cb371', 3.6]].forEach(function (c) {
+          [-1, 1].forEach(function (sd2) { add(new THREE.SphereGeometry(0.1, 8, 6), flat(c[0]), x, c[1], z + sd2 * 0.16); });
+        });
+      }
+      function pedestrian(x, z, ry) {
+        var gp = new THREE.Group(); gp.position.set(x, 0, z); gp.rotation.y = ry; g.add(gp);
+        var shirt = cpick(['#c0392b', '#2c5aa0', '#e0a526', '#2e8b57', '#7a4fa0', '#d9d4c7']), pants = cpick(['#2b2b2f', '#3d4a5c', '#5b4a3a']);
+        [-0.09, 0.09].forEach(function (lx) { add(new THREE.BoxGeometry(0.14, 0.8, 0.16), flat(pants), lx, 0.4, 0, gp); });
+        add(new THREE.BoxGeometry(0.4, 0.6, 0.22), flat(shirt), 0, 1.1, 0, gp);
+        [-0.27, 0.27].forEach(function (ax) { add(new THREE.BoxGeometry(0.1, 0.55, 0.12), flat(shirt), ax, 1.1, 0, gp); });
+        add(new THREE.SphereGeometry(0.15, 8, 6), flat(cpick(['#f1c9a5', '#d9a77e', '#a56f4a', '#7a4f33'])), 0, 1.6, 0, gp);
+      }
+      function busStop(x, z) {
+        var gp = new THREE.Group(); gp.position.set(x, 0, z); gp.rotation.y = -Math.PI / 2; g.add(gp); // open side faces the shop and the road
+        add(new THREE.BoxGeometry(3.0, 0.1, 1.3), flat('#3d4046'), 0, 2.5, 0, gp);                          // roof
+        [-1.4, 1.4].forEach(function (px) { add(new THREE.CylinderGeometry(0.05, 0.05, 2.5, 6), lampMat, px, 1.25, 0.55, gp); add(new THREE.CylinderGeometry(0.05, 0.05, 2.5, 6), lampMat, px, 1.25, -0.55, gp); });
+        add(new THREE.BoxGeometry(2.8, 1.8, 0.05), flat('#a9c6dc'), 0, 1.5, -0.6, gp);                      // glass back
+        add(new THREE.BoxGeometry(1.8, 0.08, 0.4), flat('#7b8087'), 0, 0.5, -0.35, gp);                     // bench
+        add(new THREE.BoxGeometry(0.9, 0.7, 0.04), flat('#2c5aa0'), 1.0, 1.6, -0.55, gp);                    // route map
+        add(new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6), lampMat, 2.0, 1.6, 0.4, gp);                    // stop pole
+        add(new THREE.CylinderGeometry(0.28, 0.28, 0.05, 12), flat('#2c5aa0'), 2.0, 3.2, 0.4, gp).rotation.x = Math.PI / 2; // round sign
+      }
+      if (d.theme === 'city') {
+        // Zebra crossing on the front road, right in front of the door.
+        var zebra = flat('#f2f2f2');
+        for (var zx = -2.25; zx <= 2.25; zx += 0.9) {
+          var zg = new THREE.PlaneGeometry(0.5, ROAD1 - ROAD0 - 0.8); zg.rotateX(-Math.PI / 2);
+          add(zg, zebra, zx, -0.02, hd + (ROAD0 + ROAD1) / 2);
+        }
+        var stopLine = new THREE.PlaneGeometry(5.4, 0.3); stopLine.rotateX(-Math.PI / 2);
+        add(stopLine, zebra, 0, -0.02, hd + ROAD1 - 0.5);
+        trafficLight(-3.3, hd + ROAD0 - 0.4); trafficLight(3.3, hd + ROAD1 + 0.6);
+        busStop(hw + ROAD1 + 1.2, 4);
+        // Pedestrians on the near sidewalk of the front and side streets, and one on the crossing.
+        [[-6, 0.9, 1], [5.5, 1.5, 3], [-2.6, 1.2, -1], [hw + 1.1, -4, 0.5], [-hw - 1.3, 2.5, 2], [hw + 1.3, 8, 1.2]].forEach(function (pp) {
+          var px = pp[0], pz = pp[1];
+          if (Math.abs(px) < hw - 0.5) pedestrian(px, hd + pz, pp[2]); else pedestrian(px, pz, pp[2]);
+        });
+        pedestrian(1.35, hd + 4.3, Math.PI);
+        pedestrian(-1.8, hd + ROAD1 + 1.2, 0.3);
+      }
 
       // --- extras that make each place feel like itself ---
       if (d.theme === 'industrial') {
