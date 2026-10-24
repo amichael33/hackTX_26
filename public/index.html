@@ -17,6 +17,7 @@
   <script src="js/sticker.js"></script>
   <script src="js/cutout.js"></script>
   <script src="js/components/product-box.js"></script>
+  <script src="js/components/shopping-cart.js"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap">
   <link rel="stylesheet" href="css/ui.css">
@@ -36,6 +37,8 @@
     <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
       <a-entity camera cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
     </a-entity>
+
+    <a-entity id="cart3d" shopping-cart></a-entity>
 
     <a-entity id="desk" desk position="0 0 6.5"></a-entity>
     <a-entity id="clerk" clerk="state: idle" position="0 0 5.8"></a-entity>

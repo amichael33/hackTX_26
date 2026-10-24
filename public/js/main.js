@@ -27,10 +27,13 @@ function applyState(state) {
   const clerk = document.getElementById('clerk');
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
+  const cart3d = document.getElementById('cart3d');
+  if (cart3d) cart3d.object3D.visible = state.phase === 'BROWSING';
 }
 
 function boot() {
   applyState(store.get());
+  onCartChanged(); // the module-load emit can predate the shopping-cart component; re-send now that the scene is loaded
   store.on('change', (state) => applyState(state));
 }
 
