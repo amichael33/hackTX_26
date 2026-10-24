@@ -37,12 +37,23 @@
 
   AFRAME.registerComponent('outside', {
     schema: { theme: { default: 'city' }, width: { default: 16 }, depth: { default: 20 } },
-    init: function () { this.group = null; this.owned = []; this.build(); },
+    init: function () { this.group = null; this.owned = []; this.puffs = []; this.sails = null; this.build(); },
+    tick: function (time, delta) {
+      if (this.sails) this.sails.rotation.z -= Math.min(delta, 50) * 0.0006;
+      for (var i = 0; i < this.puffs.length; i++) { // chimney smoke: each puff rises, swells and fades, then starts again
+        var p = this.puffs[i], t = ((time * 0.00022 + p.phase) % 1 + 1) % 1;
+        p.mesh.position.y = p.y0 + t * 2.4;
+        p.mesh.scale.setScalar(0.35 + t * 0.9);
+        p.mat.opacity = 0.55 * (1 - t) * Math.min(1, t * 8);
+      }
+    },
     update: function (old) { if (old && Object.keys(old).length) { this.clear(); this.build(); } },
     remove: function () { this.clear(); },
     clear: function () {
       this.owned.forEach(function (o) { if (o.dispose) o.dispose(); });
       this.owned = [];
+      this.puffs = [];
+      this.sails = null;
       if (this.group) { this.el.removeObject3D('outside'); this.group = null; }
     },
 
@@ -55,6 +66,7 @@
       this.el.setObject3D('outside', g);
       var hw = d.width / 2, hd = d.depth / 2;
       var own = function (o) { self.owned.push(o); return o; };
+      var srnd = makeRng(d.theme + ':extras'); // separate stream, so adding dressing never shifts where the buildings stand
 
       // Basic materials, shaded per face (a cheap fake of sunlight from the upper left).
       var matCache = {};
@@ -210,6 +222,13 @@
           }
           grp.add(roof); own(r.geo);
           var chim = add(new THREE.BoxGeometry(0.6, 1.6, 0.6), flat('#8a6a5a'), w * 0.25, h + rh * 0.6, dp * 0.15, grp);
+          if (kind === 'cottage' && srnd() < 0.6) { // a thread of chimney smoke (animated in tick)
+            for (var sp = 0; sp < 3; sp++) {
+              var smat = own(new THREE.MeshBasicMaterial({ color: '#c9c6c0', transparent: true, opacity: 0, depthWrite: false }));
+              var pm = add(new THREE.IcosahedronGeometry(0.4, 0), smat, w * 0.25, h + rh * 0.6 + 1, dp * 0.15, grp);
+              self.puffs.push({ mesh: pm, mat: smat, phase: sp / 3 + srnd() * 0.1, y0: h + rh * 0.6 + 1 });
+            }
+          }
         } else if (kind === 'tower') {
           if (rnd() < 0.7) add(new THREE.BoxGeometry(w * 0.4, 1.4, dp * 0.4), flat('#8d9096'), w * 0.1, h + 0.7, 0, grp);   // roof plant
           if (rnd() < 0.3) add(new THREE.CylinderGeometry(0.08, 0.08, 6, 4), flat('#55595e'), -w * 0.25, h + 3, dp * 0.2, grp); // antenna
@@ -331,6 +350,51 @@
         [-17, 17].forEach(function (tx) { add(new THREE.CylinderGeometry(3.2, 3.6, 14, 8), flat('#8d887d'), tx, 7, 0, kp); add(new THREE.ConeGeometry(4.2, 6, 8), flat('#7a3b2e'), tx, 17, 0, kp); });
         add(new THREE.BoxGeometry(9, 22, 9), shaded('#9a958a'), 0, 11, -2, kp);
         add(new THREE.ConeGeometry(7, 9, 4), flat('#7a3b2e'), 0, 26, -2, kp);
+      }
+      if (d.theme === 'medieval') {
+        // Village dressing, all well beyond the shop's walls: a well at the crossroads, a market, a paddock with hay, a windmill.
+        var wood = flat('#6b4a2f'), stone = shaded('#8d887d', null, 'medStone');
+        var wx0 = hw + 4.7, wz0 = hd + 4.7;
+        add(new THREE.CylinderGeometry(0.95, 1.05, 0.9, 8), stone, wx0, 0.45, wz0);
+        add(new THREE.CircleGeometry(0.62, 8), flat('#1d2f45'), wx0, 0.91, wz0).rotation.x = -Math.PI / 2;
+        [-1, 1].forEach(function (sx) { add(new THREE.BoxGeometry(0.14, 1.9, 0.14), wood, wx0 + sx * 0.95, 1.45, wz0); });
+        add(new THREE.BoxGeometry(0.1, 0.1, 1.6), wood, wx0, 2.3, wz0);
+        var wroof = add(new THREE.ConeGeometry(1.7, 0.9, 4), flat('#7a3b2e'), wx0, 2.8, wz0); wroof.rotation.y = Math.PI / 4;
+        add(new THREE.BoxGeometry(0.25, 0.3, 0.25), wood, wx0, 1.7, wz0);                           // bucket
+        // Two market stalls on the left road, striped awnings and goods on the counters.
+        [-4, -9].forEach(function (sz, si) {
+          var sx = -hw - 4.7, st = new THREE.Group();
+          st.position.set(sx, 0, sz); g.add(st);
+          add(new THREE.BoxGeometry(1.2, 0.9, 2.6), wood, 0, 0.45, 0, st);                                 // counter
+          [[-0.55, -1.2], [0.55, -1.2], [-0.55, 1.2], [0.55, 1.2]].forEach(function (pp) { add(new THREE.BoxGeometry(0.1, 2.3, 0.1), wood, pp[0], 1.15, pp[1], st); });
+          for (var sb = 0; sb < 5; sb++) add(new THREE.BoxGeometry(1.5, 0.08, 0.52), flat(sb % 2 ? '#e8e2cf' : (si ? '#2c5aa0' : '#b3262e')), 0, 2.4 - 0.001 * sb, -1.04 + sb * 0.52, st);
+          for (var gd = 0; gd < 4; gd++) add(new THREE.SphereGeometry(0.17, 6, 5), flat(['#c0392b', '#e0a526', '#6aa84f', '#e8742a'][(gd + si) % 4]), -0.2 + (gd % 2) * 0.4, 1.0, -0.8 + gd * 0.5, st);
+        });
+        // A fenced paddock with haystacks beyond the front-right corner of the crossroads.
+        var px = hw + 6, pz = hd + 14;
+        for (var fp = -3; fp <= 3; fp++) {
+          [[px - 3.6, pz + fp * 1.3, 0], [px + 3.6, pz + fp * 1.3, 0], [px + fp * 1.2, pz - 4.2, 1], [px + fp * 1.2, pz + 4.2, 1]].forEach(function (f) {
+            add(new THREE.BoxGeometry(0.12, 1.0, 0.12), wood, f[0], 0.5, f[1]);
+            if (fp < 3) { var rl = add(new THREE.BoxGeometry(f[2] ? 1.2 : 0.08, 0.08, f[2] ? 0.08 : 1.3), wood, f[0] + (f[2] ? 0.6 : 0), 0.75, f[1] + (f[2] ? 0 : 0.65)); }
+          });
+        }
+        [[-1.4, -1], [1.2, 0.6], [-0.2, 2]].forEach(function (hp, hi) {
+          add(new THREE.CylinderGeometry(0.95, 1.0, 0.8, 8), flat('#d9b44a'), px + hp[0], 0.4, pz + hp[1]);
+          add(new THREE.ConeGeometry(0.88, 1.1 + 0.2 * (hi % 2), 8), flat('#c9a23a'), px + hp[0], 1.35, pz + hp[1]);
+        });
+        // A windmill on the far green, its sails turning slowly toward the shop.
+        var mx = hw + 48, mz = 14, mill = new THREE.Group(); mill.scale.setScalar(2.4);
+        mill.position.set(mx, 0, mz); mill.rotation.y = Math.atan2(-mx, -mz); g.add(mill);
+        add(new THREE.CylinderGeometry(1.6, 2.5, 7, 8), shaded('#e4d9c0', null, 'millBody'), 0, 3.5, 0, mill);
+        add(new THREE.ConeGeometry(2.2, 2.6, 8), flat('#7a3b2e'), 0, 8.3, 0, mill);
+        var sails = new THREE.Group(); sails.position.set(0, 6.3, 2.0); mill.add(sails);
+        add(new THREE.CylinderGeometry(0.25, 0.25, 0.5, 6), wood, 0, 0, -0.1, sails).rotation.x = Math.PI / 2;
+        for (var sk2 = 0; sk2 < 4; sk2++) {
+          var arm = new THREE.Group(); arm.rotation.z = sk2 * Math.PI / 2; sails.add(arm);
+          add(new THREE.BoxGeometry(0.12, 5.6, 0.12), wood, 0, 2.9, 0, arm);
+          add(new THREE.BoxGeometry(0.9, 4.2, 0.05), flat('#e8dcc0'), 0.55, 3.2, 0.1, arm);
+        }
+        this.sails = sails;
       }
       if (T.hills) {
         for (var hl = 0; hl < 14; hl++) {

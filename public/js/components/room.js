@@ -11,6 +11,7 @@
     },
     init: function () {
       this.built = [];
+      this.owned = [];
       this.build();
     },
     update: function (old) {
@@ -22,6 +23,8 @@
     clear: function () {
       this.built.forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
       this.built = [];
+      (this.owned || []).forEach(function (o) { if (o.dispose) o.dispose(); });
+      this.owned = [];
     },
     box: function (pos, size, color, extra) {
       var e = document.createElement('a-box');
@@ -61,6 +64,27 @@
       if (d.style === 'castle') this.castle(hw, hd, h);
     },
     // --- walls with windows and the front door ---
+    // A flat polygon (points [u, y] in wall terms) extruded `depth` thick, centred `off` from the wall's centre plane toward the room.
+    // Used for the pointed arches and the banners.
+    prism: function (wall, pts, depth, off, color, extra) {
+      var d = this.data, t = 0.2, sgn = (wall === 'front' || wall === 'right') ? 1 : -1, shape = new THREE.Shape();
+      pts.forEach(function (p, i) { if (i) shape.lineTo(p[0], p[1]); else shape.moveTo(p[0], p[1]); });
+      var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
+      geo.translate(0, 0, -depth / 2);
+      var mat = new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 1, metalness: 0, flatShading: true, side: THREE.DoubleSide }, extra || {}));
+      this.owned.push(geo, mat);
+      var e = document.createElement('a-entity');
+      if (wall === 'front' || wall === 'back') e.object3D.position.set(0, 0, sgn * (d.depth / 2 + t / 2) - sgn * off);
+      else { e.object3D.position.set(sgn * (d.width / 2 + t / 2) - sgn * off, 0, 0); e.object3D.rotation.y = -Math.PI / 2; }
+      e.setObject3D('mesh', new THREE.Mesh(geo, mat));
+      this.el.appendChild(e);
+      this.built.push(e);
+    },
+    // Fills the two top corners of an opening with stone so its head is a pointed (lancet) arch rising to a peak at `c`.
+    pointedHead: function (wall, c, iw, top, rise, color) {
+      this.prism(wall, [[c - iw / 2, top - rise], [c - iw / 2, top], [c, top]], 0.2, 0.1, color);
+      this.prism(wall, [[c + iw / 2, top - rise], [c + iw / 2, top], [c, top]].reverse(), 0.2, 0.1, color);
+    },
     // A box on a wall in the wall's own terms: u along it, y up, `off` toward the room from the wall's centre plane.
     // Front/back walls run along x; left/right along z.
     wallBox: function (wall, u, y, du, dy, depth, off, color, extra) {
@@ -126,6 +150,16 @@
       });
       // The glass: nearly clear, so the town outside shows through.
       this.wallPlane(wall, o.c, cy, iw, ih, 0, '#cfe6ff', { opacity: 0.14, transparent: true, depthWrite: false, roughness: 0.1 });
+      if (st === 'castle') {
+        // Pointed head, and stained glass in the upper panes (two colours per window).
+        var topY = o.y1 - fb, rise = iw * 0.9;
+        this.pointedHead(wall, o.c, iw, topY, rise, col);
+        var SG = [['#b3262e', '#2a5db0'], ['#d9a521', '#2e8b57'], ['#6a3fa0', '#b3262e']][Math.abs(Math.round(o.c * 10)) % 3];
+        var pw = (iw - mb) / 2, ph = ih * 0.5 - mb / 2, py = o.y0 + fb + ih * 0.5 + mb / 2 + ph / 2;
+        [-1, 1].forEach(function (s2, k) {
+          self.wallPlane(wall, o.c + s2 * (mb / 2 + pw / 2), py, pw, ph, 0.02, SG[k], { opacity: 0.55, transparent: true, depthWrite: false, roughness: 0.1 });
+        });
+      }
       // A sill board inside, for everything but the high factory windows.
       if (st !== 'industrial') this.wallBox(wall, o.c, o.y0 + 0.02, w + 0.2, 0.04, 0.34, 0.06, st === 'castle' ? '#7a756b' : st === 'cottage' ? '#f4f0e6' : '#cfcfd4');
     },
@@ -165,7 +199,8 @@
         for (var y = 0.35; y < ih - 0.05; y += 0.3) self.wallBox(wall, o.c, y, iw, 0.03, 0.09, 0, '#6e7177'); // slats
         self.wallBox(wall, o.c, 0.1, iw, 0.2, 0.1, 0.01, '#e0a526');                                      // yellow bottom bar
       } else {
-        // Two heavy timber leaves bound with iron, a ring on each.
+        // A pointed stone head over two heavy timber leaves bound with iron, a ring on each.
+        this.pointedHead(wall, o.c, iw, ih, iw * 0.55, col);
         [-1, 1].forEach(function (s) {
           var cx = o.c + s * iw / 4, lw = iw / 2 - 0.01;
           self.wallBox(wall, cx, ih / 2, lw, ih, 0.1, 0, '#5a3d24');
@@ -193,6 +228,36 @@
         this.box([c[0] * (hw - 0.4), 0.15, c[1] * (hd - 0.4)], [0.92, 0.3, 0.92], '#716c64'); // plinth
       }, this);
       var side = this.ops || [];
+      // Heraldic banners between the torches (not over a window), hung from a rod under the ceiling beams.
+      var palette = [['#7a1f2b', '#c9a227'], ['#1f3a7a', '#e8e2cf'], ['#2e5a34', '#c9a227'], ['#5a2a6a', '#e8e2cf']];
+      var bi = 0;
+      for (z = -hd + 8; z < hd - 5; z += 6, bi++) {
+        for (i = -1; i <= 1; i += 2) {
+          var wn = i < 0 ? 'left' : 'right';
+          if (side.some(function (o) { return o.wall === wn && Math.abs(z - o.c) < o.w / 2 + 0.9; })) continue;
+          var pal = palette[(bi + (i < 0 ? 0 : 2)) % palette.length], top = h - 0.5, bw = 1.0, bh = 1.9;
+          this.prism(wn, [[z - bw / 2, top], [z + bw / 2, top], [z + bw / 2, top - bh], [z, top - bh + 0.4], [z - bw / 2, top - bh]], 0.03, 0.14, pal[0]);
+          this.prism(wn, [[z, top - 0.55], [z + 0.22, top - 0.95], [z, top - 1.35], [z - 0.22, top - 0.95]], 0.02, 0.17, pal[1]); // emblem
+          this.wallBox(wn, z, top + 0.03, bw + 0.2, 0.05, 0.05, 0.15, '#2b2b2b');                                                  // rod
+        }
+      }
+      // Candle chandeliers on chains from the beams along the middle of the hall.
+      [-9, -1, 11].forEach(function (cz) {
+        var ry = h - 1.3, el = function (tag, pos, attrs, mat) {
+          var e = document.createElement(tag);
+          e.setAttribute('position', pos.join(' '));
+          Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+          e.setAttribute('material', mat);
+          this.el.appendChild(e); this.built.push(e);
+        }.bind(this);
+        el('a-cylinder', [0, (ry + h - 0.3) / 2, cz], { radius: 0.02, height: h - 0.3 - ry, 'segments-radial': 5 }, { color: '#2b2b2b', flatShading: true });
+        el('a-torus', [0, ry, cz], { radius: 0.7, 'radius-tubular': 0.04, rotation: '90 0 0', 'segments-tubular': 12, 'segments-radial': 5 }, { color: '#2b2b2b', metalness: 0.4, roughness: 0.6, flatShading: true });
+        for (var k = 0; k < 6; k++) {
+          var a = k / 6 * Math.PI * 2, cx = Math.cos(a) * 0.7, czz = cz + Math.sin(a) * 0.7;
+          el('a-cylinder', [cx, ry + 0.13, czz], { radius: 0.04, height: 0.22, 'segments-radial': 6 }, { color: '#efe6cf', flatShading: true });
+          el('a-cone', [cx, ry + 0.34, czz], { 'radius-bottom': 0.04, 'radius-top': 0.005, height: 0.14, 'segments-radial': 5 }, { color: '#ffb347', emissive: '#ff9a3c', emissiveIntensity: 1, flatShading: true });
+        }
+      }, this);
       for (z = -hd + 5; z < hd - 3; z += 6) {
         for (i = -1; i <= 1; i += 2) {
           var wallName = i < 0 ? 'left' : 'right';
