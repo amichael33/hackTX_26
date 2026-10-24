@@ -1,6 +1,7 @@
 /* Classic script: `clerk` component. Faces +z. state: idle|listening|thinking|speaking */
 (function () {
   var DEG = Math.PI / 180;
+  var SPIN_MS = 900;
   AFRAME.registerComponent('clerk', {
     schema: { state: { default: 'idle', oneOf: ['idle', 'listening', 'thinking', 'speaking'] } },
     init: function () {
@@ -36,8 +37,13 @@
       mk('a-cylinder', { position: '0 0.006 0', radius: 0.07, height: 0.012, 'segments-radial': 10 }, '#111111', hat);
       mk('a-cylinder', { position: '0 0.055 0', radius: 0.042, height: 0.09, 'segments-radial': 10 }, '#111111', hat);
       mk('a-cylinder', { position: '0 0.022 0', radius: 0.044, height: 0.016, 'segments-radial': 10 }, '#c0392b', hat);
+      // One-shot celebratory spin, triggered by emitting `spin` on the clerk entity.
+      this.spinFrom = -1;
+      this.onSpin = function () { self.spinFrom = 0; };
+      this.el.addEventListener('spin', this.onSpin);
     },
     remove: function () {
+      this.el.removeEventListener('spin', this.onSpin);
       this.built.forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
       this.built = [];
     },
@@ -60,7 +66,20 @@
         }
         jawY = this.jawScale;
       }
+      // Spin: one full turn with ease-in-out and a small hop, then settle back to facing +z.
+      var spinY = 0;
+      if (this.spinFrom === 0) this.spinFrom = time;
+      if (this.spinFrom > 0) {
+        var p = (time - this.spinFrom) / SPIN_MS;
+        if (p >= 1) {
+          this.spinFrom = -1;
+        } else {
+          spinY = Math.PI * 2 * (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+          bob += Math.sin(p * Math.PI) * 0.12;
+        }
+      }
       body.position.y = bob;
+      body.rotation.y = spinY;
       body.rotation.x = lean;
       head.rotation.z = tiltZ;
       head.rotation.y = turnY;

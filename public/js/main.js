@@ -153,6 +153,7 @@ async function runSearch() {
     store.set({ status: 'thinking' });
     const { query, location } = store.get();
     const waiting = clerkSay(SEARCH_WAIT);
+    document.getElementById('clerk')?.emit('spin');
     const searching = postSearch({ query, city: location?.city }).then(
       (res) => res?.products ?? [],
       (err) => {
