@@ -47,6 +47,42 @@ Updates and rollbacks are the same `deploy.sh` commands as in Path B. The Caddy 
 ## Checking a deployment
 `deploy/smoke.sh <url>` (never spends credits: searches use the demo path). It checks the page, scripts, API health, demo search, demo clothing search, demo ideas, security headers, no-cache on scripts, and HTTPS.
 
+## Live SerpApi: adding the key and taking it off
+Run these on the server, as the user that owns `/var/www/store`. The key is typed at a hidden prompt: it never goes in chat, a commit, a command line or the shell history. These commands are tested against a dummy `.env` (the file stays mode 600, the key is added once and replaced rather than duplicated, nothing else in the file changes, and no copy is left behind).
+
+**Before you add it:** the server must be running a version with the usage budgets (`ls /var/www/store/server/lib/budget.js`). Without them nothing caps total spend; only the per-minute limits protect the credits. Then, as a reminder of what live mode means: every search costs two SerpApi credits (Google Shopping plus Amazon), anyone who opens the site can run searches, and the budgets are the guard: by default 20 searches per visitor per day and a shared pool of 400 credits a day for everyone (`BUDGET_SEARCHES_PER_DAY`, `BUDGET_SERP_CREDITS_PER_DAY`), counted in memory and reset when the app restarts. Past a limit the site serves demo stock and Bob says the back room is closed.
+
+**1. Add the key and switch live search on:**
+```bash
+f=/var/www/store/server/.env; ( umask 077; read -rsp "SerpApi key (hidden): " K; echo; grep -v -e '^SERPAPI_KEY=' -e '^DEMO_MODE=' "$f" > "$f.new"; printf 'SERPAPI_KEY=%s\nDEMO_MODE=0\n' "$K" >> "$f.new"; mv "$f.new" "$f"; unset K )
+```
+**2. Set tonight's ceiling to fit your plan** (the number is credits per day for everyone; 150 is an example; `AMAZON_RESULTS=0` would halve the cost per search):
+```bash
+f=/var/www/store/server/.env; grep -v -e '^BUDGET_SERP_CREDITS_PER_DAY=' -e '^AMAZON_RESULTS=' "$f" > "$f.new" && printf 'BUDGET_SERP_CREDITS_PER_DAY=150\nAMAZON_RESULTS=1\n' >> "$f.new" && mv "$f.new" "$f" && chmod 600 "$f"
+```
+**3. Restart so the app reads it:**
+```bash
+pm2 restart store --update-env
+```
+**4. Check it without printing the key** (expect `1`, `DEMO_MODE=0`, and `600 deploy`):
+```bash
+grep -c '^SERPAPI_KEY=.\+' /var/www/store/server/.env; grep '^DEMO_MODE=' /var/www/store/server/.env; stat -c '%a %U' /var/www/store/server/.env
+```
+`deploy/smoke.sh` stays free to run in live mode: it only sends demo searches.
+
+**At the end of the night: take it off**
+**5. Delete the key and go back to demo mode:**
+```bash
+f=/var/www/store/server/.env; ( umask 077; grep -v -e '^SERPAPI_KEY=' -e '^DEMO_MODE=' -e '^BUDGET_SERP_CREDITS_PER_DAY=' "$f" > "$f.new"; echo 'DEMO_MODE=1' >> "$f.new"; mv "$f.new" "$f" ) && pm2 restart store --update-env
+```
+**6. Verify it is gone** (expect `0`; then `"demo":true`, which means the app answered from built-in data and called nothing; then only `.env` and `.env.example` listed; then no `serp` lines in the history):
+```bash
+grep -c SERPAPI /var/www/store/server/.env; curl -s -X POST https://stor3d.tech/api/search -H 'content-type: application/json' -d '{"query":{"query":"gaming mouse"}}' | grep -o '"demo":true'; ls -A /var/www/store/server | grep -i env; grep -c -i serp ~/.bash_history
+```
+**7. Revoke it for real.** Removing it from the server only stops this server from using it. In the SerpApi dashboard, regenerate (or delete) the API key: that is the only thing that makes the old key useless everywhere. Also delete any copy you pasted anywhere else (a notes app, a chat, a password manager entry you no longer need).
+
+Keep the Gemini key the same way (`GEMINI_API_KEY`, replacing the grep patterns and the printf line); it does not spend SerpApi credits and can stay.
+
 ## Settings (environment)
 | Variable | Meaning |
 |---|---|
