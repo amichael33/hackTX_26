@@ -52,7 +52,7 @@ Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api
   - Unknowns: tan or beige flat-lay garments can look like skin; photos on busy backgrounds fall back to the person path.
 - [ ] Clothing mode on every map: layout is unit-tested on all four maps, and a browser look showed Classic and Boutique correct (nearest side rails are empty by design: rails fill only as far as the products need). Still unseen: Warehouse and Castle clothing, and the garment models from the photo rethink. Needs a human look.
 - [ ] Castle wood: put the planked grain on the timber shelves, Bob's desk and the ceiling beams. Theme the signs ("Best Matches" and the shelf signs are still shop-white on every map).
-- [ ] Use the stored `extras`: nothing shows them yet (idea: a "show more" rack, or a back-room shelf).
+- [x] Use the stored `extras`: done as a "More finds" tab in the right-hand widget (cheapest first, thumbnail, price, source, View link; saved with past searches). No 3D back-room shelf; that is still an option. Not seen in a browser.
 - [x] Vendor A-Frame locally: done. A-Frame 1.6.0 and the Bangers/Inter fonts live in `public/vendor/`; `test/offline.test.js` fails if the page references another origin or a missing local file.
 - [x] One automated "every map loads with no console errors" check: `scripts/check-maps.mjs` (`npm run check:maps`) exists. **Do not run it on the dev laptop**: it drives Edge with software WebGL and freezes the machine (a full run is 10+ minutes). Run it only on a spare machine or CI.
 - [ ] Performance pass: each outside scene is a few hundred meshes; merge or instance the repeated ones and check on a weak laptop.
