@@ -462,7 +462,7 @@ async function runOpening() {
   if (!tipShown && store.get().phase === 'BROWSING' && run === openingRun) { tipShown = true; clerkSay(BROWSE_TIP).catch(() => {}); } // once per visit
 }
 // --- Arranging the store: by price (default), rating, store or brand. Bob can set it from the chat; the buttons re-arrange it for free ---
-const BROWSE_TIP = 'Tip: the buttons at the top re-arrange the store, and come see me at the desk when you want everything in your cart opened.';
+const BROWSE_TIP = 'Tip: the buttons at the top re-arrange the store. Come back to my desk to start a new search (your cart stays) or to open everything in your cart.';
 let sortMode = 'price';
 let sortRun = 0;
 let tipShown = false;
@@ -526,6 +526,8 @@ function openCartTabs() {
   else clerkSay(`Opened ${res.total} ${res.total === 1 ? 'product' : 'products'} for you!`).catch(() => {});
 }
 const deskBtn = document.getElementById('clerk-open-all');
+const deskActions = document.getElementById('clerk-actions');
+document.getElementById('clerk-new-search')?.addEventListener('click', () => { if (store.get().phase === 'BROWSING') resetStore(); }); // the cart is kept: only the shelves and the chat reset
 const cartOpenBtn = document.getElementById('open-all-btn');
 deskBtn?.addEventListener('click', openCartTabs);
 cartOpenBtn?.addEventListener('click', openCartTabs);
@@ -533,8 +535,9 @@ let nearClerk = false;
 function refreshOpenAll() {
   const n = linksOf(cart.items()).length;
   if (cartOpenBtn) { cartOpenBtn.hidden = n === 0; cartOpenBtn.textContent = `Open ${n} ${n === 1 ? 'product' : 'products'} in tabs`; }
-  const show = nearClerk && n > 0 && store.get().phase === 'BROWSING';
-  if (deskBtn) { deskBtn.hidden = !show; deskBtn.textContent = `Open all ${n} cart ${n === 1 ? 'product' : 'products'}`; }
+  const atDesk = nearClerk && store.get().phase === 'BROWSING';
+  if (deskActions) deskActions.hidden = !atDesk;
+  if (deskBtn) { deskBtn.hidden = n === 0; deskBtn.textContent = `Open all ${n} cart ${n === 1 ? 'product' : 'products'}`; }
 }
 setInterval(() => { // is the player at Bob's desk?
   const rig = document.getElementById('rig'), clerk = document.getElementById('clerk');
@@ -546,7 +549,7 @@ setInterval(() => { // is the player at Bob's desk?
   if (near === nearClerk) return;
   nearClerk = near;
   refreshOpenAll();
-  if (near && cart.items().length) clerkSay('Ready to check out? Press the button and I will open every product in your cart.').catch(() => {});
+  if (near) clerkSay(cart.items().length ? 'Back already? Start a new search any time, your cart stays. Or I can open everything in it.' : 'Back already? Press New search to look for something else.').catch(() => {});
 }, 300);
 
 // --- Clicking a post-it on the corkboard searches for it (asks first: a search costs credits) ---
