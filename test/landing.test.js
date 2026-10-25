@@ -63,3 +63,9 @@ test('start screen never scrolls: fixed to the viewport, overflow hidden, tiles 
   assert.match(html, /<h1 class="intro-title">/);
   assert.ok(!/id="intro-main"[\s\S]{0,400}style="/.test(html.split('<div id="intro-tiles"')[0]), 'header sizing must live in the css, where media queries can reach it');
 });
+
+test('the page has a favicon and the file ships', () => {
+  assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="favicon\.svg">/);
+  const svg = readFileSync(join(pub, 'favicon.svg'), 'utf8');
+  assert.match(svg, /^<svg[^>]*viewBox="0 0 100 100"/);
+});
