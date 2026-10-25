@@ -255,7 +255,7 @@ test('floor textures: Classic, Boutique and Castle have their own; the Warehouse
   assert.deepEqual(styles, { classic: 'tile', boutique: 'parquet', warehouse: '', castle: 'flagstone' });
 });
 
-for (const id of ['classic', 'warehouse']) {
+for (const id of ['classic', 'boutique', 'warehouse']) {
   test(`map "${id}": the back wall is symmetrical (board centred, back shelves mirrored)`, () => {
     const map = getMap(id);
     assert.equal(map.board.x, 0);

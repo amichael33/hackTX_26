@@ -5,33 +5,59 @@ button, input { font-family: inherit; }
   background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
   border-radius: 18px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); color: #1d1d1f;
 }
-/* --- Start screen: the stor3D landing page. Tiles pick the store, "Start shopping" goes in. --- */
+/* --- Start screen: the stor3D landing page. Tiles pick the store, "Start shopping" goes in. ---
+   Nothing here ever scrolls: the page is exactly one screen tall, and the tiles take whatever height is left after the
+   title, the button and the credits, so it fits a laptop, a tablet and a phone in either orientation. */
 #intro {
   position: fixed; inset: 0; z-index: 10; height: 100vh; height: 100dvh; box-sizing: border-box;
-  overflow-y: auto; -webkit-overflow-scrolling: touch; background: #E6EFE9; color: #0F2A24; font-family: 'Space Grotesk', system-ui, sans-serif;
+  overflow: hidden; overscroll-behavior: none; background: #E6EFE9; color: #0F2A24; font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 #intro.hidden { display: none; }
-#intro-main { min-height: 100%; box-sizing: border-box; max-width: 1360px; margin: 0 auto; padding: 72px 56px; display: flex; flex-direction: column; justify-content: center; gap: 72px; }
-#intro-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 24px; }
-.tile { display: block; text-decoration: none; transition: transform .15s ease, opacity .15s ease; }
+#intro-main {
+  --pad: clamp(12px, 3vh, 64px);
+  height: 100%; box-sizing: border-box; max-width: 1360px; margin: 0 auto;
+  padding: var(--pad) clamp(16px, 4vw, 56px) calc(var(--pad) + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: clamp(10px, 2.4vh, 56px);
+}
+#intro-head { flex: none; display: flex; flex-direction: column; gap: clamp(2px, 1.2vh, 20px); }
+.intro-label { font: 500 clamp(11px, 1.6vh, 14px) 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: #3D5A51; }
+.intro-title { margin: 0; font-weight: 700; font-size: clamp(36px, min(10vw, 12vh), 152px); line-height: .92; letter-spacing: -.04em; color: #0F2A24; }
+.intro-title span { color: #D9482B; }
+#intro-tiles {
+  flex: 1 1 0; min-height: 0; display: grid; gap: clamp(8px, 1.6vw, 24px);
+  grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
+}
+.tile { min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform .15s ease, opacity .15s ease; }
 .tile:hover { transform: translateY(-8px); }
 .tile:focus-visible { outline: 3px solid #0F2A24; outline-offset: 4px; }
-.tile svg { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; overflow: visible; }
+.tile svg { display: block; height: 100%; width: auto; max-width: 100%; max-height: 100%; aspect-ratio: 100 / 120; overflow: visible; }
 .tile[aria-checked="false"] { opacity: .45; }
 .tile[aria-checked="false"]:hover { opacity: 1; }
-#intro-start { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+#intro-start { flex: none; display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 22px); }
 #enter-btn {
-  font: 700 1.25rem 'Space Grotesk', system-ui, sans-serif; letter-spacing: .01em; padding: 18px 44px; border: 0; border-radius: 0;
+  font: 700 clamp(1rem, 2.4vh, 1.25rem) 'Space Grotesk', system-ui, sans-serif; letter-spacing: .01em; padding: clamp(12px, 2.2vh, 18px) 44px; border: 0; border-radius: 0;
   background: #0F2A24; color: #E6EFE9; cursor: pointer; transition: background .15s ease;
 }
 #enter-btn:hover { background: #D9482B; }
 #enter-btn:focus-visible { outline: 3px solid #0F2A24; outline-offset: 4px; }
-.intro-option { display: flex; align-items: center; gap: 10px; cursor: pointer; font: 500 14px 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: #3D5A51; }
+.intro-option { display: flex; align-items: center; gap: 10px; cursor: pointer; font: 500 clamp(10px, 1.5vh, 14px) 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: #3D5A51; }
 .intro-option[hidden] { display: none; }
 .intro-option input { width: 18px; height: 18px; margin: 0; accent-color: #0F2A24; }
+#intro-credits {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: clamp(2px, 0.8vh, 8px); text-align: right;
+  font: 500 clamp(10px, 1.5vh, 14px) 'JetBrains Mono', monospace; letter-spacing: .14em; color: #3D5A51;
+}
+#intro-credits span { text-transform: uppercase; }
+#intro-credits a { color: #3D5A51; letter-spacing: .06em; }
 @media (max-width: 640px) {
-  #intro-main { padding: 40px 20px 32px; gap: 40px; }
-  #intro-tiles { grid-template-columns: 1fr; } /* one option per row on a phone */
+  /* A phone is too narrow for four in a row and too short for four in a column: two by two keeps every tile big and everything on one screen. */
+  #intro-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .intro-option .detail { display: none; }
+  #intro-credits { align-items: center; text-align: center; }
+}
+@media (max-height: 460px) { /* a phone on its side: credits on one line, no tagline label */
+  .intro-label { display: none; }
+  #intro-credits { flex-direction: row; justify-content: space-between; gap: 16px; }
 }
 
 /* --- HUD: subtitle + chat bar, bottom of screen --- */

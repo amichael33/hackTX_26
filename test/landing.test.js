@@ -50,3 +50,16 @@ test('start screen: "Start shopping" sits below the tiles, then the two phone op
   assert.match(html, /id="immersive-row"[^>]*hidden/);
   assert.match(html, /id="joystick-row"[^>]*hidden/);
 });
+
+test('start screen never scrolls: fixed to the viewport, overflow hidden, tiles flex into the leftover height', () => {
+  const css = readFileSync(join(pub, 'css/ui.css'), 'utf8');
+  const block = (sel) => { const m = css.match(new RegExp(`${sel.replace(/[#.]/g, '\$&')} \{([^}]*)\}`)); assert.ok(m, sel); return m[1]; };
+  assert.match(block('#intro'), /position: fixed; inset: 0/);
+  assert.match(block('#intro'), /overflow: hidden/);
+  assert.doesNotMatch(block('#intro'), /overflow-y: auto|overflow: auto|overflow: scroll/);
+  assert.match(block('#intro-main'), /height: 100%/);
+  assert.doesNotMatch(block('#intro-main'), /min-height/);
+  assert.match(block('#intro-tiles'), /flex: 1 1 0; min-height: 0/);
+  assert.match(html, /<h1 class="intro-title">/);
+  assert.ok(!/id="intro-main"[\s\S]{0,400}style="/.test(html.split('<div id="intro-tiles"')[0]), 'header sizing must live in the css, where media queries can reach it');
+});

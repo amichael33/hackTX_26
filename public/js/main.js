@@ -545,6 +545,9 @@ const cartOpenBtn = document.getElementById('open-all-btn');
 deskBtn?.addEventListener('click', openCartTabs);
 cartOpenBtn?.addEventListener('click', openCartTabs);
 let nearClerk = false;
+const AWAY_GREET_MS = 5000; // Bob only says "Back already?" to someone who was at his desk, left, and stayed away this long
+let seenAtDesk = false;     // the player has stood at the desk during this set of shelves
+let awaySince = null;       // when they last walked away from it (ms), or null while there
 let greetedRun = -1; // the openingRun Bob already welcomed the player back to the desk for
 function refreshOpenAll() {
   const n = linksOf(cart.items()).length;
@@ -560,11 +563,16 @@ setInterval(() => { // is the player at Bob's desk?
     const a = rig.object3D.position, b = clerk.object3D.position;
     near = Math.hypot(a.x - b.x, a.z - b.z) < 3.2;
   }
+  if (!near && seenAtDesk && awaySince === null && store.get().phase === 'BROWSING') awaySince = Date.now();
   if (near === nearClerk) return;
   nearClerk = near;
   refreshOpenAll();
   if (store.get().atDesk !== near) store.set({ atDesk: near });
-  if (near && greetedRun !== openingRun) { greetedRun = openingRun; clerkSay(cart.items().length ? 'Back already? Just tell me what you want next, your cart stays. Or I can open everything in it.' : 'Back already? Just tell me what you want next.').catch(() => {}); } // once per set of shelves
+  const awayMs = near && awaySince !== null ? Date.now() - awaySince : 0;
+  if (near) { awaySince = null; }
+  const cameBack = near && seenAtDesk && awayMs >= AWAY_GREET_MS;
+  if (near) seenAtDesk = true;
+  if (cameBack && greetedRun !== openingRun) { greetedRun = openingRun; clerkSay(cart.items().length ? 'Back already? Just tell me what you want next, your cart stays. Or I can open everything in it.' : 'Back already? Just tell me what you want next.').catch(() => {}); } // once per set of shelves
 }, 300);
 
 // --- Clicking a post-it on the corkboard searches for it (asks first: a search costs credits) ---
@@ -782,6 +790,8 @@ function resetStore({ silent = false } = {}) {
   applyZoneLabels(null);
   syncSortBar();
   nearClerk = false;
+  seenAtDesk = false;
+  awaySince = null;
   store.set({ products: [], extras: [], query: null, messages: [], replay: null, atDesk: false });
   if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
 }

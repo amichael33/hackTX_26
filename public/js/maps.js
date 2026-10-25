@@ -59,10 +59,10 @@ export const MAPS = [
     units: [
       ...[-4.5, -1.5, 1.5].map((z) => unit('left', -5.2, z, 90)),
       ...[-4.5, -1.5, 1.5].map((z) => unit('right', 5.2, z, -90)),
-      unit('back', -3.5, -6.2, 0),
+      ...[-4, 4].map((x) => unit('back', x, -6.2, 0)), // one each side of the centred corkboard
       unit('center', -2.5, 1.5, 0),
     ],
-    board: { x: 1.5, y: 1.55, z: -6.97, width: 5, height: 2.2, bannerY: 3.0 },
+    board: { x: 0, y: 1.55, z: -6.97, width: 5, height: 2.2, bannerY: 3.0 },
     shelfStyles: { left: 'cubby', right: 'cubby', back: 'cubby' },
     clerkOutfit: 'apron',
     cartVariant: 'basket',

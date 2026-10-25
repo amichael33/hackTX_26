@@ -67,9 +67,9 @@
 
   <div id="intro">
     <main id="intro-main">
-      <header style="display:flex;flex-direction:column;gap:20px">
-        <span style="font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:#3D5A51">hackTX 26</span>
-        <h1 style="margin:0;font-weight:700;font-size:clamp(56px,10vw,152px);line-height:.92;letter-spacing:-.04em;color:#0F2A24">stor<span style="color:#D9482B">3D</span></h1>
+      <header id="intro-head">
+        <span class="intro-label">hackTX 26</span>
+        <h1 class="intro-title">stor<span>3D</span></h1>
       </header>
 
       <div id="intro-tiles" role="radiogroup" aria-label="Choose a store">
@@ -109,13 +109,13 @@
 
       <div id="intro-start">
         <button id="enter-btn" type="button">Start shopping</button>
-        <label id="immersive-row" class="intro-option" hidden><input id="immersive-check" type="checkbox"> <span>Immersive mode (fullscreen, look by moving your phone)</span></label>
+        <label id="immersive-row" class="intro-option" hidden><input id="immersive-check" type="checkbox"> <span>Immersive mode <span class="detail">(fullscreen, look by moving your phone)</span></span></label>
         <label id="joystick-row" class="intro-option" hidden><input id="joystick-check" type="checkbox" checked> <span>On-screen joystick</span></label>
       </div>
 
-      <footer style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.14em;color:#3D5A51">
-        <span style="text-transform:uppercase">Aliki Michael &amp; Michael Remishevsky</span>
-        <a href="https://github.com/amichael33/hackTX_26" style="color:#3D5A51;letter-spacing:.06em">github.com/amichael33/hackTX_26</a>
+      <footer id="intro-credits">
+        <span>Aliki Michael &amp; Michael Remishevsky</span>
+        <a href="https://github.com/amichael33/hackTX_26">github.com/amichael33/hackTX_26</a>
       </footer>
     </main>
   </div>

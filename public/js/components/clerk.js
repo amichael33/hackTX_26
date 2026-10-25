@@ -87,9 +87,7 @@
       var hat = function (pos, rot) { return add(mk('a-entity', { position: pos, rotation: rot || '0 0 0' }, '#111111', self.head)); };
       this.tag.position.set(-0.08, 1.15, 0.29);
       this.hairs.forEach(function (h) { h.setAttribute('visible', 'true'); });
-      // The suit brings its own white shirt (red and white outfit); the others wear the blue one.
-      var shirt = o === 'suit' ? '#f4f4f6' : '#3a7bd5';
-      this.shirt.forEach(function (e) { e.setAttribute('material', { color: shirt, flatShading: true }); });
+      this.shirt.forEach(function (e) { e.setAttribute('material', { color: '#3a7bd5', flatShading: true }); }); // every outfit starts from the blue shirt
       // A curved panel on the front of the body (an apron): `deg` degrees centred on +z, so it hugs the torso instead of floating flat.
       var panel = function (y, h, r, deg, color) {
         var e = add(mk('a-cylinder', { position: '0 ' + y + ' 0', radius: r, height: h, 'segments-radial': 10, 'open-ended': true, 'theta-start': -deg / 2, 'theta-length': deg }, color, self.body));
@@ -98,23 +96,16 @@
       };
 
       if (o === 'suit' || o === 'apron') {
-        add(mk('a-cylinder', { position: '0 1.42 0', radius: 0.235, height: 0.06, 'segments-radial': 8 }, '#ffffff', this.body)); // collar
+        add(mk('a-cylinder', { position: '0 1.42 0', radius: 0.235, height: 0.06, 'segments-radial': 8 }, o === 'suit' ? '#c0392b' : '#ffffff', this.body)); // collar (red on the suit, white on the apron)
       }
       if (o === 'suit') {
-        wrap(1.15, 0.3, '#c0392b');                                                                                    // red vest over the white shirt
-        // Red and white striped scarf: twelve 30-degree arcs round the neck, and a tail hanging down the front.
-        for (var s = 0; s < 12; s++) {
-          var seg = add(mk('a-entity', { position: '0 1.4 0', rotation: '0 ' + s * 30 + ' 0' }, '#ffffff', this.body));
-          mk('a-torus', { radius: 0.255, 'radius-tubular': 0.05, arc: 30, rotation: '90 0 0', 'segments-tubular': 3, 'segments-radial': 5 }, s % 2 ? '#f4f4f6' : '#c0392b', seg);
-        }
-        [0, 1, 2].forEach(function (k) {
-          add(mk('a-box', { position: '0.13 ' + (1.31 - k * 0.1).toFixed(2) + ' 0.3', width: 0.09, height: 0.1, depth: 0.03 }, k % 2 ? '#f4f4f6' : '#c0392b', self.body));
-        });
-        // Comically tiny top hat, perched at a jaunty angle (red with a white band).
+        add(mk('a-box', { position: '0.1 1.38 0.262', width: 0.07, height: 0.06, depth: 0.045 }, '#c0392b', this.body)); // knot
+        add(mk('a-box', { position: '0.1 1.15 0.295', width: 0.06, height: 0.42, depth: 0.03 }, '#c0392b', this.body));  // tie
+        // Comically tiny top hat, perched at a jaunty angle.
         var th = hat('0.06 0.235 0', '0 0 -14');
-        mk('a-cylinder', { position: '0 0.006 0', radius: 0.07, height: 0.012, 'segments-radial': 10 }, '#c0392b', th);
-        mk('a-cylinder', { position: '0 0.055 0', radius: 0.042, height: 0.09, 'segments-radial': 10 }, '#c0392b', th);
-        mk('a-cylinder', { position: '0 0.022 0', radius: 0.044, height: 0.016, 'segments-radial': 10 }, '#f4f4f6', th);
+        mk('a-cylinder', { position: '0 0.006 0', radius: 0.07, height: 0.012, 'segments-radial': 10 }, '#111111', th);
+        mk('a-cylinder', { position: '0 0.055 0', radius: 0.042, height: 0.09, 'segments-radial': 10 }, '#111111', th);
+        mk('a-cylinder', { position: '0 0.022 0', radius: 0.044, height: 0.016, 'segments-radial': 10 }, '#c0392b', th);
       } else if (o === 'apron') {
         // A bib apron: skirt and bib curve round the torso, a waist band wraps all the way round, straps go up over the neck.
         panel(0.93, 0.34, 0.305, 150, '#f3e9d8');                                                                           // skirt
