@@ -4,7 +4,7 @@
 
 You tell Bob what you want ("a keyboard that sounds clicky, under $120"). He asks a question or two, searches Google Shopping and Amazon, and the store's shelves fill up with the results. Every product is a box with a funny price sticker on it.
 
-Built at hackTX 26.
+Built at hackTX 26. See our [Devpost submission](https://devpost.com/software/hacktx-2026-uh2tvs).
 
 ## What it does
 
