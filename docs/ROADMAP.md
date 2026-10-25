@@ -30,6 +30,17 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 - [ ] ~~Deploy demo mode~~: **Misha is doing this himself.** Not for anyone else (or their Claude) to pick up. See "Who owns what".
 - [ ] **Check real data end to end** with live keys: clothing photos through the cut-out step (white garments on white backgrounds fall back to the whole photo), Amazon thumbnails in the cart, the `is_clothing` flag from Gemini. Costs credits.
 
+### Limit API usage per user
+Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api/search` 10, `/api/chat` 30, `/api/stickers` 30, `/api/ideas` 10, `/api/geocode` 10, `/api/img` 300) and an in-memory cache per query and location. Nothing caps a user over a longer period, and a restart wipes the counters and cache. Plan:
+- [ ] **Daily budget per client**: a second limiter with a longer window (for example 20 searches and 100 chat turns per client per day), keyed by IP. Keep it in a small file-backed or in-memory store that survives restarts if cheap.
+- [ ] **Global credit ceiling**: one counter for all users, so a crowd cannot drain the SerpApi plan. Past the ceiling, `/api/search` serves demo or cached products and Bob says so, as the existing no-key fallback already does.
+- [ ] **Count credits, not requests**: a live search costs two SerpApi calls (Shopping plus Amazon) and more with retries, so charge the limiter by calls made.
+- [ ] **Cache harder**: longer TTL for search results, de-duplicate identical in-flight queries (currently parked), and share results between users.
+- [ ] **Cap what a request can cost**: limit chat turns per conversation (partly done), `extra_queries` and `/api/ideas` fan-out per search, and reject over-long queries.
+- [ ] **Tell the user**: friendly 429 handling (Bob says "I need a breather") with a "try again in N minutes" hint from the rate-limit headers, and a saved-searches nudge, since replay costs nothing.
+- [ ] **Tests**: fake clock and fake `fetchImpl`; assert the Nth request is refused, the ceiling falls back to demo products, and no SerpApi call is made after refusal.
+- [ ] **Ask before choosing numbers**: the real limits depend on the SerpApi plan size, so confirm it with the team. This item is design only and spends no credits.
+
 ### Ready to do
 - [ ] **Rethink how clothing photos are shown (paused, design agreed, not started).** Some retailers photograph the garment alone and others show a person wearing it, so on the racks you sometimes see a man in a hoodie hanging from a hanger. Plan:
   - Classify each photo from its pixels, with no extra API call: after the background cut-out, count skin-tone pixels (YCbCr range, about 2 to 50 percent of the figure means a person; above that it is probably a tan garment).
