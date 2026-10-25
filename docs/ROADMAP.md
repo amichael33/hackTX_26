@@ -1,7 +1,7 @@
 # Roadmap and to-do list
 
 The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-ai-lowpoly-store.md](superpowers/plans/2026-10-24-ai-lowpoly-store.md)
-(Tasks 0-15); this file covers what changed since and what is next. Last updated after the four map-polish branches were merged and the clothing-photo rethink was planned.
+(Tasks 0-15); this file covers what changed since and what is next. Last updated after the phone joystick and the castle wood and signs.
 
 ## Who owns what
 
@@ -23,6 +23,9 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 | Quality | z-fighting fixes, camera near/far, 186 tests |
 
 ## Next steps
+
+### Putting the SerpApi key on the server for testing, and taking it off again
+The exact commands (add, check, remove, verify it is gone, and what else to revoke) are in `deploy/README.md` on the `deploy-test` branch, under "Live SerpApi: adding the key and taking it off". Short version: the key goes only in `/var/www/store/server/.env` on the server, typed at a hidden prompt (never in chat, a commit or the shell history); `DEMO_MODE=0` turns live search on and `DEMO_MODE=1` plus deleting the key line turns it off; **also regenerate the key in the SerpApi dashboard afterwards, which is the only real revocation.** Only run a version of the server that has the usage budgets (`server/lib/budget.js`), so a crowd cannot drain the plan.
 
 ### Needs your go-ahead (uses SerpApi credits or publishes something)
 - [ ] **Clickable sticky notes**: clicking a note makes Bob search for it. One new search per click, so it costs credits.
@@ -51,12 +54,13 @@ Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api
   - Add on-model demo images to `scripts/make-demo-clothes.mjs` so the path can be tried with `?demo=1` and no credits.
   - Unknowns: tan or beige flat-lay garments can look like skin; photos on busy backgrounds fall back to the person path.
 - [ ] Clothing mode on every map: layout is unit-tested on all four maps, and a browser look showed Classic and Boutique correct (nearest side rails are empty by design: rails fill only as far as the products need). Still unseen: Warehouse and Castle clothing, and the garment models from the photo rethink. Needs a human look.
-- [ ] Castle wood: put the planked grain on the timber shelves, Bob's desk and the ceiling beams. Theme the signs ("Best Matches" and the shelf signs are still shop-white on every map).
+- [x] Castle wood and signs: done. `public/js/wood.js` draws the planks and grain (same look as the wheelbarrow); the castle ceiling is planked, the beams and timber shelves and Bob's desk use it. The castle's signs are timber plaques with iron rivets and cream serif lettering (`theme:castle` on `zone-banner`), and a map can reword any sign (`labels` in `maps.js`: the castle says "The Crown Jewels" and "Quest Board"). Seen in a browser. The other maps keep their white shop signs; theming them is optional.
 - [x] Use the stored `extras`: done as a "More finds" tab in the right-hand widget (cheapest first, thumbnail, price, source, View link; saved with past searches). No 3D back-room shelf; that is still an option. Not seen in a browser.
 - [x] Vendor A-Frame locally: done. A-Frame 1.6.0 and the Bangers/Inter fonts live in `public/vendor/`; `test/offline.test.js` fails if the page references another origin or a missing local file.
 - [x] One automated "every map loads with no console errors" check: `scripts/check-maps.mjs` (`npm run check:maps`) exists. **Do not run it on the dev laptop**: it drives Edge with software WebGL and freezes the machine (a full run is 10+ minutes). Run it only on a spare machine or CI.
 - [ ] Performance pass: each outside scene is a few hundred meshes; merge or instance the repeated ones and check on a weak laptop.
-- [ ] Mobile controls and a phone-sized layout check.
+- [x] Mobile controls: an on-screen joystick (bottom left, only on touch devices while you can walk; `?joystick=1` shows it on a desktop) and one-finger touch look, in `public/js/joystick.js`. The maths is unit-tested, and walking, strafing, turning, collisions and looking while the stick is held were checked with simulated touches in a phone-sized view. **Not tried on a real phone.**
+- [ ] A phone-sized layout check of the rest of the interface (chat bar, cards, cart widget) on a real phone.
 - [ ] Commit or ignore `.claude/launch.json` (it is untracked), and decide where to push (`main` is ahead of anything on a remote; nothing is pushed).
 
 ### Ideas (small, optional)
