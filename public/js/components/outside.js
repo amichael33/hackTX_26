@@ -35,6 +35,50 @@
     return function () { h = (Math.imul(h ^ (h >>> 15), 2246822507) + 1013904223) | 0; return ((h >>> 0) % 100000) / 100000; };
   }
 
+  // Draw-call saver: every plain-coloured, opaque mesh in the group that shares a colour is baked into one mesh. Meshes that
+  // move (the windmill sails), have per-face or textured materials, or are see-through stay as they are.
+  function mergeStatic(root, skip, owned) {
+    root.updateMatrixWorld(true);
+    var inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), rel = new THREE.Matrix4();
+    var buckets = {}, drop = [];
+    (function walk(o) {
+      if (o === skip) return;
+      if (o.isMesh && !Array.isArray(o.material)) {
+        var m = o.material, geo = o.geometry, a = geo.attributes;
+        if (m.isMeshBasicMaterial && !m.map && !m.transparent && m.depthWrite && m.side === THREE.FrontSide &&
+            o.renderOrder === 0 && geo.index && a.position && a.normal && a.uv) {
+          var key = m.color.getHexString();
+          var b = buckets[key] || (buckets[key] = { mat: m, pos: [], nor: [], uv: [], idx: [], base: 0 });
+          rel.multiplyMatrices(inv, o.matrixWorld);
+          var nm = new THREE.Matrix3().getNormalMatrix(rel), v = new THREE.Vector3(), flip = rel.determinant() < 0;
+          for (var i = 0; i < a.position.count; i++) {
+            v.fromBufferAttribute(a.position, i).applyMatrix4(rel); b.pos.push(v.x, v.y, v.z);
+            v.fromBufferAttribute(a.normal, i).applyMatrix3(nm).normalize(); b.nor.push(v.x, v.y, v.z);
+            b.uv.push(a.uv.getX(i), a.uv.getY(i));
+          }
+          for (var j = 0; j < geo.index.count; j += 3) {
+            var i0 = geo.index.getX(j), i1 = geo.index.getX(j + 1), i2 = geo.index.getX(j + 2);
+            if (flip) b.idx.push(b.base + i0, b.base + i2, b.base + i1); else b.idx.push(b.base + i0, b.base + i1, b.base + i2);
+          }
+          b.base += a.position.count;
+          drop.push(o);
+          return;
+        }
+      }
+      for (var c = 0; c < o.children.length; c++) walk(o.children[c]);
+    })(root);
+    drop.forEach(function (o) { o.parent.remove(o); });
+    Object.keys(buckets).forEach(function (k) {
+      var b = buckets[k], geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      geo.setIndex(b.idx.length > 65535 ? new THREE.Uint32BufferAttribute(b.idx, 1) : new THREE.Uint16BufferAttribute(b.idx, 1));
+      owned.push(geo);
+      root.add(new THREE.Mesh(geo, b.mat));
+    });
+  }
+
   AFRAME.registerComponent('outside', {
     schema: { theme: { default: 'city' }, width: { default: 16 }, depth: { default: 20 } },
     init: function () { this.group = null; this.owned = []; this.puffs = []; this.sails = null; this.build(); },
@@ -627,6 +671,7 @@
           hill.scale.y = 0.8;
         }
       }
+      mergeStatic(g, this.sails, this.owned);
     }
   });
 })();

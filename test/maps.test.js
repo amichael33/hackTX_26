@@ -249,3 +249,8 @@ test('the castle desk uses real wood; the shop desks do not', () => {
   assert.equal(getMap('castle').deskStyle.wood, true);
   for (const id of ['classic', 'boutique', 'warehouse']) assert.notEqual(getMap(id).deskStyle?.wood, true);
 });
+
+test('floor textures: Classic, Boutique and Castle have their own; the Warehouse keeps the plain concrete', () => {
+  const styles = Object.fromEntries(MAPS.map((m) => [m.id, m.room.floorStyle ?? '']));
+  assert.deepEqual(styles, { classic: 'tile', boutique: 'parquet', warehouse: '', castle: 'flagstone' });
+});

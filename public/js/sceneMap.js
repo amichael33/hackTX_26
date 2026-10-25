@@ -34,7 +34,7 @@ export function applyMap(map, { preview = false } = {}) {
   window.StoreCollide?.setMap({ obstacles: obstaclesFor(map), halfW: map.room.width / 2, halfD: map.room.depth / 2, heightAt: map.river ? (x, z) => walkHeight(map, x, z) : null });
 
   const { room, spawn, desk, clerk, board } = map;
-  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain', panelX: accentPanelFor(map).x, panelW: accentPanelFor(map).width, openings: JSON.stringify(openingsFor(map)) });
+  $('room')?.setAttribute('room', { width: room.width, depth: room.depth, height: room.height, floor: room.floor, wall: room.wall, ceiling: room.ceiling, accent: room.accent, tile: room.tile, style: room.style ?? 'plain', floorStyle: room.floorStyle ?? '', panelX: accentPanelFor(map).x, panelW: accentPanelFor(map).width, openings: JSON.stringify(openingsFor(map)) });
 
   const rig = $('rig');
   if (rig) {

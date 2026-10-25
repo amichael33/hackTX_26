@@ -7,6 +7,7 @@
       accent: { default: '#d9bf98' }, tile: { default: '#dcd9d3' },
       panelX: { default: 0 }, panelW: { default: 0 }, // the back-wall accent panel (0 width = the old default); the map sizes it to the corkboard
       openings: { default: '' }, // JSON: windows and the front door [{ wall, kind, style, c, w, y0, y1 }] (maps.js openingsFor)
+      floorStyle: { default: '' }, // '' = plain stone with grid lines; 'tile' | 'parquet' | 'flagstone' = a drawn floor texture (floor.js)
       style: { default: 'plain', oneOf: ['plain', 'castle', 'warehouse'] } // castle: timber ceiling beams, stone pillars and wall torches; warehouse: steel trusses, pendant lamps, floor lines, wall safety gear
     },
     init: function () {
@@ -50,8 +51,12 @@
       var d = this.data, t = 0.2, hw = d.width / 2, hd = d.depth / 2, h = d.height, i;
       this.box([0, -t / 2, 0], [d.width, t, d.depth], d.floor);            // floor (matte stone)
       // subtle large-tile lines every 2 m
-      for (i = -hw + 2; i < hw; i += 2) this.plane([i, 0.002, 0], [-90, 0, 0], [0.01, d.depth], d.tile);
-      for (i = -hd + 2; i < hd; i += 2) this.plane([0, 0.002, i], [-90, 0, 0], [d.width, 0.01], d.tile);
+      if (d.floorStyle && window.StoreFloor) {
+        this.plane([0, 0.003, 0], [-90, 0, 0], [d.width, d.depth], '#ffffff', window.StoreFloor.material(d.floorStyle, d.width, d.depth));
+      } else {
+        for (i = -hw + 2; i < hw; i += 2) this.plane([i, 0.002, 0], [-90, 0, 0], [0.01, d.depth], d.tile);
+        for (i = -hd + 2; i < hd; i += 2) this.plane([0, 0.002, i], [-90, 0, 0], [d.width, 0.01], d.tile);
+      }
       // The castle ceiling is planked timber (seams run along the hall); every other room has a plain painted one.
       this.box([0, h + t / 2, 0], [d.width, t, d.depth], d.ceiling, d.style === 'castle' && window.StoreWood ? window.StoreWood.material('plankDark', Math.round(d.width / 0.5), 1) : undefined);         // ceiling
       if (d.style !== 'castle') {
