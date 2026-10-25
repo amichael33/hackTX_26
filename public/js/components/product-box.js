@@ -36,24 +36,36 @@
     return h >>> 0;
   }
 
-  // A plain T-shirt shape in the retailer's color, for a garment whose photo is missing or fails to load.
-  function silhouette(color) {
+  // A garment-shaped model of the kind the title names (default tee) filled with one color: used when the photo is missing
+  // or fails to load, and for photos of a person wearing the garment (see StoreGarment.analyzePhoto).
+  function silhouette(color, kind) {
+    var SG = window.StoreGarment;
+    var pts = (SG && SG.SILHOUETTES[kind || 'tee']) || [[30, 8], [70, 8], [96, 30], [82, 48], [72, 40], [72, 110], [28, 110], [28, 40], [18, 48], [4, 30]];
     var c = document.createElement('canvas');
-    c.width = c.height = 128;
+    c.width = 100; c.height = 120;
     var g = c.getContext('2d');
-    var pts = [[34, 10], [52, 10], [64, 24], [76, 10], [94, 10], [124, 40], [106, 62], [94, 52], [94, 120], [34, 120], [34, 52], [22, 62], [4, 40]];
     g.fillStyle = color;
+    g.strokeStyle = 'rgba(0,0,0,0.3)';
+    g.lineWidth = 1.5;
+    g.lineJoin = 'round';
     g.beginPath();
     pts.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
     g.closePath();
     g.fill();
-    return { canvas: c, aspect: 1 };
+    g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,0.22)';
+    g.beginPath();
+    if (kind === 'hoodie') { g.rect(38, 76, 24, 14); g.moveTo(44, 12); g.lineTo(44, 40); g.moveTo(56, 12); g.lineTo(56, 40); }
+    else if (kind === 'jacket') { g.moveTo(50, 16); g.lineTo(50, 112); }
+    g.stroke();
+    return { canvas: c, aspect: c.width / c.height };
   }
 
   AFRAME.registerComponent('product-box', {
     schema: {
       productId: { type: 'string' },
       thumb: { type: 'string', default: '' },
+      title: { type: 'string', default: '' }, // names the garment kind (hoodie, tee, ...) for on-model photos
       color: { type: 'color', default: '#2196f3' },
       size: { default: 0.3 },
       kind: { default: 'box', oneOf: ['box', 'garment'] },
@@ -80,7 +92,7 @@
     update: function (old) {
       if (!old || old.size === undefined) return; // first call: init already built
       var d = this.data;
-      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb || old.kind !== d.kind) {
+      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb || old.kind !== d.kind || old.title !== d.title) {
         this.clear();
         this.build();
       } else if (this.stickerMesh && (old.sticker !== d.sticker || old.price !== d.price)) {
@@ -120,7 +132,10 @@
         this.plane = null;
       }
       if (this.hanger) {
-        this.hanger.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        this.hanger.traverse(function (o) {
+          if (o.geometry) o.geometry.dispose();
+          if (o.userData.tag && o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } // the photo tag owns its material
+        });
         this.el.removeObject3D('hanger');
         this.hanger = null;
       }
@@ -224,8 +239,9 @@
       this.el.setObject3D('hanger', g);
       this.buildSticker();
       this.placeGarmentSticker(GW, GH);
+      var kind = window.StoreGarment ? window.StoreGarment.kindFromTitle(d.title) : 'tee';
       var show = function (cut) { self.buildGarmentPlane(cut); };
-      if (!d.thumb) { show(silhouette(d.color)); return; }
+      if (!d.thumb) { show(silhouette(d.color, kind)); return; }
       var url = imageUrl(d.thumb);
       var img = new Image();
       img.crossOrigin = 'anonymous';
@@ -233,6 +249,12 @@
         if (self.buildId !== buildId || !self.mesh) return;
         var cut = null;
         try { cut = self.makeCutout(img); } catch (e) { cut = null; }
+        var model = cut ? self.personModel(cut, kind) : null;
+        if (model) { // someone is wearing it: draw a garment-shaped model and hang the photo on the hanger as a tag
+          show(model);
+          self.buildPhotoTag(cut);
+          return;
+        }
         if (!cut) { // a photo with its own background: use it whole
           var c = document.createElement('canvas');
           c.width = img.naturalWidth || 128; c.height = img.naturalHeight || 128;
@@ -241,8 +263,34 @@
         }
         show(cut);
       };
-      img.onerror = function () { if (self.buildId === buildId && self.mesh) show(silhouette(d.color)); };
+      img.onerror = function () { if (self.buildId === buildId && self.mesh) show(silhouette(d.color, kind)); };
       img.src = url;
+    },
+    // For a cut-out photo of a person wearing the garment: a silhouette of this kind filled with the torso color, else null.
+    personModel: function (cut, kind) {
+      var SG = window.StoreGarment;
+      if (!SG) return null;
+      try {
+        var c = cut.canvas;
+        var res = SG.analyzePhoto(c.getContext('2d').getImageData(0, 0, c.width, c.height).data, c.width, c.height);
+        if (!res.isPerson || !res.color) return null;
+        return silhouette(res.color, kind);
+      } catch (e) { return null; }
+    },
+    // The original on-model photo as a small tag on a string from the left end of the hanger.
+    buildPhotoTag: function (cut) {
+      if (!this.hanger) return;
+      var tw = 0.11, th = 0.11;
+      if (cut.aspect >= 1) th = tw / cut.aspect; else tw = th * cut.aspect;
+      var tex = new THREE.CanvasTexture(cut.canvas);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+      var tag = new THREE.Mesh(new THREE.PlaneGeometry(tw, th), mat);
+      tag.userData.tag = true;
+      tag.position.set(-0.19, -0.16 - th / 2, 0.03);
+      var str = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.09, 0.003), boxMat('#e8e4d8'));
+      str.position.set(-0.19, -0.115, 0.03);
+      this.hanger.add(tag, str);
     },
     // The garment is two gently bulging sheets (front and back) joined at the edges, lit like cloth, so it has some volume
     // instead of being a flat cut-out. Top edge sits just under the shoulder bar.
