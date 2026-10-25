@@ -31,10 +31,10 @@ function pluralize(w) {
   return w + 's';
 }
 
-// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs? }
+// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs?, trustProxy? }
 export function createApp(deps = {}) {
   const app = express();
-  app.set('trust proxy', 'loopback'); // Caddy on localhost: honor X-Forwarded-For so limits are per client
+  app.set('trust proxy', deps.trustProxy ?? 'loopback'); // Caddy on localhost: honor X-Forwarded-For so limits are per client
   // Limiters live inside createApp so every app (and test) gets fresh counters.
   const limit = (max) => rateLimit({
     windowMs: 60_000, max, standardHeaders: true, legacyHeaders: false,

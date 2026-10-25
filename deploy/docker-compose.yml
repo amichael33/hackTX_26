@@ -1,0 +1,43 @@
+# The whole site in two containers: `web` (Caddy: HTTPS, static files, proxy) and `app` (Node: the API).
+#   cp deploy/.env.example deploy/.env      # then edit it
+#   docker compose -f deploy/docker-compose.yml up -d --build
+services:
+  app:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: app }
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0                       # the web container reaches it over the compose network
+      PORT: 3000
+      TRUST_PROXY: uniquelocal            # believe X-Forwarded-For from the web container (a private address)
+      DEMO_MODE: ${DEMO_MODE:-1}          # 1 = built-in demo products and canned ideas: no SerpApi credits are ever spent
+      AMAZON_RESULTS: ${AMAZON_RESULTS:-1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      NOMINATIM_CONTACT: ${NOMINATIM_CONTACT:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: web }
+    restart: unless-stopped
+    depends_on:
+      app: { condition: service_healthy }
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}  # a domain name turns on automatic HTTPS (needs ports 80 and 443 open and DNS pointing here)
+      APP_UPSTREAM: app:3000
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data                  # certificates: keep this volume, or Caddy asks for new ones on every restart
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
