@@ -65,11 +65,15 @@
   </a-scene>
 
   <div id="intro">
-    <h1>Welcome to the Store</h1>
-    <p>Chat with our clerk, then browse shelves stocked just for you.</p>
-    <div id="map-picker" role="radiogroup" aria-label="Choose a store"></div>
-    <label id="immersive-row" hidden><input id="immersive-check" type="checkbox"> <span><strong>Immersive mode</strong> <small>Goes fullscreen and lets you look around by moving your phone. Off: drag the screen to look, stick to walk.</small></span></label>
-    <button id="enter-btn" type="button">Enter store</button>
+    <div id="intro-scroll">
+      <h1>Welcome to the Store</h1>
+      <p>Chat with our clerk, then browse shelves stocked just for you.</p>
+      <div id="map-picker" role="radiogroup" aria-label="Choose a store"></div>
+    </div>
+    <div id="intro-footer">
+      <label id="immersive-row" hidden><input id="immersive-check" type="checkbox"> <span><strong>Immersive mode</strong> <small>Fullscreen, and look around by moving your phone. Off: drag the screen to look, stick to walk.</small></span></label>
+      <button id="enter-btn" type="button">Enter store</button>
+    </div>
   </div>
 
   <div id="location-panel" hidden>
@@ -143,7 +147,6 @@
     <button type="button" data-sort="brand" aria-pressed="false">Brand</button>
   </div>
   <div id="clerk-actions" hidden>
-    <button id="clerk-new-search" type="button">New search</button>
     <button id="clerk-open-all" type="button" hidden></button>
   </div>
   <div id="note-confirm" role="dialog" aria-labelledby="note-confirm-text" hidden>

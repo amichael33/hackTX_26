@@ -527,16 +527,16 @@ function openCartTabs() {
 }
 const deskBtn = document.getElementById('clerk-open-all');
 const deskActions = document.getElementById('clerk-actions');
-document.getElementById('clerk-new-search')?.addEventListener('click', () => { if (store.get().phase === 'BROWSING') resetStore(); }); // the cart is kept: only the shelves and the chat reset
 const cartOpenBtn = document.getElementById('open-all-btn');
 deskBtn?.addEventListener('click', openCartTabs);
 cartOpenBtn?.addEventListener('click', openCartTabs);
 let nearClerk = false;
+let greetedRun = -1; // the openingRun Bob already welcomed the player back to the desk for
 function refreshOpenAll() {
   const n = linksOf(cart.items()).length;
   if (cartOpenBtn) { cartOpenBtn.hidden = n === 0; cartOpenBtn.textContent = `Open ${n} ${n === 1 ? 'product' : 'products'} in tabs`; }
   const atDesk = nearClerk && store.get().phase === 'BROWSING';
-  if (deskActions) deskActions.hidden = !atDesk;
+  if (deskActions) deskActions.hidden = !atDesk || n === 0;
   if (deskBtn) { deskBtn.hidden = n === 0; deskBtn.textContent = `Open all ${n} cart ${n === 1 ? 'product' : 'products'}`; }
 }
 setInterval(() => { // is the player at Bob's desk?
@@ -549,7 +549,8 @@ setInterval(() => { // is the player at Bob's desk?
   if (near === nearClerk) return;
   nearClerk = near;
   refreshOpenAll();
-  if (near) clerkSay(cart.items().length ? 'Back already? Start a new search any time, your cart stays. Or I can open everything in it.' : 'Back already? Press New search to look for something else.').catch(() => {});
+  if (store.get().atDesk !== near) store.set({ atDesk: near });
+  if (near && greetedRun !== openingRun) { greetedRun = openingRun; clerkSay(cart.items().length ? 'Back already? Just tell me what you want next, your cart stays. Or I can open everything in it.' : 'Back already? Just tell me what you want next.').catch(() => {}); } // once per set of shelves
 }, 300);
 
 // --- Clicking a post-it on the corkboard searches for it (asks first: a search costs credits) ---
@@ -702,7 +703,8 @@ function handlePlayerSubmit(raw) {
   const text = String(raw ?? '').trim();
   const s = store.get();
   if (!text) return false;
-  if (s.phase !== 'CHATTING' || s.status === 'thinking' || s.status === 'speaking') return false;
+  if (s.phase === 'BROWSING' && s.atDesk && s.status === 'idle') resetStore({ silent: true }); // typing at the desk = a new search; the cart is kept
+  if (store.get().phase !== 'CHATTING' || s.status === 'thinking' || s.status === 'speaking') return false;
   runTurn(text).catch((err) => {
     console.error(err);
     if (store.get().status !== 'idle') store.set({ status: 'idle' });
@@ -762,7 +764,7 @@ function resetStore({ silent = false } = {}) {
   applyZoneLabels(null);
   syncSortBar();
   nearClerk = false;
-  store.set({ products: [], extras: [], query: null, messages: [], replay: null });
+  store.set({ products: [], extras: [], query: null, messages: [], replay: null, atDesk: false });
   if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
 }
 

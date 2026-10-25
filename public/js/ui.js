@@ -174,8 +174,11 @@ logToggle.addEventListener('click', () => {
   logToggle.textContent = collapsed ? 'Chat log' : 'Hide log';
 });
 
+// The text box is live while chatting, and while browsing at Bob's desk (typing there starts a new search).
+const canChat = (state) => state.phase === 'CHATTING' || (state.phase === 'BROWSING' && state.atDesk === true);
+
 function renderPhase(state) {
-  const chatting = state.phase === 'CHATTING';
+  const chatting = canChat(state);
   chatBar.hidden = state.phase === 'INTRO';
   logEl.hidden = state.phase === 'INTRO';
   cartWidget.hidden = state.phase === 'INTRO' || state.phase === 'LOCATION';
@@ -193,7 +196,7 @@ let recognizer = null;
 let micBase = ''; // what the player had typed when they pressed the mic
 
 function renderMic(state) {
-  const busy = state.status === 'speaking' || state.status === 'thinking' || state.phase !== 'CHATTING';
+  const busy = state.status === 'speaking' || state.status === 'thinking' || !canChat(state);
   micBtn.disabled = busy;
   micBtn.classList.toggle('listening', state.status === 'listening');
   micBtn.textContent = state.status === 'listening' ? 'Stop' : 'Mic';
@@ -247,7 +250,7 @@ micBtn.addEventListener('click', () => {
   if (!recognizer || micBtn.disabled) return;
   const s = store.get();
   if (s.status === 'listening') { recognizer.stop(); return; } // second tap: done talking
-  if (s.status !== 'idle' || s.phase !== 'CHATTING') return;
+  if (s.status !== 'idle' || !canChat(s)) return;
   micBase = chatInput.value.trim();
   cancelSpeech(); // nothing should be speaking, but never let TTS feed the mic
   micStartedAt = Date.now();

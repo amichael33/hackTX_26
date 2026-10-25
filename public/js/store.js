@@ -27,6 +27,7 @@ function initialState() {
     extras: [], // leftover results that did not fit on the shelves, kept for future features
     messages: [],
     inputFocused: false,
+    atDesk: false, // the player stands at Bob's desk: the text box works again, so they can just ask for something new
     replay: null,
   };
 }

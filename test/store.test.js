@@ -20,7 +20,7 @@ test('initial state and singleton', () => {
   assert.deepEqual(s.get(), {
     phase: 'INTRO', status: 'idle', location: null,
     voice: { micAvailable: false, ttsMuted: false },
-    query: null, products: [], extras: [], messages: [], inputFocused: false, replay: null,
+    query: null, products: [], extras: [], messages: [], inputFocused: false, atDesk: false, replay: null,
   });
   assert.equal(typeof store.get, 'function');
 });
