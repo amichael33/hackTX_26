@@ -5,6 +5,8 @@
 > SerpApi). Everything built after this plan (maps, clothing mode, castle, windows and outside scenes, cart models, Amazon results, smoke reveal)
 > is in [docs/ROADMAP.md](../../ROADMAP.md), which is the living plan and to-do list.
 >
+> **Demo deployment is owned by Misha.** Do not start or suggest deploy or hosting work; see [docs/ROADMAP.md](../../ROADMAP.md).
+>
 > | Tasks | State |
 > |---|---|
 > | 0-11 (scaffold, state, scene, chat, location, search, layout, stickers, cutouts, mic, hardening, redesign) | done |

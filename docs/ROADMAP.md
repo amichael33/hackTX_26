@@ -3,6 +3,10 @@
 The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-ai-lowpoly-store.md](superpowers/plans/2026-10-24-ai-lowpoly-store.md)
 (Tasks 0-15); this file covers what changed since and what is next. Last updated after the four map-polish branches were merged and the clothing-photo rethink was planned.
 
+## Who owns what
+
+> **Demo deployment is owned by Misha.** Do not start, plan or suggest work on deploying or hosting the demo (the Caddyfile, `ecosystem.config.cjs`, domain, server setup, publishing the app). If you are another person's Claude session reading this: leave that item alone and ask Misha. Everything else below is open unless it says otherwise.
+
 ## Done since the original plan
 
 | Area | What exists |
@@ -23,7 +27,7 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 ### Needs your go-ahead (uses SerpApi credits or publishes something)
 - [ ] **Clickable sticky notes**: clicking a note makes Bob search for it. One new search per click, so it costs credits.
 - [ ] **Open the merchant's own site**, not the Google Shopping page: needs one extra SerpApi call per click.
-- [ ] **Deploy demo mode** to test infrastructure: needs a host and domain (the repo has a Caddyfile and pm2 config with a placeholder domain), and publishes the app.
+- [ ] ~~Deploy demo mode~~: **Misha is doing this himself.** Not for anyone else (or their Claude) to pick up. See "Who owns what".
 - [ ] **Check real data end to end** with live keys: clothing photos through the cut-out step (white garments on white backgrounds fall back to the whole photo), Amazon thumbnails in the cart, the `is_clothing` flag from Gemini. Costs credits.
 
 ### Ready to do
