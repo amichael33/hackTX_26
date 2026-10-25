@@ -57,17 +57,17 @@ test('30 budget products are all placed with unique positions', () => {
 test('products that fit nowhere are dropped', () => {
   const ps = Array.from({ length: 100 }, (_, i) => mk('d' + i, 5, 'mid', i));
   const slots = layoutStore(ps, {});
-  assert.equal(slots.length, 70);
-  assert.equal(new Set(slots.map(key)).size, 70);
+  assert.equal(slots.length, 76);
+  assert.equal(new Set(slots.map(key)).size, 76);
 });
 
-test('back wall: one shelf unit (6 slots), the rest belongs to the corkboard', () => {
+test('back wall: two shelf units (12 slots), the rest belongs to the corkboard', () => {
   const tiers = ['budget', 'mid', 'premium'];
   const ps = Array.from({ length: 30 }, (_, i) => mk('s' + i, 10 + i, tiers[i % 3], i, i >= 20));
   const slots = layoutStore(ps, {});
   assert.equal(slots.length, 30);
-  assert.ok(slots.filter((s) => s.zone === 'back').length <= 6);
-  assert.equal(ZONES.back.capacity, 6);
+  assert.ok(slots.filter((s) => s.zone === 'back').length <= 12);
+  assert.equal(ZONES.back.capacity, 12);
   assert.equal(ZONES.similar, undefined);
-  for (const s of slots.filter((x) => x.zone === 'back')) assert.ok(s.position.x < -2.9);
+  for (const s of slots.filter((x) => x.zone === 'back')) assert.ok(Math.abs(s.position.x) > 2.9);
 });

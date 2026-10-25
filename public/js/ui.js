@@ -1,4 +1,4 @@
-// Overlay wiring: chat bar, subtitle typewriter, chat log, mute/skip.
+// Overlay wiring: chat bar, subtitle typewriter, mute/skip.
 import { store } from './store.js';
 import { speak, cancelSpeech, createRecognizer } from './voice.js';
 import { formatPrice, timeAgo } from './text.js';
@@ -9,11 +9,7 @@ const CHAR_MS = 35;
 const $ = (id) => document.getElementById(id);
 const subtitle = $('subtitle');
 const subtitleText = $('subtitle-text');
-const logEl = $('chat-log');
-const logList = $('chat-log-list');
-const logToggle = $('chat-log-toggle');
 const chatBar = $('chat-bar');
-const newSearchBtn = $('new-search-btn');
 const browseHint = $('browse-hint');
 const chatForm = $('chat-form');
 const chatInput = $('chat-input');
@@ -33,14 +29,6 @@ let current = null; // { text, timer, typeDone, speechDone, resolve }
 let submitHandler = null;
 let locationHandlers = null; // { onShare(), onTyped(text) }
 let locationShown = false;
-
-export function addLogLine(role, text) {
-  const li = document.createElement('li');
-  li.className = role === 'user' ? 'log-user' : 'log-clerk';
-  li.textContent = text;
-  logList.appendChild(li);
-  logList.scrollTop = logList.scrollHeight;
-}
 
 function finish(c) {
   if (current !== c || !(c.typeDone && c.speechDone)) return;
@@ -68,7 +56,6 @@ export function clerkSay(text) {
   text = String(text ?? '').trim();
   if (!text) return Promise.resolve();
 
-  addLogLine('clerk', text);
   return new Promise((resolve) => {
     const c = { text, timer: null, typeDone: false, speechDone: false, resolve };
     current = c;
@@ -168,24 +155,16 @@ muteBtn.addEventListener('click', () => {
 });
 renderMute();
 
-logToggle.addEventListener('click', () => {
-  const collapsed = logEl.classList.toggle('collapsed');
-  logToggle.setAttribute('aria-expanded', String(!collapsed));
-  logToggle.textContent = collapsed ? 'Chat log' : 'Hide log';
-});
-
 // The text box is live while chatting, and while browsing at Bob's desk (typing there starts a new search).
 const canChat = (state) => state.phase === 'CHATTING' || (state.phase === 'BROWSING' && state.atDesk === true);
 
 function renderPhase(state) {
   const chatting = canChat(state);
   chatBar.hidden = state.phase === 'INTRO';
-  logEl.hidden = state.phase === 'INTRO';
   cartWidget.hidden = state.phase === 'INTRO' || state.phase === 'LOCATION';
   if (!chatting && document.activeElement === chatInput) chatInput.blur(); // disabled inputs may not fire blur
   if (state.phase !== 'LOCATION' && document.activeElement === locInput) locInput.blur();
   locPanel.hidden = !(state.phase === 'LOCATION' && locationShown);
-  newSearchBtn.hidden = state.phase !== 'BROWSING';
   browseHint.hidden = state.phase !== 'BROWSING';
   chatInput.disabled = !chatting;
   sendBtn.disabled = !chatting;
@@ -301,10 +280,6 @@ export function showProductCard(p) {
 // The Buy link opens in a new tab as a plain link; a handler may preventDefault to resolve a better address first.
 export function onCardBuy(fn) { cardBuy.addEventListener('click', fn); }
 export function setCardBuyHref(link) { if (typeof link === 'string' && /^https?:\/\//i.test(link)) cardBuy.setAttribute('href', link); }
-
-export function onNewSearch(handler) {
-  newSearchBtn.addEventListener('click', handler);
-}
 
 export function hideProductCard() {
   if (card.hidden) return;

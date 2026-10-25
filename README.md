@@ -55,7 +55,7 @@ The server reads `.env` only when it starts, so restart it after any change.
 | Click a box | Open its product card (price, store, link) |
 | Esc | Close the card |
 | Hold Mic | Talk to Bob; the text fills the box, you press Send |
-| New search | Clear the store and start over |
+| Walk up to Bob and type | Start a new search (your cart stays) |
 | Searches (top right) | Replay a past search |
 
 ## How it works

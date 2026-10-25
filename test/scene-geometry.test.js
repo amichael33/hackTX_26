@@ -10,7 +10,7 @@ test('index.html no longer hard-codes the store; sceneMap.js builds it from the 
   assert.ok(!/\sshelf="/.test(html), 'shelves must come from the map');
   assert.match(html, /id="room"/);
   assert.match(html, /id="shelves"/);
-  assert.match(html, /id="map-picker"/);
+  assert.match(html, /id="intro-tiles"/);
 });
 
 test('every shelf is width 2, rows 3 (the layout geometry assumes it)', () => {

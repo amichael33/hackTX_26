@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chatTurn } from './lib/clerk.js';
 import { reverseGeocode, DEFAULT_CITY } from './lib/geocode.js';
-import { searchShopping, searchAmazon, normalizeAmazonResults, normalizeShoppingResults, assignTiers, NO_RESULTS_MSG } from './lib/serp.js';
+import { searchShopping, searchAmazon, normalizeAmazonResults, normalizeShoppingResults, assignTiers, fetchNextPage, nextPageUrl, NO_RESULTS_MSG } from './lib/serp.js';
 import { generateStickers } from './lib/stickers.js';
 import { generateIdeas } from './lib/ideas.js';
 import { isApparelTitle } from '../public/js/category.js';
@@ -21,11 +21,13 @@ const demoClothes = JSON.parse(readFileSync(path.join(here, 'data', 'demoClothes
 const isClothingQuery = (q) => q?.is_clothing === true || isApparelTitle(q?.query);
 const demoFor = (q) => (isClothingQuery(q) ? demoClothes : demoProducts);
 
-const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
-const MAX_PRODUCTS = 60; // what goes on the shelves (the store holds 70)
+const SEARCH_TTL_MS = (Number(process.env.SEARCH_CACHE_HOURS) || 24) * 60 * 60 * 1000; // prices drift slowly; a longer TTL saves credits
+const MAX_PAGES = 3; // ceiling on SEARCH_PAGES: every page of the main query is a SerpApi credit per engine
+const MAX_QUERY_CHARS = 120; // a shopper's search phrase; longer is junk or abuse
+const MAX_PRODUCTS = 70; // what goes on the shelves (the store holds 70)
 const MAX_RELATED = 12;
-const MAX_EXTRAS = 40;   // leftovers kept back for future features, never shown on the shelves
-const MAX_AMAZON = 16; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
+const MAX_EXTRAS = 80;   // leftovers kept back for future features, never shown on the shelves
+const MAX_AMAZON = 30; // Amazon's share of a search, so it cannot crowd out the Google Shopping retailers
 
 function pluralize(w) {
   if (/[^aeiou]y$/i.test(w)) return w.slice(0, -1) + 'ies';
@@ -71,34 +73,61 @@ export function createApp(deps = {}) {
     return true;
   };
   const fetchImpl = deps.fetchImpl ?? fetch;
+  // Pages of results fetched for the main query, from each of Google Shopping and Amazon (the related queries stay at one).
+  // Two pages means a live search costs up to 4 credits instead of 2. SEARCH_PAGES=1 goes back to one page.
+  const PAGES = Math.max(1, Math.min(MAX_PAGES, Math.floor(deps.pages ?? (Number(process.env.SEARCH_PAGES) || 2))));
 
   // One SerpApi query. A failure (error field, non-2xx, network) with a location is retried once without it.
   // "No results" is not a failure: it comes back as an empty shopping_results list.
   // Successful JSON is cached per (query, location) so prewarm and overlapping requests share work.
-  async function runQuery(q, location) {
-    const ckey = JSON.stringify([q.trim().toLowerCase(), location ?? '']);
-    const hit = cache.get(ckey);
-    if (hit !== undefined) return hit;
-    const json = await fetchQuery(q, location);
-    cache.set(ckey, json);
-    return json;
+  async function runQuery(q, location, pages = 1) {
+    const base = [q.trim().toLowerCase().replace(/\s+/g, ' '), location ?? ''];
+    return cachedPages('shopping', base, pages, () => fetchQuery(q, location, pages));
+  }
+
+  // The cached result for a query, keyed by how many pages it holds. A result with at least the pages asked for is reused
+  // (a related query finds the main query's two pages already there); otherwise load() runs and is cached under its own count.
+  function cachedPages(kind, base, pages, load) {
+    for (let p = pages; p <= MAX_PAGES; p++) {
+      const hit = cache.get(JSON.stringify([kind, ...base, p]));
+      if (hit !== undefined) return Promise.resolve(hit);
+    }
+    return cache.getOrLoad(JSON.stringify([kind, ...base, pages]), load);
+  }
+
+  // Appends up to pages-1 more pages of `listKey` results (shopping_results / organic_results) to a first page, by following
+  // SerpApi's own next-page link. Each page is a credit. No next page, a spent credit pool or a failed fetch just stops early:
+  // the first page is already good, so an extra page is never worth failing the search for.
+  async function withMorePages(first, listKey, pages) {
+    let out = first, cur = first;
+    for (let p = 1; p < pages && nextPageUrl(cur); p++) {
+      try {
+        spendSerp();
+        const more = await fetchNextPage(cur, { apiKey: deps.serpApiKey, fetchImpl });
+        if (!more || more.error) break;
+        out = { ...out, [listKey]: [...(out[listKey] ?? []), ...(more[listKey] ?? [])] };
+        cur = more;
+      } catch (err) {
+        console.warn('next page failed:', err.message);
+        break;
+      }
+    }
+    return out;
   }
 
   // Amazon Search API, cached like the others. Any failure just means no Amazon items.
   // Amazon sometimes answers "no results" for an exact phrase that a close variant finds ("gaming keyboard" fails,
   // "gaming keyboards" works), so a failed query is retried with its last word pluralized, then without its first word.
-  async function runAmazonOnce(q) {
-    const ckey = JSON.stringify(['amazon', q.trim().toLowerCase()]);
-    const hit = cache.get(ckey);
-    if (hit !== undefined) return hit;
-    spendSerp();
-    const json = await searchAmazon({ q }, { apiKey: deps.serpApiKey, fetchImpl });
-    if (json?.error) throw new Error(json.error);
-    cache.set(ckey, json);
-    return json;
+  async function runAmazonOnce(q, pages = 1) {
+    return cachedPages('amazon', [q.trim().toLowerCase().replace(/\s+/g, ' ')], pages, async () => {
+      spendSerp();
+      const json = await searchAmazon({ q }, { apiKey: deps.serpApiKey, fetchImpl });
+      if (json?.error) throw new Error(json.error);
+      return withMorePages(json, 'organic_results', pages);
+    });
   }
 
-  async function runAmazon(q) {
+  async function runAmazon(q, pages = 1) {
     const words = q.trim().split(/\s+/);
     const variants = [];
     const last = words[words.length - 1];
@@ -106,17 +135,17 @@ export function createApp(deps = {}) {
     if (words.length > 1) variants.push(words.slice(1).join(' '));
     let err;
     for (const v of [q, ...variants]) {
-      try { return await runAmazonOnce(v); } catch (e) { err ??= e; }
+      try { return await runAmazonOnce(v, pages); } catch (e) { err ??= e; }
     }
     throw err;
   }
 
-  async function fetchQuery(q, location) {
+  async function fetchQuery(q, location, pages = 1) {
     const attempt = async (loc) => {
       spendSerp();
       const json = await searchShopping({ q, location: loc }, { apiKey: deps.serpApiKey, fetchImpl });
       if (json?.error && json.error !== NO_RESULTS_MSG) throw new Error(json.error);
-      return json ?? {};
+      return withMorePages(json ?? {}, 'shopping_results', pages);
     };
     try {
       return await attempt(location);
@@ -133,7 +162,8 @@ export function createApp(deps = {}) {
   app.post('/api/search', searchLimit, async (req, res) => {
     const query = req.body?.query ?? {};
     const city = req.body?.city || undefined;
-    if (!query.query) return res.status(400).json({ error: 'missing query' });
+    if (!query.query || typeof query.query !== 'string') return res.status(400).json({ error: 'missing query' });
+    if (query.query.length > MAX_QUERY_CHARS) return res.status(400).json({ error: 'query too long' });
     if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoFor(query), demo: true });
     // Over this client's daily searches, or the shared credit pool is empty: serve showroom stock, no SerpApi call.
     // Counted per search request (a cache hit still counts, to keep the rule simple to explain).
@@ -143,10 +173,11 @@ export function createApp(deps = {}) {
     }
 
     try {
-      const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2);
+      const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : [])
+        .filter((q) => typeof q === 'string' && q.trim() && q.length <= MAX_QUERY_CHARS).slice(0, 2);
       const [amazonJson, mainJson, ...extraJsons] = await Promise.all([
-        deps.amazon ? runAmazon(query.query).catch((err) => { console.warn('amazon failed:', err.message); return {}; }) : {},
-        runQuery(query.query, city),
+        deps.amazon ? runAmazon(query.query, PAGES).catch((err) => { console.warn('amazon failed:', err.message); return {}; }) : {},
+        runQuery(query.query, city, PAGES),
         ...extras.map((q) => runQuery(q, city).catch(() => ({}))),
       ]);
       const mainProducts = normalizeShoppingResults(mainJson);
@@ -199,11 +230,11 @@ export function createApp(deps = {}) {
     if (hit !== undefined) return res.json(hit);
     if (budget.serpLeft() < 1 || !budget.take(req.ip, 'merchant').ok) return res.json({ link: null, limited: true });
     try {
-      spendSerp();
-      const found = pickMerchant(await fetchImmersive({ token }, { apiKey: deps.serpApiKey, fetchImpl }), source);
-      const out = found ?? { link: null };
-      merchantCache.set(key, out);
-      res.json(out);
+      res.json(await merchantCache.getOrLoad(key, async () => {
+        spendSerp();
+        const found = pickMerchant(await fetchImmersive({ token }, { apiKey: deps.serpApiKey, fetchImpl }), source);
+        return found ?? { link: null };
+      }));
     } catch (err) {
       console.warn('merchant failed:', err.message);
       res.json({ link: null });

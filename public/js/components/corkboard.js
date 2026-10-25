@@ -220,6 +220,10 @@
       mesh.position.set(s.x, s.y, 0.02);
       mesh.rotation.z = s.rot;
       mesh.scale.setScalar(0.001);
+      // A-Frame only tags meshes with their entity when the group is set; the raycaster ignores any hit without `.el`,
+      // so a note added later (and its dagger) must be tagged here or clicks fall through to the cork behind it.
+      var boardEl = this.el;
+      mesh.traverse(function (o) { o.el = boardEl; });
       this.group.add(mesh);
       this.notes.push({ mesh: mesh, t: 0 });
       var out = new THREE.Vector3();

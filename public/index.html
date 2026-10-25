@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Low-Poly Store</title>
+  <title>stor3D</title>
   <script src="vendor/aframe.min.js"></script>
   <link rel="icon" href="data:,">
   <script src="js/wood.js"></script>
@@ -32,6 +32,7 @@
   <script src="js/components/product-box.js"></script>
   <script src="js/components/shopping-cart.js"></script>
   <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="vendor/fonts/landing-fonts.css">
   <link rel="stylesheet" href="css/ui.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -65,15 +66,58 @@
   </a-scene>
 
   <div id="intro">
-    <div id="intro-scroll">
-      <h1>Welcome to the Store</h1>
-      <p>Chat with our clerk, then browse shelves stocked just for you.</p>
-      <div id="map-picker" role="radiogroup" aria-label="Choose a store"></div>
-    </div>
-    <div id="intro-footer">
-      <label id="immersive-row" hidden><input id="immersive-check" type="checkbox"> <span><strong>Immersive mode</strong> <small>Fullscreen, and look around by moving your phone. Off: drag the screen to look, stick to walk.</small></span></label>
-      <button id="enter-btn" type="button">Enter store</button>
-    </div>
+    <main id="intro-main">
+      <header style="display:flex;flex-direction:column;gap:20px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:#3D5A51">hackTX 26</span>
+        <h1 style="margin:0;font-weight:700;font-size:clamp(56px,10vw,152px);line-height:.92;letter-spacing:-.04em;color:#0F2A24">stor<span style="color:#D9482B">3D</span></h1>
+      </header>
+
+      <div id="intro-tiles" role="radiogroup" aria-label="Choose a store">
+        <a class="tile" href="?map=castle" data-map="castle" role="radio" aria-checked="false" aria-label="Castle Great Hall">
+          <svg viewBox="0 0 100 120" aria-hidden="true">
+            <polygon points="0,120 0,6 7,6 7,15 14,15 14,6 21,6 21,15 28,15 28,40 33,40 33,32 40,32 40,40 47,40 47,32 54,32 54,40 61,40 61,32 68,32 68,40 72,40 72,15 79,15 79,6 86,6 86,15 93,15 93,6 100,6 100,120" fill="#0A0A0A"></polygon>
+            <text transform="translate(3.06 63.51) scale(0.2345 0.2432)" fill="#FFFFFF" style="font-family:'Cinzel',serif;font-weight:700;font-size:100px">CASTLE</text>
+            <text transform="translate(2.93 89.41) scale(0.2685 0.2973)" fill="#FFFFFF" style="font-family:'Cinzel',serif;font-weight:700;font-size:100px">GREAT</text>
+            <text transform="translate(2.66 116) scale(0.3341 0.3056)" fill="#FFFFFF" style="font-family:'Cinzel',serif;font-weight:700;font-size:100px">HALL</text>
+          </svg>
+        </a>
+
+        <a class="tile" href="?map=classic" data-map="classic" role="radio" aria-checked="false" aria-label="Classic Store">
+          <svg viewBox="0 0 100 120" aria-hidden="true">
+            <polygon points="10,44 90,44 100,68 94,68 94,120 6,120 6,68 0,68" fill="#0A0A0A"></polygon>
+            <text transform="translate(12.48 63.6) scale(0.1723 0.2)" fill="#FFFFFF" style="font-family:'Playfair Display',serif;font-weight:900;font-size:100px">CLASSIC</text>
+            <text transform="translate(8.04 110.93) scale(0.2396 0.5333)" fill="#FFFFFF" style="font-family:'Playfair Display',serif;font-weight:900;font-size:100px">STORE</text>
+          </svg>
+        </a>
+
+        <a class="tile" href="?map=boutique" data-map="boutique" role="radio" aria-checked="false" aria-label="Cozy Boutique" style="font-size: 20px">
+          <svg viewBox="0 0 100 120" aria-hidden="true">
+            <polygon points="0,120 0,58 50,6 70,26 70,10 82,10 82,40 100,58 100,120" fill="#0A0A0A"></polygon>
+            <text transform="translate(21.32 62.95) scale(0.2807 0.3053)" fill="#FFFFFF" style="font-family:'Pacifico',cursive;font-size:100px">Cozy</text>
+            <text transform="translate(2.5 107.19) scale(0.2523 0.2636)" fill="#FFFFFF" style="font-family:'Pacifico',cursive;font-size:100px">Boutique</text>
+          </svg>
+        </a>
+
+        <a class="tile" href="?map=warehouse" data-map="warehouse" role="radio" aria-checked="false" aria-label="Big Box Warehouse">
+          <svg viewBox="0 0 100 120" aria-hidden="true">
+            <polygon points="0,36 100,36 100,120 0,120" fill="#0A0A0A"></polygon>
+            <text transform="translate(0.99 78.57) scale(0.3381 0.4318)" fill="#FFFFFF" style="font-family:'Anton',sans-serif;font-size:100px">BIG BOX</text>
+            <text transform="translate(1.78 116.61) scale(0.2191 0.3864)" fill="#FFFFFF" style="font-family:'Anton',sans-serif;font-size:100px">WAREHOUSE</text>
+          </svg>
+        </a>
+      </div>
+
+      <div id="intro-start">
+        <button id="enter-btn" type="button">Start shopping</button>
+        <label id="immersive-row" class="intro-option" hidden><input id="immersive-check" type="checkbox"> <span>Immersive mode (fullscreen, look by moving your phone)</span></label>
+        <label id="joystick-row" class="intro-option" hidden><input id="joystick-check" type="checkbox" checked> <span>On-screen joystick</span></label>
+      </div>
+
+      <footer style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.14em;color:#3D5A51">
+        <span style="text-transform:uppercase">Aliki Michael &amp; Michael Remishevsky</span>
+        <a href="https://github.com/amichael33/hackTX_26" style="color:#3D5A51;letter-spacing:.06em">github.com/amichael33/hackTX_26</a>
+      </footer>
+    </main>
   </div>
 
   <div id="location-panel" hidden>
@@ -88,11 +132,6 @@
     </form>
     <p id="location-privacy">Your location is only used for this search.</p>
   </div>
-
-  <aside id="chat-log" class="collapsed" hidden>
-    <button id="chat-log-toggle" type="button" aria-expanded="false">Chat log</button>
-    <ul id="chat-log-list" aria-live="polite"></ul>
-  </aside>
 
   <aside id="cart-widget" class="collapsed" hidden>
     <button id="cart-tab" type="button" aria-expanded="false" aria-controls="cart-panel" aria-label="Toggle cart"><span aria-hidden="true">🛒</span> <span id="cart-count">0</span><span id="searches-label">Searches</span></button>
@@ -138,7 +177,6 @@
       </form>
     </div>
   </div>
-  <button id="new-search-btn" type="button" hidden>New search</button>
   <div id="sort-bar" role="group" aria-label="Arrange the store by" hidden>
     <span id="sort-label">Arrange by</span>
     <button type="button" data-sort="price" aria-pressed="true">Price</button>

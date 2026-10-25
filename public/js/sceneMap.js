@@ -54,7 +54,7 @@ export function applyMap(map, { preview = false } = {}) {
   for (const id of ['light-a', 'light-b']) $(id)?.setAttribute('light', 'color', map.light ?? '#fff4e0');
   const oldDisco = $('disco');
   if (oldDisco) {
-    const disco = el('a-entity', { id: 'disco', 'disco-ball': `ceiling: ${room.height}`, position: `${map.island.x} ${hang} ${map.island.z}` });
+    const disco = el('a-entity', { id: 'disco', 'disco-ball': `ceiling: ${room.height}`, position: `${map.disco?.x ?? map.island.x} ${hang - (map.disco?.drop ?? 0)} ${map.disco?.z ?? map.island.z}` });
     oldDisco.replaceWith(disco);
   }
 

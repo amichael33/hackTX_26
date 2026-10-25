@@ -43,7 +43,7 @@ for (const map of MAPS) {
     const bd = map.board;
     assert.ok(bd.x - bd.width / 2 >= -hw && bd.x + bd.width / 2 <= hw, 'board wider than the wall');
     assert.ok(Math.abs(bd.z) > hd - 0.1);
-    for (const u of map.units.filter((x) => x.zone === 'back')) assert.ok(u.x + 1 <= bd.x - bd.width / 2 + 1e-9, 'back shelf overlaps the board');
+    for (const u of map.units.filter((x) => x.zone === 'back')) assert.ok(u.x + 1 <= bd.x - bd.width / 2 + 1e-9 || u.x - 1 >= bd.x + bd.width / 2 - 1e-9, 'back shelf overlaps the board');
     assert.ok(C.circleClear(bd.x, -hd + 1.5, C.PLAYER_RADIUS), 'cannot stand in front of the board');
     assert.ok(bd.bannerY + 0.15 <= map.room.height, 'sign above the ceiling');
   });
@@ -254,3 +254,13 @@ test('floor textures: Classic, Boutique and Castle have their own; the Warehouse
   const styles = Object.fromEntries(MAPS.map((m) => [m.id, m.room.floorStyle ?? '']));
   assert.deepEqual(styles, { classic: 'tile', boutique: 'parquet', warehouse: '', castle: 'flagstone' });
 });
+
+for (const id of ['classic', 'warehouse']) {
+  test(`map "${id}": the back wall is symmetrical (board centred, back shelves mirrored)`, () => {
+    const map = getMap(id);
+    assert.equal(map.board.x, 0);
+    const xs = map.units.filter((u) => u.zone === 'back').map((u) => u.x).sort((a, b) => a - b);
+    assert.ok(xs.length >= 2 && xs.length % 2 === 0);
+    assert.deepEqual(xs, xs.map((x) => -x).reverse());
+  });
+}

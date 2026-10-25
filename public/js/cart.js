@@ -34,7 +34,7 @@ export function createCart(storage = safeLocalStorage(), key = 'store.cart.v1') 
       if (id === null || list.length >= MAX_ITEMS || list.some((i) => i.id === id)) return false;
       list = [{
         id, title: p.title ?? '', price: p.price ?? null, extracted_price: p.extracted_price,
-        source: p.source ?? null, link: p.link ?? null, thumbnail: p.thumbnail ?? null, savedAt: Date.now(),
+        source: p.source ?? null, link: p.link ?? null, thumbnail: p.thumbnail ?? null, page_token: p.page_token ?? null, savedAt: Date.now(), // page_token: lets Open all find the seller's own page
       }, ...list];
       commit();
       return true;

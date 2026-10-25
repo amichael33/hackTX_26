@@ -80,3 +80,20 @@ export function normalizeAmazonResults(json) {
   }
   return kept;
 }
+
+// Both engines describe the next page of results in `serpapi_pagination.next` (a serpapi.com URL without the key).
+// Following that link instead of guessing offsets means a query with no further page costs nothing.
+export function nextPageUrl(json) {
+  const next = json?.serpapi_pagination?.next;
+  return typeof next === 'string' && next.startsWith('https://serpapi.com/') ? next : null;
+}
+
+// One more page for a result already fetched. Returns null when there is no next page.
+export async function fetchNextPage(json, { apiKey, fetchImpl = fetch }) {
+  const next = nextPageUrl(json);
+  if (!next) return null;
+  const url = `${next}${next.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(apiKey)}`;
+  const res = await fetchImpl(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`serpapi page ${res.status}`);
+  return res.json();
+}

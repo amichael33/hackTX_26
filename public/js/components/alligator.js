@@ -9,6 +9,8 @@
   var SNAP_RANGE = 3.4;   // the player this close makes it snap
   var WATCH_RANGE = 6.5;  // the player this close makes it stop patrolling, swim over and face them
   var SHOW_MS = 7000;     // how long one product is held up before the next
+  var MAX_BODY_TURN = 0.2;  // radians the body may angle off the river's axis (keeps snout and tail between the banks)
+  var MAX_HEAD_TURN = 0.55; // radians the head may then turn further toward the player
 
   function box(w, h, d) { return new THREE.BoxGeometry(w, h, d); }
 
@@ -90,6 +92,7 @@
       this.showing = false;
       this.showAt = 0;
       this.lift = 0;          // 0..1: how far the head is raised
+      this.swayK = 1;         // 1 = free wander across the river, lower while watching the player
       this.vec = new THREE.Vector3();
       this.t = this.data.slot * 2.1; // out of step with the other gator's sway and bob
       this.dir = this.data.startDir;   // 1 = swimming toward +x
@@ -132,12 +135,24 @@
         if (this.x > d.range) { this.x = d.range; this.dir = -1; }
         else if (this.x < -d.range) { this.x = -d.range; this.dir = 1; }
       }
-      var wantYaw = watching && this.faceYaw !== undefined ? this.faceYaw : (this.dir > 0 ? 0 : Math.PI);
+      // The channel is only ~2.6 m wide and the gator ~4 m long, so the body stays close to the river's axis (a turn of more
+      // than a few degrees would swing the snout and tail over the banks). To "face" the player it turns its head instead.
+      var axisYaw = this.dir > 0 ? 0 : Math.PI, wantYaw = axisYaw, headWant = 0;
+      if (watching && this.faceYaw !== undefined) {
+        axisYaw = Math.cos(this.faceYaw) >= 0 ? 0 : Math.PI;
+        var off = Math.atan2(Math.sin(this.faceYaw - axisYaw), Math.cos(this.faceYaw - axisYaw));
+        wantYaw = axisYaw + Math.max(-MAX_BODY_TURN, Math.min(MAX_BODY_TURN, off));
+      }
       var diff = Math.atan2(Math.sin(wantYaw - this.yaw), Math.cos(wantYaw - this.yaw));
       this.yaw += diff * Math.min(1, dt * (watching ? 4 : 2.5));
       this.root.rotation.y = this.yaw;
       this.root.position.x = this.x;
-      this.root.position.z = Math.sin(this.t * 0.45) * d.sway;
+      this.swayK += ((watching ? 0.3 : 1) - this.swayK) * Math.min(1, dt * 3); // wanders less across the river while it watches
+      this.root.position.z = Math.sin(this.t * 0.45) * d.sway * this.swayK;
+      if (watching && this.faceYaw !== undefined) {
+        var toPlayer = Math.atan2(Math.sin(this.faceYaw - this.yaw), Math.cos(this.faceYaw - this.yaw));
+        headWant = Math.max(-MAX_HEAD_TURN, Math.min(MAX_HEAD_TURN, toPlayer));
+      }
       this.root.position.y = Math.sin(this.t * 1.6) * 0.012 - 0.01 + 0.05 * this.lift; // gentle bob, riding low; higher when showing off
 
       // The tail sways in a travelling wave; the head follows the front of it.
@@ -147,7 +162,8 @@
         s.g.position.z = Math.sin(ph - s.k * 0.8) * amp;
         s.g.rotation.y = Math.cos(ph - s.k * 0.8) * 0.18 * (0.3 + s.k * 0.12);
       });
-      this.head.rotation.y = watching ? 0 : Math.sin(ph + 0.8) * 0.08;
+      var headYaw = watching ? headWant : Math.sin(ph + 0.8) * 0.08;
+      this.head.rotation.y += (headYaw - this.head.rotation.y) * Math.min(1, dt * 5);
 
       // Jaws: closed while patrolling, snapping when the player is near, wide open (and head raised) on a bridge.
       var near = dist < SNAP_RANGE, offering = onBridge || d.offer;

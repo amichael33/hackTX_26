@@ -1,50 +1,38 @@
 html, body { margin: 0; height: 100%; background: #f5f5f7; color: #1d1d1f; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; }
 button, input { font-family: inherit; }
 /* Frosted Apple-style panel look shared by all overlays */
-#subtitle, #chat-bar, #chat-log-list, #product-card, #location-panel, #cart-panel, #cart-tab {
+#subtitle, #chat-bar, #product-card, #location-panel, #cart-panel, #cart-tab {
   background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
   border-radius: 18px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); color: #1d1d1f;
 }
+/* --- Start screen: the stor3D landing page. Tiles pick the store, "Start shopping" goes in. --- */
 #intro {
   position: fixed; inset: 0; z-index: 10; height: 100vh; height: 100dvh; box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
-  gap: 0; background: rgba(245, 245, 247, 0.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  color: #1d1d1f; text-align: center; padding: 16px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; background: #E6EFE9; color: #0F2A24; font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 #intro.hidden { display: none; }
-/* The maps scroll in the middle; the options and the Enter button stay in a footer that nothing can cover. */
-#intro-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 8px 0; }
-#intro-scroll > :first-child { margin-top: auto; }
-#intro-scroll > :last-child { margin-bottom: auto; }
-#intro-footer { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 0 max(6px, env(safe-area-inset-bottom)); }
-#immersive-row[hidden] { display: none; }
-#immersive-row {
-  display: flex; align-items: flex-start; gap: 10px; max-width: 26rem; padding: 10px 14px; text-align: left; cursor: pointer;
-  border-radius: 14px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); font-size: 0.95rem;
-}
-#immersive-row { flex: none; }
-#map-picker { flex: none; }
-#immersive-row input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
-#immersive-row small { display: block; color: #6e6e73; font-size: 0.8rem; margin-top: 2px; }
-#intro h1 { margin: 0; font-size: 2.6rem; font-weight: 600; letter-spacing: -0.02em; }
-#intro p { margin: 0; color: #6e6e73; max-width: 28rem; }
+#intro-main { min-height: 100%; box-sizing: border-box; max-width: 1360px; margin: 0 auto; padding: 72px 56px; display: flex; flex-direction: column; justify-content: center; gap: 72px; }
+#intro-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 24px; }
+.tile { display: block; text-decoration: none; transition: transform .15s ease, opacity .15s ease; }
+.tile:hover { transform: translateY(-8px); }
+.tile:focus-visible { outline: 3px solid #0F2A24; outline-offset: 4px; }
+.tile svg { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; overflow: visible; }
+.tile[aria-checked="false"] { opacity: .45; }
+.tile[aria-checked="false"]:hover { opacity: 1; }
+#intro-start { display: flex; flex-direction: column; align-items: center; gap: 22px; }
 #enter-btn {
-  flex: none;
-  font-size: 1.1rem; padding: 12px 28px; border: 0; border-radius: 980px;
-  background: #0071e3; color: #fff; font-weight: 600; cursor: pointer;
+  font: 700 1.25rem 'Space Grotesk', system-ui, sans-serif; letter-spacing: .01em; padding: 18px 44px; border: 0; border-radius: 0;
+  background: #0F2A24; color: #E6EFE9; cursor: pointer; transition: background .15s ease;
 }
-#enter-btn:hover { background: #0077ed; }
-/* Map picker on the start screen: the chosen store previews behind the overlay. */
-#map-picker { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 46rem; }
-.map-card {
-  display: flex; flex-direction: column; gap: 4px; width: 13.5rem; padding: 12px 14px; text-align: left;
-  border: 2px solid transparent; border-radius: 16px; cursor: pointer; font: inherit; color: #1d1d1f;
-  background: rgba(255, 255, 255, 0.85); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+#enter-btn:hover { background: #D9482B; }
+#enter-btn:focus-visible { outline: 3px solid #0F2A24; outline-offset: 4px; }
+.intro-option { display: flex; align-items: center; gap: 10px; cursor: pointer; font: 500 14px 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: #3D5A51; }
+.intro-option[hidden] { display: none; }
+.intro-option input { width: 18px; height: 18px; margin: 0; accent-color: #0F2A24; }
+@media (max-width: 640px) {
+  #intro-main { padding: 40px 20px 32px; gap: 40px; }
+  #intro-tiles { grid-template-columns: 1fr; } /* one option per row on a phone */
 }
-.map-card strong { font-size: 1rem; font-weight: 600; }
-.map-card span { font-size: 0.82rem; color: #6e6e73; line-height: 1.3; }
-.map-card:hover { background: #fff; }
-.map-card[aria-checked="true"] { border-color: #0071e3; background: #fff; }
 
 /* --- HUD: subtitle + chat bar, bottom of screen --- */
 /* --- On-screen joystick (phones) --- */
@@ -68,7 +56,7 @@ button, input { font-family: inherit; }
   padding: 0 12px 14px; pointer-events: none;
 }
 #hud > * { pointer-events: auto; }
-#subtitle[hidden], #chat-bar[hidden], #chat-log[hidden], #skip-btn[hidden], #mic-btn[hidden] { display: none; }
+#subtitle[hidden], #chat-bar[hidden], #skip-btn[hidden], #mic-btn[hidden] { display: none; }
 #subtitle {
   display: flex; align-items: center; gap: 10px;
   width: min(720px, 100%); box-sizing: border-box;
@@ -76,11 +64,11 @@ button, input { font-family: inherit; }
 }
 #subtitle-text { flex: 1; margin: 0; font-size: 1.1rem; line-height: 1.35; min-height: 1.35em; }
 #subtitle-controls { display: flex; gap: 6px; flex-shrink: 0; }
-#subtitle-controls button, #chat-log-toggle {
+#subtitle-controls button {
   font: inherit; font-size: 0.85rem; padding: 5px 12px; border: 0; border-radius: 980px;
   background: #e8e8ed; color: #1d1d1f; cursor: pointer;
 }
-#subtitle-controls button:hover, #chat-log-toggle:hover { background: #dcdce1; }
+#subtitle-controls button:hover { background: #dcdce1; }
 #chat-bar { width: min(720px, 100%); box-sizing: border-box; padding: 8px; }
 #chat-form { display: flex; gap: 8px; }
 #chat-input {
@@ -102,24 +90,6 @@ button, input { font-family: inherit; }
   0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
   50% { box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
 }
-
-/* --- Collapsible chat log, left side (the cart widget owns the right) --- */
-#chat-log {
-  position: fixed; left: 12px; top: 12px; bottom: 120px; z-index: 5;
-  width: min(300px, 60vw); display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-  pointer-events: none;
-}
-#chat-log > * { pointer-events: auto; }
-#chat-log-toggle { background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
-#chat-log-list {
-  list-style: none; margin: 0; padding: 8px; width: 100%; box-sizing: border-box;
-  flex: 1; min-height: 0; overflow-y: auto;
-  font-size: 0.9rem;
-}
-#chat-log.collapsed #chat-log-list { display: none; }
-#chat-log-list li { margin: 0 0 8px; padding: 6px 8px; border-radius: 8px; line-height: 1.3; }
-#chat-log-list .log-clerk { background: rgba(0, 113, 227, 0.1); }
-#chat-log-list .log-user { background: #e8e8ed; text-align: right; }
 
 /* --- Location panel: shown only in the LOCATION phase --- */
 #location-panel[hidden], #location-form[hidden] { display: none; }
@@ -170,16 +140,10 @@ button, input { font-family: inherit; }
 #card-buy:hover { background: #0077ed; }
 #card-buy[hidden] { display: none; }
 
-/* --- Browsing: New search button + controls hint --- */
-#new-search-btn {
-  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
-  font: inherit; font-size: 0.95rem; font-weight: 600; padding: 8px 18px; border: 0; border-radius: 980px;
-  background: #0071e3; color: #fff; cursor: pointer;
-}
-#new-search-btn:hover { background: #0077ed; }
-#new-search-btn[hidden], #browse-hint[hidden], #note-confirm[hidden], #sort-bar[hidden], #clerk-open-all[hidden], #clerk-actions[hidden], #open-all-btn[hidden] { display: none; }
+/* --- Browsing: controls hint --- */
+#browse-hint[hidden], #note-confirm[hidden], #sort-bar[hidden], #clerk-open-all[hidden], #clerk-actions[hidden], #open-all-btn[hidden] { display: none; }
 #sort-bar {
-  position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 6;
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
   display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 980px; max-width: calc(100vw - 24px);
   background: rgba(255, 255, 255, 0.82); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); font-size: 0.8rem; color: #6e6e73;
@@ -268,4 +232,3 @@ body.cart-off #searches-label { display: inline; }
 #note-confirm button { font: inherit; font-weight: 600; margin: 0 4px; padding: 8px 16px; border: 0; border-radius: 980px; cursor: pointer; background: #0071e3; color: #fff; }
 #note-confirm #note-cancel { background: rgba(0, 0, 0, 0.08); color: #1d1d1f; }
 
-@media (max-height: 700px) { #intro h1 { font-size: 1.8rem; } #intro-scroll { gap: 10px; } .map-card { padding: 8px 12px; } #immersive-row small { display: none; } }

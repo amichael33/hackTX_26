@@ -247,7 +247,7 @@ test('route: more than fits on the shelves -> 40 main + 12 related on the shelve
   const r = await postSearch(app, { query: { ...Q, extra_queries: ['keycaps'] }, city: CITY });
   assert.equal(r.json.products.length, 52);
   assert.equal(r.json.products.filter((p) => p.related).length, 12);
-  assert.equal(r.json.extras.length, 40);
+  assert.equal(r.json.extras.length, 68); // 80 related - 12 on the shelves, under the extras cap (80)
   assert.ok(r.json.extras.every((p) => p.related && p.tier));
   const ids = [...r.json.products, ...r.json.extras].map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length, 'no product is on both lists');
@@ -317,4 +317,107 @@ test('route: a clothing demo search serves demo garments with drawn thumbnails; 
   const kb = await postSearch(app, { query: Q, city: CITY, demo: true });
   assert.deepEqual(kb.json.products, demo);
   assert.equal(f.calls.length, 0);
+});
+
+// --- cost caps and shared loads ---
+
+test('cache.getOrLoad: concurrent callers share one load; a failed load is not cached', async () => {
+  const c = createCache(1000);
+  let loads = 0;
+  const load = async () => { loads++; await new Promise((r) => setTimeout(r, 10)); return 'v'; };
+  const out = await Promise.all([c.getOrLoad('k', load), c.getOrLoad('k', load), c.getOrLoad('k', load)]);
+  assert.deepEqual(out, ['v', 'v', 'v']);
+  assert.equal(loads, 1);
+  assert.equal(await c.getOrLoad('k', load), 'v');
+  assert.equal(loads, 1, 'cached afterwards');
+  await assert.rejects(c.getOrLoad('bad', async () => { throw new Error('x'); }));
+  assert.equal(await c.getOrLoad('bad', async () => 'ok'), 'ok', 'failure was not cached');
+});
+
+test('route: two identical searches at the same moment make one SerpApi call', async () => {
+  const f = fakeFetch(async () => { await new Promise((r) => setTimeout(r, 20)); return ok(forty); });
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const [a, b] = await Promise.all([postSearch(app, { query: Q, city: CITY }), postSearch(app, { query: Q, city: CITY })]);
+  assert.equal(a.status, 200);
+  assert.deepEqual(a.json, b.json);
+  assert.equal(f.calls.length, 1);
+});
+
+test('route: an over-long query is refused with no SerpApi call; junk extra_queries are dropped', async () => {
+  const f = fakeFetch(() => ok(forty));
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k' });
+  const long = await postSearch(app, { query: { ...Q, query: 'x'.repeat(500) }, city: CITY });
+  assert.equal(long.status, 400);
+  const notString = await postSearch(app, { query: { ...Q, query: { a: 1 } }, city: CITY });
+  assert.equal(notString.status, 400);
+  assert.equal(f.calls.length, 0);
+  const junk = await postSearch(app, { query: { ...Q, extra_queries: [42, '', 'y'.repeat(500)] }, city: CITY });
+  assert.equal(junk.status, 200);
+  assert.equal(f.calls.length, 1, 'only the main query ran');
+});
+
+// --- second pages ---
+
+const NEXT = (engine, n) => ({ next: `https://serpapi.com/search.json?engine=${engine}&q=kb&start=${n}` });
+const gPage = (prefix, n, next) => ({
+  shopping_results: Array.from({ length: n }, (_, i) => ({ title: prefix + i, product_id: prefix + i, extracted_price: 10 + i, price: '$' + (10 + i), product_link: 'https://x', source: 's' })),
+  ...(next ? { serpapi_pagination: next } : {}),
+});
+const aPage = (prefix, n, next) => ({
+  organic_results: Array.from({ length: n }, (_, i) => ({ title: prefix + i, asin: prefix + i, extracted_price: 20 + i, price: '$' + (20 + i), link: 'https://www.amazon.com/dp/' + prefix + i })),
+  ...(next ? { serpapi_pagination: next } : {}),
+});
+
+function pagedFetch() {
+  return fakeFetch((url) => {
+    const isAmazon = url.includes('engine=amazon');
+    const second = url.includes('start=') ;
+    if (isAmazon) return ok(second ? aPage('a2-', 5) : aPage('a1-', 5, NEXT('amazon', 2)));
+    return ok(second ? gPage('g2-', 10) : gPage('g1-', 10, NEXT('google_shopping', 10)));
+  });
+}
+
+test('route: a live search fetches a second page of Google Shopping and of Amazon (4 calls) and merges both', async () => {
+  const f = pagedFetch();
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k', amazon: true });
+  const r = await postSearch(app, { query: Q, city: CITY });
+  assert.equal(f.calls.length, 4);
+  assert.equal(f.calls.filter((u) => u.includes('start=')).length, 2);
+  assert.ok(f.calls.filter((u) => u.includes('start=')).every((u) => u.includes('api_key=k')), 'the key is added to the next-page link');
+  const ids = [...r.json.products, ...r.json.extras].map((p) => p.id);
+  assert.equal(ids.filter((id) => id.startsWith('g1-')).length, 10);
+  assert.equal(ids.filter((id) => id.startsWith('g2-')).length, 10);
+  assert.equal(ids.filter((id) => id.startsWith('amazon-a1-')).length, 5);
+  assert.equal(ids.filter((id) => id.startsWith('amazon-a2-')).length, 5);
+  await postSearch(app, { query: Q, city: CITY });
+  assert.equal(f.calls.length, 4, 'the repeat is cached, both pages');
+});
+
+test('route: no next-page link means no extra call; a failed second page keeps the first', async () => {
+  const none = fakeFetch(() => ok(gPage('g', 5)));
+  await postSearch(createApp({ fetchImpl: none, serpApiKey: 'k' }), { query: Q, city: CITY });
+  assert.equal(none.calls.length, 1);
+  const flaky = fakeFetch((url) => (url.includes('start=') ? bad(500) : ok(gPage('g', 5, NEXT('google_shopping', 10)))));
+  const r = await postSearch(createApp({ fetchImpl: flaky, serpApiKey: 'k' }), { query: Q, city: CITY });
+  assert.equal(flaky.calls.length, 2);
+  assert.equal(r.json.products.length, 5);
+  assert.ok(!r.json.demo);
+});
+
+test('route: SEARCH_PAGES / deps.pages = 1 goes back to one page each; the related queries never page', async () => {
+  const f = pagedFetch();
+  await postSearch(createApp({ fetchImpl: f, serpApiKey: 'k', amazon: true, pages: 1 }), { query: Q, city: CITY });
+  assert.equal(f.calls.length, 2);
+  const g = pagedFetch();
+  await postSearch(createApp({ fetchImpl: g, serpApiKey: 'k', amazon: true }), { query: { ...Q, extra_queries: ['keycaps'] }, city: CITY });
+  assert.equal(g.calls.length, 5, 'main 2 + amazon 2 + the related query 1');
+});
+
+test('route: the credit pool is respected when paging (no page past the ceiling)', async () => {
+  const f = pagedFetch();
+  const { createBudget } = await import('../server/lib/budget.js');
+  const app = createApp({ fetchImpl: f, serpApiKey: 'k', amazon: true, budget: createBudget({ serpCredits: 3 }) });
+  const r = await postSearch(app, { query: Q, city: CITY });
+  assert.ok(f.calls.length <= 3, `made ${f.calls.length} calls with 3 credits`);
+  assert.equal(r.status, 200);
 });

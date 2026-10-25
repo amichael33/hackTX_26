@@ -2,14 +2,14 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers, postMerchant } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice, formatRating } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore, onCardBuy, setCardBuyHref } from './ui.js';
+import { clerkSay, onPlayerSubmit, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore, onCardBuy, setCardBuyHref } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
 import { zoneLabelsFor, layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
 import { isClothingSearch, isApparelTitle } from './category.js';
 import { SORTS, normalizeSort } from './sortMode.js';
-import { openAll, linksOf } from './openAll.js';
+import { openAllToSellers, linksOf } from './openAll.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap, labelFor } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
@@ -43,25 +43,25 @@ const MAP_KEY = 'store.map.v1';
 function savedMapId() {
   try { return getMap(safeLocalStorage().getItem(MAP_KEY)).id; } catch (e) { return DEFAULT_MAP_ID; }
 }
-let mapId = savedMapId();
+// ?map=<id> in the address picks the store (and is remembered), so a store can be linked to directly.
+function linkedMapId() {
+  try {
+    const id = new URLSearchParams(location.search).get('map');
+    return MAPS.some((m) => m.id === id) ? id : null;
+  } catch (e) { return null; }
+}
+let mapId = linkedMapId() ?? savedMapId();
+if (mapId !== savedMapId()) {
+  try { safeLocalStorage().setItem(MAP_KEY, mapId); } catch (e) { /* the pick just is not remembered */ }
+}
 
-const mapPicker = document.getElementById('map-picker');
+// The four tiles on the start screen are the store picker (see index.html); the chosen one is marked.
+const mapTiles = [...document.querySelectorAll('#intro-tiles .tile')];
 function renderMapPicker() {
-  mapPicker.textContent = '';
-  for (const m of MAPS) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'map-card';
-    b.setAttribute('role', 'radio');
-    b.setAttribute('aria-checked', String(m.id === mapId));
-    const name = document.createElement('strong');
-    name.textContent = m.name;
-    const blurb = document.createElement('span');
-    blurb.textContent = m.blurb;
-    b.append(name, blurb);
-    b.addEventListener('click', () => selectMap(m.id));
-    mapPicker.append(b);
-  }
+  for (const t of mapTiles) t.setAttribute('aria-checked', String(t.dataset.map === mapId));
+}
+for (const t of mapTiles) {
+  t.addEventListener('click', (e) => { e.preventDefault(); selectMap(t.dataset.map); }); // the href is only a no-script fallback
 }
 
 // Only on the start screen: rebuild the scene around the new map so it previews behind the overlay.
@@ -82,7 +82,7 @@ function applyState(state) {
   const rig = document.getElementById('rig');
   const clerk = document.getElementById('clerk');
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
-  joystick?.setEnabled(movementEnabled(state));
+  joystick?.setEnabled(joystickOn && movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
   if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && cart3dOn && state.phase === 'BROWSING');
@@ -94,12 +94,26 @@ function applyState(state) {
 }
 
 // The on-screen joystick (phones): shown only on touch devices, only while the player can walk.
+// A checkbox on the start screen (touch devices only, default on) turns it off.
+const JOYSTICK_KEY = 'store.joystick.v1';
+const joystickRow = document.getElementById('joystick-row');
+const joystickCheck = document.getElementById('joystick-check');
 let joystick = null;
+let joystickOn = true;
 if (isTouchDevice()) {
   joystick = createJoystick({ root: document.getElementById('joystick'), knob: document.getElementById('joystick-knob') });
-  const hint = document.getElementById('browse-hint');
-  if (hint) hint.textContent = 'Drag the stick to walk \u00b7 drag the view to look \u00b7 tap a product';
+  if (joystickRow) {
+    joystickRow.hidden = false;
+    try { joystickCheck.checked = safeLocalStorage().getItem(JOYSTICK_KEY) !== '0'; } catch (e) { /* default on */ }
+    joystickOn = joystickCheck.checked;
+  }
 }
+function setBrowseHint() {
+  const hint = document.getElementById('browse-hint');
+  if (!hint || !joystick) return;
+  hint.textContent = joystickOn ? 'Drag the stick to walk \u00b7 drag the view to look \u00b7 tap a product' : 'Drag the view to look \u00b7 tap a product';
+}
+setBrowseHint();
 
 function boot() {
   if (joystick && scene.canvas) attachTouchLook(scene.canvas, () => document.getElementById('rig')?.components['look-controls']);
@@ -127,7 +141,6 @@ let locationBusy = false;
 async function finishLocation(location) {
   if (store.get().phase !== 'LOCATION') return;
   store.set({ location });
-  addLogLine('system', `\u{1F4CD} ${location.city}`);
   store.setPhase('CHATTING');
   await say(GREETING);
 }
@@ -213,7 +226,6 @@ store.on('phase:LOCATION', () => document.getElementById('shelves')?.setAttribut
 async function runTurn(text) {
   const messages = [...store.get().messages, { role: 'user', text }];
   store.set({ messages, status: 'thinking' });
-  addLogLine('user', text);
 
   let res;
   try {
@@ -518,9 +530,11 @@ sortBar?.addEventListener('click', (e) => {
 });
 
 // --- Open everything in the cart: Bob's desk button (shown when the player stands near him) and a button in the cart panel ---
+// Each product goes straight to its seller, like the Buy button (one SerpApi credit per product not looked up yet), falling back
+// to its Google link when the seller can't be found.
 function openCartTabs() {
-  const items = cart.items();
-  const res = openAll(items, (...a) => window.open(...a));
+  const items = cart.items().map((i) => (merchantLinks.has(i.id) ? { ...i, link: merchantLinks.get(i.id), page_token: null } : i)); // already found: open directly
+  const res = openAllToSellers(items, { open: (...a) => window.open(...a), resolve: isDemoPage ? null : resolveMerchant });
   if (!res.total) { clerkSay("Your cart has nothing with a link to open yet.").catch(() => {}); return; }
   if (res.opened < res.total) clerkSay(`Your browser only let me open ${res.opened} of ${res.total} tabs. Allow pop-ups for this site and try again.`).catch(() => {});
   else clerkSay(`Opened ${res.total} ${res.total === 1 ? 'product' : 'products'} for you!`).catch(() => {});
@@ -574,7 +588,6 @@ document.getElementById('note-go')?.addEventListener('click', () => {
   const keepSort = sortMode; // a reset puts the arrangement back to price
   resetStore({ silent: true }); // back to the chat phase with an empty store, then straight into a search for the note
   store.set({ query: { query: text, min_price: null, max_price: old?.max_price ?? null, preferences: [], extra_queries: [], is_clothing: undefined, sort_by: keepSort } });
-  addLogLine('user', text);
   store.setPhase('SEARCHING');
 });
 store.on('change', (state) => { if (state.phase !== 'BROWSING') closeNoteConfirm(); });
@@ -737,6 +750,11 @@ async function enterImmersive() {
 
 enterBtn.addEventListener('click', () => {
   try { window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) { /* unsupported */ }
+  if (joystickRow && !joystickRow.hidden) {
+    joystickOn = joystickCheck.checked;
+    try { safeLocalStorage().setItem(JOYSTICK_KEY, joystickOn ? '1' : '0'); } catch (e) { /* not remembered */ }
+    setBrowseHint();
+  }
   if (immersiveRow && !immersiveRow.hidden) {
     try { safeLocalStorage().setItem(IMMERSIVE_KEY, immersiveCheck.checked ? '1' : '0'); } catch (e) { /* not remembered */ }
     if (immersiveCheck.checked) enterImmersive(); // called inside the click, which iOS requires for its permission prompt
@@ -745,7 +763,7 @@ enterBtn.addEventListener('click', () => {
   store.setPhase('LOCATION');
 });
 
-// --- New search: back to chatting with an empty store ---
+// --- New search (walk up to Bob and type): back to chatting with an empty store ---
 function resetStore({ silent = false } = {}) {
   openingRun++; // ignore any late sticker results from the previous run
   stopIdeasPoll();
@@ -767,11 +785,6 @@ function resetStore({ silent = false } = {}) {
   store.set({ products: [], extras: [], query: null, messages: [], replay: null, atDesk: false });
   if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
 }
-
-onNewSearch(() => {
-  if (store.get().phase !== 'BROWSING') return;
-  resetStore();
-});
 
 // --- Past searches: replay a saved search without any API calls ---
 onPastSearchPick((id) => {

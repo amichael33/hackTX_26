@@ -14,6 +14,7 @@ export const ZONE_LABELS = {
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
 //   islandStyle: { base, top, plinth? } colors of the "Best Matches" island table;
 //   windows: { style, width, sill, head, max } and door: { style, width, height, personnel? } (see openingsFor), outside: city | town | industrial | medieval;
+//   disco: { x?, z?, drop? } (where the mirror ball hangs; default over the island, drop = metres lower than the lights);
 //   river: { z, width, bank, bridges: [x...], bridgeWidth, arch, approach, gator } (see riverFor; gator puts an alligator in it) and lightBz (z of the second light);
 //   light: color of the two ceiling point lights; deskStyle: { body, top } colors.
 export const DEFAULT_SHELF_STYLE = 'oak';
@@ -35,10 +36,10 @@ export const MAPS = [
     units: [
       ...[-5, 0, 5].map((z) => unit('left', -7.2, z, 90)),
       ...[-5, 0, 5].map((z) => unit('right', 7.2, z, -90)),
-      unit('back', -4, -9.2, 0),
+      ...[-4.5, 4.5].map((x) => unit('back', x, -9.2, 0)), // one each side of the centred corkboard
       ...[-3, 3].map((x) => unit('center', x, 0, 0)),
     ],
-    board: { x: 1, y: 1.55, z: -9.97, width: 6, height: 2.2, bannerY: 3.0 },
+    board: { x: 0, y: 1.55, z: -9.97, width: 6, height: 2.2, bannerY: 3.0 },
     shelfStyles: { center: 'cubby' },
     clerkOutfit: 'suit',
     cartVariant: 'cart',
@@ -69,6 +70,7 @@ export const MAPS = [
     door: { style: 'cottage', width: 1.1, height: 2.2 },
     outside: 'town',
     islandStyle: { base: '#f6ede0', top: '#c98b5b' },
+    disco: { x: 0, z: 0 }, // hangs over the middle of the room, not over the off-centre island
   },
   {
     id: 'warehouse',
@@ -82,10 +84,10 @@ export const MAPS = [
     units: [
       ...[-9, -6, -3, 0].map((z) => unit('left', -11.2, z, 90)),
       ...[-9, -6, -3, 0].map((z) => unit('right', 11.2, z, -90)),
-      ...[-10, -7].map((x) => unit('back', x, -14.2, 0)),
+      ...[-8.5, -5.5, 5.5, 8.5].map((x) => unit('back', x, -14.2, 0)), // two each side of the centred corkboard
       ...[[-5, -4], [5, -4], [-5, 4], [5, 4]].map(([x, z]) => unit('center', x, z, 0)),
     ],
-    board: { x: 4, y: 1.55, z: -14.97, width: 8, height: 2.2, bannerY: 3.0 },
+    board: { x: 0, y: 1.55, z: -14.97, width: 8, height: 2.2, bannerY: 3.0 },
     shelfStyles: { left: 'rack', right: 'rack', back: 'rack', center: 'rack' },
     clerkOutfit: 'hivis',
     cartVariant: 'dolly',
@@ -94,6 +96,7 @@ export const MAPS = [
     door: { style: 'industrial', width: 3.4, height: 3.6, personnel: { width: 0.95, height: 2.1, gap: 0.45 } },
     outside: 'industrial',
     islandStyle: { base: '#4a4f57', top: '#8d9096', plinth: '#2b2b2f' },
+    disco: { drop: 0.5 }, // hangs a little lower, clear of the trusses
   },
   {
     id: 'castle',
@@ -123,6 +126,7 @@ export const MAPS = [
     windows: { style: 'castle', width: 1.1, sill: 1.6, head: 3.8, max: 3 },
     door: { style: 'castle', width: 2.0, height: 3.0 },
     outside: 'medieval',
+    disco: { z: -5 }, // midway between the chandeliers at z -9 and -1
     islandStyle: { base: '#7d786f', top: '#6b4a2c', plinth: '#625e57' }, // a stone block with a timber top
     deskStyle: { body: '#5a3d24', top: '#8a6a45', wood: true }, // real planks and grain (see wood.js)
   },
