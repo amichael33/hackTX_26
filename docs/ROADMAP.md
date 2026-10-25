@@ -28,7 +28,7 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 - [ ] **Clickable sticky notes**: clicking a note makes Bob search for it. One new search per click, so it costs credits.
 - [ ] **Open the merchant's own site**, not the Google Shopping page: needs one extra SerpApi call per click.
 - [ ] ~~Deploy demo mode~~: **Misha is doing this himself.** Not for anyone else (or their Claude) to pick up. See "Who owns what".
-  - Progress (branch `deploy/demo`, see `deploy/README.md`): Docker and plain-server kits and a smoke test are built and tested locally. Still to do: pick the host and domain, run `deploy/vps/setup.sh` on a real server, issue the HTTPS certificate, vendor A-Frame.
+  - Progress (branch `deploy-test`, see `deploy/README.md`): **deployed in demo mode to https://stor3d.tech and verified** (Path C: the server already had Caddy and a certificate; smoke test 10 passed, rollback tested, no errors in a real browser). Still to do: confirm start-on-boot after a reboot, add `Cache-Control: no-cache` for scripts to the server's Caddyfile, merge the deploy kit into `main` and point the server at `main`, decide whether the public site stays demo-only, vendor A-Frame.
 - [ ] **Check real data end to end** with live keys: clothing photos through the cut-out step (white garments on white backgrounds fall back to the whole photo), Amazon thumbnails in the cart, the `is_clothing` flag from Gemini. Costs credits.
 
 ### Ready to do

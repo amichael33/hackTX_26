@@ -2,7 +2,7 @@
 
 Owner: Misha. Everything here lives on the `deploy/demo` branch so `main` stays app-only.
 
-**What is tested:** the Docker setup, end to end on a laptop (both images build, the stack comes up healthy, `deploy/smoke.sh` passes 11/11, and the 3D store loads and runs a demo search through it). `deploy/vps/deploy.sh` (update and rollback) was run for real in a clean Node container with pm2. **What is not:** `deploy/vps/setup.sh` has been linted (shellcheck) but not run on a real server, and nothing has been deployed to a real domain, so no HTTPS certificate has been issued yet.
+**What is tested:** the Docker setup, end to end on a laptop (both images build, the stack comes up healthy, `deploy/smoke.sh` passes, and the 3D store loads and runs a demo search through it). `deploy/vps/deploy.sh` (update and rollback) was run in a clean Node container with pm2 **and on the real server**. **Path C is deployed and verified on a real server** (demo mode, no API keys, at https://stor3d.tech): a valid Let's Encrypt certificate, `deploy/smoke.sh` 10 passed with 1 advisory warning, update, rollback and roll-forward worked, source files and dotfiles are not served, and the app loads and runs a demo search in a real browser over HTTPS. **What is not:** `deploy/vps/setup.sh` (Path B) has been linted and its safety checks tested in a container, but never run on a fresh server (the real server was already set up, which is what Path C is for); a reboot has not been tested.
 
 ## Decisions you still have to make
 1. **Where it runs.** Any machine that can run Docker (simplest), or a plain Ubuntu server (the VPS scripts).
