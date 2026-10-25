@@ -52,7 +52,8 @@
       // subtle large-tile lines every 2 m
       for (i = -hw + 2; i < hw; i += 2) this.plane([i, 0.002, 0], [-90, 0, 0], [0.01, d.depth], d.tile);
       for (i = -hd + 2; i < hd; i += 2) this.plane([0, 0.002, i], [-90, 0, 0], [d.width, 0.01], d.tile);
-      this.box([0, h + t / 2, 0], [d.width, t, d.depth], d.ceiling);         // ceiling
+      // The castle ceiling is planked timber (seams run along the hall); every other room has a plain painted one.
+      this.box([0, h + t / 2, 0], [d.width, t, d.depth], d.ceiling, d.style === 'castle' && window.StoreWood ? window.StoreWood.material('plankDark', Math.round(d.width / 0.5), 1) : undefined);         // ceiling
       if (d.style !== 'castle') {
         // emissive light-panel strips (visual only)
         for (i = -4; i <= 4; i += 4) {
@@ -327,7 +328,7 @@
     // Timber beams across the ceiling, stone pillars in the corners and torches along the long walls.
     castle: function (hw, hd, h) {
       var z, i;
-      for (z = -hd + 3; z < hd; z += 4) this.box([0, h - 0.15 - 0.002, z], [d2(hw), 0.3, 0.3], '#4f3320');
+      for (z = -hd + 3; z < hd; z += 4) this.box([0, h - 0.15 - 0.002, z], [d2(hw), 0.3, 0.3], '#4f3320', window.StoreWood ? window.StoreWood.material('beam') : undefined);
       [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c, k) {
         this.box([c[0] * (hw - 0.4), h / 2, c[1] * (hd - 0.4)], [0.8, h, 0.8], '#8a847b');
         this.box([c[0] * (hw - 0.4), 0.15, c[1] * (hd - 0.4)], [0.92, 0.3, 0.92], '#716c64'); // plinth

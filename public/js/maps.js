@@ -2,10 +2,15 @@
 // layoutStore.js places products from it, collide.js gets its footprints from obstaclesFor(),
 // and sceneMap.js builds the scene from it. Zones: left = budget, right = premium, back = related, center = the rest.
 
-export const ZONE_LABELS = { left: 'Budget Picks', right: 'Premium', back: 'You Might Also Need', center: 'More Like This' };
+// Sign texts. The first four are shelf zones; island is the hanging "Best Matches" sign, ideas the corkboard's sign and ideasEmpty
+// what it says when Gemini has no suggestions. A map can reword any of them (labels).
+export const ZONE_LABELS = {
+  left: 'Budget Picks', right: 'Premium', back: 'You Might Also Need', center: 'More Like This',
+  island: 'Best Matches', ideas: 'Try Next', ideasEmpty: 'No Ideas Right Now',
+};
 
 // Optional per-map styling (all have defaults, see the helpers below):
-//   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: zone -> sign text;
+//   shelfStyles: zone -> shelf style (oak | cubby | rack | timber); labels: sign key -> text (see ZONE_LABELS); signTheme: shop | castle;
 //   clerkOutfit: suit | apron | hivis | tabard (what Bob wears); cartVariant: cart | basket | dolly | wheelbarrow;
 //   islandStyle: { base, top, plinth? } colors of the "Best Matches" island table;
 //   windows: { style, width, sill, head, max } and door: { style, width, height, personnel? } (see openingsFor), outside: city | town | industrial | medieval;
@@ -109,7 +114,8 @@ export const MAPS = [
     // A courtyard between the desk and the spawn, with a river across the hall and an arched bridge on each side of the desk.
     river: { z: 8, width: 2.6, bank: 0.2, bridges: [-5.2, 5.2], bridgeWidth: 2.4, arch: 0.8, approach: 1.6, gator: true },
     shelfStyles: { left: 'timber', right: 'timber', back: 'timber', center: 'timber' },
-    labels: { left: 'Squire\'s Bargains', right: 'Royal Treasury', back: 'Also in the Armory', center: 'More Like This' },
+    labels: { left: 'Squire\'s Bargains', right: 'Royal Treasury', back: 'Also in the Armory', center: 'More Like This', island: 'The Crown Jewels', ideas: 'Quest Board', ideasEmpty: 'No Quests Today' },
+    signTheme: 'castle', // timber plaques with iron rivets instead of the white shop signs
     light: '#ffc98a',
     lightBz: 8,
     clerkOutfit: 'tabard',
@@ -118,7 +124,7 @@ export const MAPS = [
     door: { style: 'castle', width: 2.0, height: 3.0 },
     outside: 'medieval',
     islandStyle: { base: '#7d786f', top: '#6b4a2c', plinth: '#625e57' }, // a stone block with a timber top
-    deskStyle: { body: '#5a3d24', top: '#8a6a45' },
+    deskStyle: { body: '#5a3d24', top: '#8a6a45', wood: true }, // real planks and grain (see wood.js)
   },
 ];
 

@@ -9,7 +9,7 @@ import { storeColor } from './storeColor.js';
 import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
 import { isClothingSearch, isApparelTitle } from './category.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
-import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
+import { MAPS, DEFAULT_MAP_ID, getMap, labelFor } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
 import { createJoystick, attachTouchLook, isTouchDevice } from './joystick.js';
 import { safeLocalStorage } from './storage.js';
@@ -319,8 +319,8 @@ function spawnBox(container, slot) {
   container.appendChild(e);
 }
 
-const IDEAS_TITLE = 'Try Next';
-const IDEAS_EMPTY = 'No Ideas Right Now';
+const ideasTitle = () => labelFor(getMap(mapId), 'ideas');       // the corkboard sign reads differently on each map
+const ideasEmpty = () => labelFor(getMap(mapId), 'ideasEmpty');
 const IDEAS_TRIGGER_Z = -6.2; // walking this far back pins the post-its up
 const NOTE_MS = 140;
 const corkboard = () => document.getElementById('corkboard')?.components.corkboard;
@@ -329,7 +329,7 @@ function setIdeasBanner(text) {
 }
 function resetCorkboard() {
   corkboard()?.clearNotes();
-  setIdeasBanner(IDEAS_TITLE);
+  setIdeasBanner(ideasTitle());
 }
 let ideasTriggeredRun = -1; // the openingRun that already pinned its post-its
 let ideasPoll = null;
@@ -465,7 +465,7 @@ async function triggerIdeas(run) {
   if (run !== openingRun) return; // New search or replay owns the store now
   const ideas = Array.isArray(res?.ideas) ? res.ideas.filter((t) => typeof t === 'string' && t) : [];
   const board = corkboard();
-  if (!ideas.length || !board) { setIdeasBanner(IDEAS_EMPTY); return; }
+  if (!ideas.length || !board) { setIdeasBanner(ideasEmpty()); return; }
   for (let i = 0; i < ideas.length; i++) {
     if (run !== openingRun) return;
     const at = board.addNote(ideas[i], i);

@@ -23,7 +23,7 @@
       e.setAttribute('width', size[0]);
       e.setAttribute('height', size[1]);
       e.setAttribute('depth', size[2]);
-      e.setAttribute('material', { color: color, flatShading: true, roughness: 0.9, metalness: 0 });
+      e.setAttribute('material', typeof color === 'object' ? color : { color: color, flatShading: true, roughness: 0.9, metalness: 0 });
       this.el.appendChild(e);
       this.built.push(e);
     },
@@ -73,12 +73,14 @@
         // Rustic timber frame: heavy dark posts, thick planks, a top lintel and a plank back.
         var tp = 0.08;
         inner = d.width - 2 * tp;
+        // Real wood: dark grain on the posts and lintel, planks with seams on the back, mid-brown grain on the boards.
+        var W = window.StoreWood, wood = function (kind, rx, ry) { return W ? W.material(kind, rx, ry) : null; };
         [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) {
-          self.box([c[0] * (d.width / 2 - tp / 2), H / 2, c[1] * (d.depth / 2 - tp / 2)], [tp, H, tp], '#4f3320');
+          self.box([c[0] * (d.width / 2 - tp / 2), H / 2, c[1] * (d.depth / 2 - tp / 2)], [tp, H, tp], wood('beam') || '#4f3320');
         });
-        this.box([0, H / 2, -d.depth / 2 + 0.01], [inner, H, 0.02], '#6a4a2c');
-        plank(inner, '#8a6a45', d.depth - 0.02, 0.01);
-        this.box([0, H + 0.04, 0], [d.width, 0.08, d.depth], '#4f3320'); // lintel
+        this.box([0, H / 2, -d.depth / 2 + 0.01], [inner, H, 0.02], wood('plankDark', 6, 1) || '#6a4a2c');
+        plank(inner, wood('grain') || '#8a6a45', d.depth - 0.02, 0.01);
+        this.box([0, H + 0.04, 0], [d.width, 0.08, d.depth], wood('beam') || '#4f3320'); // lintel
       } else {
         // oak (default): white uprights and back, light oak planks.
         ut = 0.03; inner = d.width - 2 * ut;
