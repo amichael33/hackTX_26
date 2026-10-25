@@ -19,6 +19,7 @@
   <script src="js/components/alligator.js"></script>
   <script src="js/components/outside.js"></script>
   <script src="js/collide.js"></script>
+  <script src="js/components/joystick-move.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
   <script src="js/components/zone-banner.js"></script>
@@ -43,7 +44,7 @@
     <a-entity id="room" room="width:16; depth:20; height:4"></a-entity>
 
     <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
-    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
+    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false; touchEnabled:false" joystick-move bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
       <a-entity camera="near: 0.1; far: 130" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
     </a-entity>
 
@@ -107,6 +108,9 @@
       </div>
     </div>
   </aside>
+
+  <!-- On phones: walks the player (js/joystick.js). Hidden unless the device has touch and the player can walk. -->
+  <div id="joystick" hidden aria-label="Walk: drag the stick"><div id="joystick-knob"></div></div>
 
   <div id="hud">
     <div id="subtitle" hidden>

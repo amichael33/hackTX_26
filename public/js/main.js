@@ -11,6 +11,7 @@ import { isClothingSearch, isApparelTitle } from './category.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
+import { createJoystick, attachTouchLook, isTouchDevice } from './joystick.js';
 import { safeLocalStorage } from './storage.js';
 
 window.store = store; // console debugging
@@ -79,12 +80,22 @@ function applyState(state) {
   const rig = document.getElementById('rig');
   const clerk = document.getElementById('clerk');
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
+  joystick?.setEnabled(movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
   if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && cart3dOn && state.phase === 'BROWSING');
 }
 
+// The on-screen joystick (phones): shown only on touch devices, only while the player can walk.
+let joystick = null;
+if (isTouchDevice()) {
+  joystick = createJoystick({ root: document.getElementById('joystick'), knob: document.getElementById('joystick-knob') });
+  const hint = document.getElementById('browse-hint');
+  if (hint) hint.textContent = 'Drag the stick to walk \u00b7 drag the view to look \u00b7 tap a product';
+}
+
 function boot() {
+  if (joystick && scene.canvas) attachTouchLook(scene.canvas, () => document.getElementById('rig')?.components['look-controls']);
   applyMap(getMap(mapId), { preview: true });
   applyState(store.get());
   onCartChanged(); // the module-load emit can predate the shopping-cart component; re-send now that the scene is loaded
