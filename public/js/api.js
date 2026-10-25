@@ -13,6 +13,7 @@ async function post(path, body, timeoutMs = 15000) {
   if (!res.ok) {
     const err = new Error(`${path} failed with status ${res.status}`);
     err.status = res.status; // 429 = rate limited
+    err.code = (await res.json().catch(() => null))?.error; // 'daily limit' = out of today's allowance, not just too fast
     throw err;
   }
   return res.json();

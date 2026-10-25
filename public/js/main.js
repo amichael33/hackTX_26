@@ -2,15 +2,16 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
 import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
 import { isClothingSearch, isApparelTitle } from './category.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
-import { MAPS, DEFAULT_MAP_ID, getMap } from './maps.js';
+import { MAPS, DEFAULT_MAP_ID, getMap, labelFor } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
+import { createJoystick, attachTouchLook, isTouchDevice } from './joystick.js';
 import { safeLocalStorage } from './storage.js';
 
 window.store = store; // console debugging
@@ -31,6 +32,8 @@ const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can 
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
 const GREETING = 'Hi! Welcome in. What are you shopping for today?';
 const RATE_LIMITED = 'Whoa, one sec! Ask me again in a moment.';
+const DAILY_LIMIT = "I need to close up for today, you've kept me busy! Come back tomorrow, or open a saved search.";
+const SEARCH_LIMITED = "The back room is closed for the day, so here's what I have on the showroom floor.";
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
 // --- Maps: picked on the start screen; the store is built from the chosen map ---
@@ -77,16 +80,28 @@ function applyState(state) {
   const rig = document.getElementById('rig');
   const clerk = document.getElementById('clerk');
   if (rig) rig.setAttribute('wasd-controls', 'enabled', movementEnabled(state));
+  joystick?.setEnabled(movementEnabled(state));
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
   if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && cart3dOn && state.phase === 'BROWSING');
 }
 
+// The on-screen joystick (phones): shown only on touch devices, only while the player can walk.
+let joystick = null;
+if (isTouchDevice()) {
+  joystick = createJoystick({ root: document.getElementById('joystick'), knob: document.getElementById('joystick-knob') });
+  const hint = document.getElementById('browse-hint');
+  if (hint) hint.textContent = 'Drag the stick to walk \u00b7 drag the view to look \u00b7 tap a product';
+}
+
 function boot() {
+  if (joystick && scene.canvas) attachTouchLook(scene.canvas, () => document.getElementById('rig')?.components['look-controls']);
   applyMap(getMap(mapId), { preview: true });
   applyState(store.get());
   onCartChanged(); // the module-load emit can predate the shopping-cart component; re-send now that the scene is loaded
   store.on('change', (state) => applyState(state));
+  let shownExtras = null;
+  store.on('change', (state) => { if (state.extras !== shownExtras) { shownExtras = state.extras; renderMore(state.extras); } });
 }
 
 if (scene.hasLoaded) boot();
@@ -198,7 +213,7 @@ async function runTurn(text) {
     res = await postChat({ messages, location: store.get().location });
   } catch (err) {
     console.warn('chat failed', err);
-    await say(err?.status === 429 ? RATE_LIMITED : CHAT_FALLBACK);
+    await say(err?.code === 'daily limit' ? DAILY_LIMIT : err?.status === 429 ? RATE_LIMITED : CHAT_FALLBACK);
     return;
   }
 
@@ -230,11 +245,12 @@ async function runSearch() {
     const waiting = clerkSay(SEARCH_WAIT);
     document.getElementById('clerk')?.emit('spin');
     let servedDemo = false;
+    let servedLimited = false;
     let extras = [];
     searchWasDemo = false;
     let pending = true;
     const searching = postSearch({ query, city: location?.city }).then(
-      (res) => { servedDemo = res?.demo === true; extras = Array.isArray(res?.extras) ? res.extras : []; return res?.products ?? []; },
+      (res) => { servedDemo = res?.demo === true; servedLimited = res?.limited === true; extras = Array.isArray(res?.extras) ? res.extras : []; return res?.products ?? []; },
       (err) => {
         console.warn('search failed', err);
         return err?.status === 429 ? { limited: true } : null; // null = request failed, distinct from an empty result
@@ -254,7 +270,7 @@ async function runSearch() {
     if (Array.isArray(products) && products.length) {
       store.set({ products, extras });
       searchWasDemo = servedDemo;
-      if (servedDemo && !isDemoPage) await clerkSay(SEARCH_OFFLINE);
+      if (servedDemo && !isDemoPage) await clerkSay(servedLimited ? SEARCH_LIMITED : SEARCH_OFFLINE);
       store.setPhase('OPENING');
       return;
     }
@@ -303,8 +319,8 @@ function spawnBox(container, slot) {
   container.appendChild(e);
 }
 
-const IDEAS_TITLE = 'Try Next';
-const IDEAS_EMPTY = 'No Ideas Right Now';
+const ideasTitle = () => labelFor(getMap(mapId), 'ideas');       // the corkboard sign reads differently on each map
+const ideasEmpty = () => labelFor(getMap(mapId), 'ideasEmpty');
 const IDEAS_TRIGGER_Z = -6.2; // walking this far back pins the post-its up
 const NOTE_MS = 140;
 const corkboard = () => document.getElementById('corkboard')?.components.corkboard;
@@ -313,7 +329,7 @@ function setIdeasBanner(text) {
 }
 function resetCorkboard() {
   corkboard()?.clearNotes();
-  setIdeasBanner(IDEAS_TITLE);
+  setIdeasBanner(ideasTitle());
 }
 let ideasTriggeredRun = -1; // the openingRun that already pinned its post-its
 let ideasPoll = null;
@@ -353,7 +369,7 @@ async function spawnClothes(container, rails, live) {
     rail.items.forEach((p, i) => {
       const g = document.createElement('a-entity');
       g.setAttribute('product-box', {
-        productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
+        productId: p.id, thumb: p.thumbnail ?? '', title: p.title ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
         sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
       });
       g.setAttribute('position', `0 ${RAIL_Y - rail.position.y} 0`);
@@ -449,7 +465,7 @@ async function triggerIdeas(run) {
   if (run !== openingRun) return; // New search or replay owns the store now
   const ideas = Array.isArray(res?.ideas) ? res.ideas.filter((t) => typeof t === 'string' && t) : [];
   const board = corkboard();
-  if (!ideas.length || !board) { setIdeasBanner(IDEAS_EMPTY); return; }
+  if (!ideas.length || !board) { setIdeasBanner(ideasEmpty()); return; }
   for (let i = 0; i < ideas.length; i++) {
     if (run !== openingRun) return;
     const at = board.addNote(ideas[i], i);

@@ -49,6 +49,8 @@ The server reads `.env` only when it starts, so restart it after any change.
 | Input | Action |
 | --- | --- |
 | WASD | Walk (during browsing) |
+| Joystick (phones) | Drag the on-screen stick to walk; it only shows on touch devices while you can walk. Add `?joystick=1` to see it on a desktop. |
+| Drag with a finger | Look around (touch only; works while a thumb holds the stick). A tap still selects a product |
 | Drag | Look around |
 | Click a box | Open its product card (price, store, link) |
 | Esc | Close the card |

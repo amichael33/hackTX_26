@@ -25,7 +25,7 @@ function buildIsland(map, parent) {
   // Suspended banner: wires from the ceiling to the banner's top corners (y 2.08).
   const wireH = room.height - 2.08, wireY = (room.height + 2.08) / 2;
   for (const x of [-0.78, 0.78]) el('a-cylinder', { position: `${x} ${wireY} 0`, radius: 0.004, height: wireH, material: 'color:#1d1d1f' }, g);
-  el('a-entity', { 'zone-banner': 'text:Best Matches; width:1.6', position: '0 1.95 0' }, g);
+  el('a-entity', { 'zone-banner': `text:${labelFor(map, 'island')}; width:1.6; theme:${map.signTheme ?? 'shop'}`, position: '0 1.95 0' }, g);
 }
 
 // Rebuilds the whole map. preview = show the (empty) shelves, e.g. behind the start screen.
@@ -43,7 +43,7 @@ export function applyMap(map, { preview = false } = {}) {
     rig.object3D.position.set(spawn.x, 1.6, spawn.z); // A-Frame applies the attribute a tick later; the bounds clamp must see it now
   }
   $('desk')?.setAttribute('position', `${desk.x} 0 ${desk.z}`);
-  $('desk')?.setAttribute('desk', { body: map.deskStyle?.body ?? '#fbfbfd', top: map.deskStyle?.top ?? '#d9bf98' });
+  $('desk')?.setAttribute('desk', { body: map.deskStyle?.body ?? '#fbfbfd', top: map.deskStyle?.top ?? '#d9bf98', wood: map.deskStyle?.wood === true });
   $('clerk')?.setAttribute('position', `${clerk.x} 0 ${clerk.z}`);
   $('clerk')?.setAttribute('clerk', 'outfit', map.clerkOutfit ?? 'suit');
 
@@ -94,11 +94,11 @@ export function buildShelves(map, { clothes = false, visible = true } = {}) {
     const style = clothes ? 'rail' : shelfStyleFor(map, u.zone);
     const s = el('a-entity', { shelf: `width:2; rows:3; style:${style}`, position: `${u.x} 0 ${u.z}`, rotation: `0 ${u.rotY} 0` }, shelves);
     // Timber shelves have a lintel on top, so their sign sits a little higher.
-    el('a-entity', { 'zone-banner': `text:${labelFor(map, u.zone)}; width:2`, position: `0 ${style === 'timber' ? 2.1 : 2} 0.02` }, s);
+    el('a-entity', { 'zone-banner': `text:${labelFor(map, u.zone)}; width:2; theme:${map.signTheme ?? 'shop'}`, position: `0 ${style === 'timber' ? 2.1 : 2} 0.02` }, s);
   }
   // The rest of the back wall: a corkboard of post-it search ideas, filled when the player walks back.
   el('a-entity', { id: 'corkboard', corkboard: `width:${board.width}; height:${board.height}; notes:${board.notes ?? 'postit'}`, position: `${board.x} ${board.y} ${board.z}` }, shelves);
-  el('a-entity', { id: 'banner-ideas', 'zone-banner': 'text:Try Next; width:2.4', position: `${board.x} ${board.bannerY} ${board.z + 0.07}` }, shelves);
+  el('a-entity', { id: 'banner-ideas', 'zone-banner': `text:${labelFor(map, 'ideas')}; width:2.4; theme:${map.signTheme ?? 'shop'}`, position: `${board.x} ${board.bannerY} ${board.z + 0.07}` }, shelves);
   buildIsland(map, shelves);
   shelves.setAttribute('visible', String(visible));
 }

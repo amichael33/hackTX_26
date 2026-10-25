@@ -10,11 +10,15 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test",
-    "prewarm": "node scripts/prewarm.js"
+    "prewarm": "node scripts/prewarm.js",
+    "check:maps": "node scripts/check-maps.mjs"
   },
   "dependencies": {
     "dotenv": "^18.0.9",
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.1"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.16.0"
   }
 }

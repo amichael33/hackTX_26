@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Low-Poly Store</title>
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="vendor/aframe.min.js"></script>
+  <link rel="icon" href="data:,">
+  <script src="js/wood.js"></script>
   <script src="js/components/room.js"></script>
   <script src="js/components/shelf.js"></script>
   <script src="js/components/rack.js"></script>
@@ -18,15 +20,16 @@
   <script src="js/components/alligator.js"></script>
   <script src="js/components/outside.js"></script>
   <script src="js/collide.js"></script>
+  <script src="js/components/joystick-move.js"></script>
   <script src="js/components/bounds.js"></script>
   <script src="js/components/disco-ball.js"></script>
   <script src="js/components/zone-banner.js"></script>
   <script src="js/sticker.js"></script>
   <script src="js/cutout.js"></script>
+  <script src="js/garment.js"></script>
   <script src="js/components/product-box.js"></script>
   <script src="js/components/shopping-cart.js"></script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap">
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
   <link rel="stylesheet" href="css/ui.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -42,7 +45,7 @@
     <a-entity id="room" room="width:16; depth:20; height:4"></a-entity>
 
     <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
-    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false" bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
+    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false; touchEnabled:false" joystick-move bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
       <a-entity camera="near: 0.1; far: 130" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
     </a-entity>
 
@@ -89,6 +92,7 @@
     <div id="cart-panel">
       <div id="cart-tabs" role="tablist">
         <button id="tab-cart" type="button" role="tab" aria-selected="true">Cart</button>
+        <button id="tab-more" type="button" role="tab" aria-selected="false" hidden>More finds</button>
         <button id="tab-searches" type="button" role="tab" aria-selected="false">Searches</button>
       </div>
       <div id="cart-pane">
@@ -97,11 +101,17 @@
         <p id="cart-footer" hidden></p>
         <label id="cart3d-toggle"><input id="cart3d-check" type="checkbox" checked> Show my cart in the store <kbd>C</kbd></label>
       </div>
+      <div id="more-pane" hidden>
+        <p class="searches-empty">Nothing extra from the back room for this search.</p>
+      </div>
       <div id="searches-pane" hidden>
         <p class="searches-empty">No past searches yet.</p>
       </div>
     </div>
   </aside>
+
+  <!-- On phones: walks the player (js/joystick.js). Hidden unless the device has touch and the player can walk. -->
+  <div id="joystick" hidden aria-label="Walk: drag the stick"><div id="joystick-knob"></div></div>
 
   <div id="hud">
     <div id="subtitle" hidden>

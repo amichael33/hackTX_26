@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 await import('../public/js/collide.js');
-const { MAPS, DEFAULT_MAP_ID, getMap, obstaclesFor, boundsFor, ZONE_LABELS } = await import('../public/js/maps.js');
+const { MAPS, DEFAULT_MAP_ID, getMap, obstaclesFor, boundsFor, ZONE_LABELS, labelFor } = await import('../public/js/maps.js');
 const L = await import('../public/js/layoutStore.js');
 const C = globalThis.StoreCollide;
 const DEFAULT_OBSTACLES = C.OBSTACLES.map((o) => ({ ...o })); // collide.js's built-in (classic) footprints, before any setMap
@@ -230,4 +230,22 @@ test('every map can style its island table; the castle one is not the shop-white
   }
   const castle = getMap('castle').islandStyle;
   assert.ok(castle && castle.base !== '#f5f5f7' && castle.top !== '#d9bf98', 'the castle table has its own look');
+});
+
+test('signs: only the castle uses timber plaques; every map names all its signs; the castle has its own wording', () => {
+  for (const m of MAPS) {
+    assert.ok([undefined, 'shop', 'castle'].includes(m.signTheme), `${m.id}: ${m.signTheme}`);
+    for (const key of ['left', 'right', 'back', 'center', 'island', 'ideas', 'ideasEmpty']) assert.ok(labelFor(m, key), `${m.id} has no "${key}" sign text`);
+  }
+  assert.equal(getMap('castle').signTheme, 'castle');
+  for (const id of ['classic', 'boutique', 'warehouse']) assert.notEqual(getMap(id).signTheme, 'castle');
+  assert.equal(labelFor(getMap('classic'), 'island'), 'Best Matches');
+  assert.equal(labelFor(getMap('classic'), 'ideas'), 'Try Next');
+  assert.notEqual(labelFor(getMap('castle'), 'island'), 'Best Matches');
+  assert.notEqual(labelFor(getMap('castle'), 'ideas'), 'Try Next');
+});
+
+test('the castle desk uses real wood; the shop desks do not', () => {
+  assert.equal(getMap('castle').deskStyle.wood, true);
+  for (const id of ['classic', 'boutique', 'warehouse']) assert.notEqual(getMap(id).deskStyle?.wood, true);
 });
