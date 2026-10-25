@@ -1,11 +1,11 @@
 // DOM-free layout for clothing: garments hang on rails (one per shelf unit, plus a small one on the island) instead of
-// sitting in shelf slots. A rail holds more garments than fit in view; the player flips through them with arrow buttons.
+// sitting in shelf slots. A rail holds only what fits in view (RAIL_WINDOW); the rest go on other rails, so there is nothing to flip.
 import { assignZones, currentMap } from './layoutStore.js';
 
 export const RAIL_PITCH = 0.32;     // distance between hangers along a rail
 export const RAIL_WINDOW = 6;       // hangers in view at once (2 m rail)
-export const RAIL_CAPACITY = 18;    // garments a rail holds (three windows' worth)
-export const RAIL_TARGET = 10;      // a zone fills rails to about this many, so there is something to flip through
+export const RAIL_CAPACITY = RAIL_WINDOW; // garments a rail holds: all in view, no paging (the clothes-rail arrows stay unused)
+export const RAIL_TARGET = RAIL_WINDOW;   // a zone fills rails to this many, and the overflow goes on the next rail
 export const ISLAND_RAIL_CAPACITY = 4;
 export const RAIL_Y = 1.6;          // hanger height above the floor
 
@@ -25,8 +25,8 @@ export function layoutClothes(products, opts = {}, map = currentMap()) {
   for (const z of Object.keys(units)) {
     const list = zones[z];
     if (!list.length) continue;
-    // Deal the zone's products round-robin over as few rails as holds them at about RAIL_TARGET each (the rest stay bare),
-    // so a rail is long enough to flip through but the best matches are still spread over a few rails.
+    // Deal the zone's products round-robin over as few rails as holds them at RAIL_TARGET each (the rest stay bare),
+    // so the best matches are still spread over a few rails.
     const used = Math.min(units[z].length, Math.max(1, Math.ceil(list.length / RAIL_TARGET)));
     const buckets = units[z].map(() => []);
     list.forEach((p, i) => buckets[i % used].push(p));

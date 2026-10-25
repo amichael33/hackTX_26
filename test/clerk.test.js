@@ -41,7 +41,7 @@ test('llm throws with no user text returns fallback', async () => {
   const r = await chatTurn({ messages: [], location: loc }, llm);
   assert.deepEqual(r, {
     ready: false, reply_to_player: FALLBACK, query: '',
-    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false,
+    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false, sort_by: null,
   });
 });
 
@@ -50,7 +50,7 @@ test('llm throws with a user message -> ready with last user text as query', asy
   const r = await chatTurn({ messages: [u('hi'), c('what?'), u('  pink workout tops  ')], location: loc }, llm);
   assert.deepEqual(r, {
     ready: true, reply_to_player: 'Great, let me pull some options for you!', query: 'pink workout tops',
-    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false,
+    min_price: null, max_price: null, preferences: [], extra_queries: [], is_clothing: false, sort_by: null,
   });
 });
 
@@ -133,4 +133,10 @@ test('POST /api/chat returns ClerkResponse', async () => {
     server.closeAllConnections();
     await new Promise((r) => server.close(r));
   }
+});
+
+test('sort_by passes through only when it is one of the known sorts', async () => {
+  const ask = async (sort_by) => (await chatTurn({ messages: [{ role: 'user', text: 'headphones, sort by rating' }] }, async () => ({ ready: true, query: 'headphones', sort_by, reply_to_player: 'ok' }))).sort_by;
+  for (const s of ['price', 'rating', 'store', 'brand']) assert.equal(await ask(s), s);
+  for (const bad of ['cheapest', 5, undefined, null]) assert.equal(await ask(bad), null);
 });

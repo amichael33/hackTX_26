@@ -314,7 +314,7 @@
         self.onWall(sp.wall, sp.u, 1.95, 0.4, 0.4, 0.03, '#c0392b');                 // red sign
         self.onWall(sp.wall, sp.u, 1.95, 0.22, 0.06, 0.04, '#ffffff');
         self.onWall(sp.wall, sp.u, 1.95, 0.06, 0.22, 0.04, '#ffffff');
-        self.onWall(sp.wall, sp.u, 1.1, 0.26, 0.5, 0.02, '#f2f2f2');                  // backboard
+        self.onWall(sp.wall, sp.u, 1.1, 0.26, 0.5, 0.05, '#f2f2f2');                  // backboard: its face stands out beyond the grey wall band (0.123) and the yellow stripe (0.133) behind it, so they do not z-fight
         var cyl = document.createElement('a-cylinder'), q = self.knobPos(sp.wall, sp.u, 1.0);
         var inward = sp.wall === 'left' ? 1 : -1;
         cyl.setAttribute('position', (q[0] + inward * 0.07) + ' 1.0 ' + q[2]);

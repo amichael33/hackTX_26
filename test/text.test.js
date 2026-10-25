@@ -36,3 +36,12 @@ test('timeAgo buckets', () => {
   assert.equal(timeAgo(now - 24 * 3600_000, now), '1 d ago');
   assert.equal(timeAgo(now - 3 * 86400_000, now), '3 d ago');
 });
+
+test('formatRating: one decimal out of 5, or empty when there is no rating', async () => {
+  const { formatRating } = await import('../public/js/text.js');
+  assert.equal(formatRating(4.55), '4.6');
+  assert.equal(formatRating(4), '4.0');
+  assert.equal(formatRating('3.8'), '3.8');
+  for (const bad of [null, undefined, '', 0, 'x', NaN]) assert.equal(formatRating(bad), '');
+  assert.equal(formatRating(7), '5.0');
+});

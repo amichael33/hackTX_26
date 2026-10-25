@@ -18,11 +18,11 @@ test('empty input gives no rails', () => {
 for (const map of MAPS) {
   test(`map "${map.id}": every product hangs exactly once, rails are within capacity and sit on a unit`, () => {
     setMap(map);
-    const ps = many(60, 50);
+    const ps = many(40, 32); // a big search; the rails (six each) hold all of it on every map
     const rails = layoutClothes(ps, {}, map);
     const ids = rails.flatMap((r) => r.items.map((p) => p.id));
-    assert.equal(ids.length, 60);
-    assert.equal(new Set(ids).size, 60);
+    assert.equal(ids.length, 40);
+    assert.equal(new Set(ids).size, 40);
     for (const r of rails) {
       assert.ok(r.items.length > 0);
       assert.ok(r.items.length <= (r.kind === 'island' ? ISLAND_RAIL_CAPACITY : RAIL_CAPACITY), r.id);
@@ -61,11 +61,13 @@ test('scrolling is clamped to the rail', () => {
   assert.equal(clampOffset(99, 10), 4);
 });
 
-test('rails fill to about RAIL_TARGET, so most hold more than one window to flip through', () => {
-  setMap(MAPS[0]);
-  const rails = layoutClothes(many(60, 50), {}, MAPS[0]).filter((r) => r.kind === 'wall');
-  assert.ok(rails.some((r) => r.items.length > RAIL_WINDOW), 'something to flip through');
-  for (const r of rails) assert.ok(r.items.length <= Math.ceil(RAIL_TARGET * 1.5) + 1, `${r.id} has ${r.items.length}`);
+test('no rail holds more than one window: the overflow goes on other rails', () => {
+  for (const map of MAPS) {
+    setMap(map);
+    const rails = layoutClothes(many(60, 50), {}, map);
+    for (const r of rails) assert.ok(r.items.length <= (r.kind === 'island' ? ISLAND_RAIL_CAPACITY : RAIL_WINDOW), `${map.id} ${r.id} has ${r.items.length}`);
+    assert.ok(rails.filter((r) => r.kind === 'wall').length >= 4, `${map.id}: the clothes spread over several rails`);
+  }
   const few = layoutClothes(many(8), {}, MAPS[0]);
   assert.ok(few.every((r) => r.items.length > 0));
 });

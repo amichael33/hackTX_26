@@ -85,5 +85,38 @@
     for (var k = 0; k < t.lines.length; k++) ctx.fillText(t.lines[k], c, y0 + k * lh);
   }
 
-  window.StoreSticker = { drawSticker: drawSticker };
+  // A round star-rating badge: a gold star over the number ("4.6"), on a cream disc with the same dark outline as the price sticker.
+  function drawRating(canvas, opts) {
+    var S = 128, c = S / 2;
+    canvas.width = S;
+    canvas.height = S;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, S, S);
+    ctx.beginPath();
+    ctx.arc(c, c, 54, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff7d6';
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = DARK;
+    ctx.stroke();
+    ctx.beginPath(); // five-point star
+    for (var i = 0; i < 10; i++) {
+      var r = i % 2 === 0 ? 26 : 11, a = -Math.PI / 2 + (i * Math.PI) / 5;
+      var x = c + Math.cos(a) * r, y = 44 + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#ffb400';
+    ctx.fill();
+    ctx.lineWidth = 3.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = DARK;
+    ctx.font = '54px ' + FONT;
+    ctx.fillText(String(opts.rating || ''), c, 92);
+  }
+
+  window.StoreSticker = { drawSticker: drawSticker, drawRating: drawRating };
 })();

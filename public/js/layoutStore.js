@@ -1,5 +1,6 @@
 // DOM-free layout: assigns Products to shelf/island slots. Geometry derives from the active map (maps.js).
 import { getMap, DEFAULT_MAP_ID } from './maps.js';
+import { sortPlan } from './sortMode.js';
 
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const ROW_TOPS = [0.05, 0.65, 1.25]; // plank top surfaces, local y
@@ -63,7 +64,9 @@ const byRelevance = (a, b) => a.relevance - b.relevance;
 
 // Decides which zone each product goes to: the island gets the best in-budget matches, then every product goes to the zone
 // for its tier (related -> back) and spills into the next zone with room. `capacity` is zone -> how many fit.
-export function assignZones(products, { min_price = null, max_price = null } = {}, capacity = {}) {
+// `sort` (sortMode.js) changes which zone a tier-less product lands in and how each zone is ordered; the island and the back wall do not change.
+export function assignZones(products, { min_price = null, max_price = null, sort = 'price' } = {}, capacity = {}) {
+  const plan = sortPlan(products, sort);
   const lo = min_price ?? 0, hi = max_price ?? Infinity;
   const sorted = [...products].sort(byRelevance);
 
@@ -72,7 +75,7 @@ export function assignZones(products, { min_price = null, max_price = null } = {
   const island = (inBudget.length ? inBudget : candidates).slice(0, capacity.island ?? ZONES.island.capacity);
   const islandIds = new Set(island.map((p) => p.id));
 
-  const zoneOf = (p) => (p.related ? 'back' : p.tier === 'budget' ? 'left' : p.tier === 'premium' ? 'right' : 'center');
+  const zoneOf = (p) => (p.related ? 'back' : plan.zoneOf(p));
   const assigned = { center: [], back: [], left: [], right: [] };
   for (const p of sorted) {
     if (islandIds.has(p.id)) continue;
@@ -80,7 +83,7 @@ export function assignZones(products, { min_price = null, max_price = null } = {
     const target = [own, ...SPILL_ORDER].find((z) => assigned[z].length < (capacity[z] ?? ZONES[z].capacity));
     if (target) assigned[target].push(p);
   }
-  for (const z of SPILL_ORDER) assigned[z].sort(byRelevance);
+  for (const z of SPILL_ORDER) assigned[z].sort(z === 'back' ? byRelevance : plan.compare);
   island.sort(byRelevance);
   return { island, ...assigned };
 }
@@ -97,3 +100,6 @@ export function layoutStore(products, opts = {}) {
   for (const z of SPILL_ORDER) place(z, zones[z]);
   return slots;
 }
+
+// The zone sign texts for a sort (zone -> text), or null to keep the map's own signs.
+export const zoneLabelsFor = (products, sort) => sortPlan(products, sort).labels;

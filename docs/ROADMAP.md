@@ -73,3 +73,11 @@ Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api
 ## Rules we are following
 - Do not call SerpApi (including curl or the local search routes with keys loaded) without asking; use unit tests with a fake fetch or `?demo=1`.
 - Merge or push only when asked.
+
+## Added in the last session (not yet pushed)
+- [x] Gators offer a product whenever results exist (not only on a bridge).
+- [x] Clothing racks hold only what is in view (6); overflow goes on other racks, no paging.
+- [x] Star-rating badges on boxes and garments (opposite the price sticker).
+- [x] Arrange the store by price / rating / store / brand: Bob sets it from the chat (`sort_by`), buttons at the top re-arrange for free (`public/js/sortMode.js`).
+- [x] Bob tells the player about re-arranging and "open all": a button near his desk and one in the cart open every cart link in tabs (`public/js/openAll.js`). Demo products have no links, so the button only appears with live data. Not yet tried with real links or pop-up blockers.
+- [x] Warehouse fire-extinguisher z-fighting fixed.

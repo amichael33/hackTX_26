@@ -101,6 +101,7 @@
         <ul id="cart-list"></ul>
         <p id="cart-empty">Click a product and press Add to cart.</p>
         <p id="cart-footer" hidden></p>
+        <button id="open-all-btn" type="button" hidden>Open all in tabs</button>
         <label id="cart3d-toggle"><input id="cart3d-check" type="checkbox" checked> Show my cart in the store <kbd>C</kbd></label>
       </div>
       <div id="more-pane" hidden>
@@ -133,6 +134,14 @@
     </div>
   </div>
   <button id="new-search-btn" type="button" hidden>New search</button>
+  <div id="sort-bar" role="group" aria-label="Arrange the store by" hidden>
+    <span id="sort-label">Arrange by</span>
+    <button type="button" data-sort="price" aria-pressed="true">Price</button>
+    <button type="button" data-sort="rating" aria-pressed="false">Rating</button>
+    <button type="button" data-sort="store" aria-pressed="false">Store</button>
+    <button type="button" data-sort="brand" aria-pressed="false">Brand</button>
+  </div>
+  <button id="clerk-open-all" type="button" hidden></button>
   <div id="product-card" role="dialog" aria-modal="false" aria-labelledby="card-title" hidden>
     <button id="card-close" type="button" aria-label="Close">&times;</button>
     <h2 id="card-title"></h2>

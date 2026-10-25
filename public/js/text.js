@@ -17,6 +17,12 @@ export function formatPrice(n) {
   return (whole && n >= 100 ? money(0, 0) : money(2, 2)).format(n);
 }
 
+// "4.6" for a rating out of 5, or '' when the product has none (no rating sticker then).
+export function formatRating(r) {
+  const n = Number(r);
+  return r == null || r === '' || !Number.isFinite(n) || n <= 0 ? '' : (Math.round(Math.min(5, n) * 10) / 10).toFixed(1);
+}
+
 export const DEFAULT_CITY = 'Austin, Texas, United States';
 
 // Trim and collapse whitespace; empty input falls back to the default city.

@@ -70,7 +70,8 @@
       size: { default: 0.3 },
       kind: { default: 'box', oneOf: ['box', 'garment'] },
       sticker: { type: 'string', default: '' },
-      price: { type: 'string', default: '' }
+      price: { type: 'string', default: '' },
+      rating: { type: 'string', default: '' } // "4.6": draws a small star badge opposite the price sticker; '' = no badge
     },
     init: function () {
       var self = this;
@@ -79,6 +80,7 @@
       this.plane = null;
       this.stickerMesh = null;
       this.stickerCanvas = null;
+      this.ratingMesh = null;
       this.tilt = 0;
       this.stickerToken = 0; // bumps on every redraw/clear so a stale async draw is ignored
       this.buildId = 0;      // bumps on every build/clear so a stale thumbnail load is ignored
@@ -92,7 +94,7 @@
     update: function (old) {
       if (!old || old.size === undefined) return; // first call: init already built
       var d = this.data;
-      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb || old.kind !== d.kind || old.title !== d.title) {
+      if (old.size !== d.size || old.color !== d.color || old.thumb !== d.thumb || old.kind !== d.kind || old.title !== d.title || old.rating !== d.rating) {
         this.clear();
         this.build();
       } else if (this.stickerMesh && (old.sticker !== d.sticker || old.price !== d.price)) {
@@ -117,6 +119,13 @@
         this.el.removeObject3D('sticker');
         this.stickerMesh = null;
         this.stickerCanvas = null;
+      }
+      if (this.ratingMesh) {
+        var rm = this.ratingMesh;
+        if (rm.material.map) rm.material.map.dispose();
+        rm.material.dispose(); rm.geometry.dispose();
+        this.el.removeObject3D('rating');
+        this.ratingMesh = null;
       }
       if (this.plane) {
         var own = this.plane.userData.ownGeometry; // garments build their own curved geometry; box planes share a cached one
@@ -148,6 +157,7 @@
       this.mesh = new THREE.Mesh(boxGeo(d.size), boxMat(d.color));
       this.el.setObject3D('mesh', this.mesh);
       this.buildSticker();
+      this.buildRating(d.size * 0.42, [-d.size * 0.27, d.size * 0.27, d.size / 2 + 0.018]);
       if (!d.thumb) return;
       var url = imageUrl(d.thumb);
       var img = new Image();
@@ -238,6 +248,7 @@
       this.hanger = g;
       this.el.setObject3D('hanger', g);
       this.buildSticker();
+      this.buildRating(0.17, [-GW * 0.2, -HANGER_DROP - GH * 0.9, 0.05]);
       this.placeGarmentSticker(GW, GH);
       var kind = window.StoreGarment ? window.StoreGarment.kindFromTitle(d.title) : 'tee';
       var show = function (cut) { self.buildGarmentPlane(cut); };
@@ -323,6 +334,7 @@
       this.placeGarmentSticker(pw, ph);
     },
     placeGarmentSticker: function (pw, ph) {
+      if (this.ratingMesh) this.ratingMesh.position.set(-pw / 2 * 0.44, -HANGER_DROP - ph / 2 - ph / 2 * 0.44, garmentBulge(-0.44, -0.44) + 0.012); // lower left, mirroring the price
       if (!this.stickerMesh) return;
       var u = 0.44, v = -0.44; // lower right of the garment, in -1..1 sheet coordinates
       this.stickerMesh.position.set(pw / 2 * u, -HANGER_DROP - ph / 2 + ph / 2 * v, garmentBulge(u, v) + 0.012);
@@ -345,6 +357,28 @@
       this.stickerCanvas = canvas;
       this.el.setObject3D('sticker', mesh);
       this.drawStickerLater();
+    },
+    // The star-rating badge: a small round sticker on the opposite corner to the price (none when the product has no rating).
+    buildRating: function (side, pos) {
+      var d = this.data;
+      if (!d.rating) return;
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      window.StoreSticker.drawRating(canvas, { rating: d.rating });
+      var tex = new THREE.CanvasTexture(canvas);
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      var mesh = new THREE.Mesh(new THREE.PlaneGeometry(side, side), mat);
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      mesh.renderOrder = 1;
+      this.ratingMesh = mesh;
+      this.el.setObject3D('rating', mesh);
+      var fonts = document.fonts, self = this;
+      if (fonts && fonts.load) fonts.load('54px Bangers').then(function () { // redraw once the comic font is in
+        if (self.ratingMesh !== mesh) return;
+        window.StoreSticker.drawRating(canvas, { rating: d.rating });
+        tex.needsUpdate = true;
+      }).catch(function () {});
     },
     drawStickerLater: function () {
       var self = this;

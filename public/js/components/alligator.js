@@ -1,7 +1,7 @@
 /* Classic script: `alligator` component. A low-poly alligator that patrols the river, swimming mostly submerged: eyes,
    snout and a ridged back above the water, a tail that sways. It turns at the walls and snaps its jaws when the player
    is close. Walking by makes it swim over and face the player; on a bridge it opens wide and holds up a product in its
-   mouth (the `gator-mouth` event asks main.js to fill `mouthEl` with a product-box). The entity sits on the river's centre line at water level; it swims along x.
+   mouth (always once results exist, see `offer`) (the `gator-mouth` event asks main.js to fill `mouthEl` with a product-box). The entity sits on the river's centre line at water level; it swims along x.
    Purely visual: the player can never reach the water (see obstaclesFor in maps.js). */
 (function () {
   var BELLY = '#8aa35a';
@@ -21,6 +21,7 @@
       avoidHalf: { default: 3.5 },                  // how far from a bridge's centre it keeps (clear of the bridge's side walls)
       // For a second gator: its own size and colour, direction and pace, and `slot`, which keeps it a couple of metres from the
       // first when both swim over to the player.
+      offer: { default: false },   // true once there are search results: it holds a product up in its open mouth wherever it is, not only for a player on a bridge
       scale: { default: 1 }, tint: { default: '#3f6b2f' }, startDir: { default: 1 }, speed: { default: 1 }, slot: { default: 0 }
     },
     init: function () {
@@ -149,19 +150,19 @@
       this.head.rotation.y = watching ? 0 : Math.sin(ph + 0.8) * 0.08;
 
       // Jaws: closed while patrolling, snapping when the player is near, wide open (and head raised) on a bridge.
-      var near = dist < SNAP_RANGE;
-      var open = onBridge ? 0.7 : near ? 0.35 + 0.3 * Math.max(0, Math.sin(this.t * 7)) : 0.04 + 0.03 * Math.sin(this.t * 1.1);
-      this.lift += ((onBridge ? 1 : 0) - this.lift) * Math.min(1, dt * 4);
+      var near = dist < SNAP_RANGE, offering = onBridge || d.offer;
+      var open = offering ? 0.7 : near ? 0.35 + 0.3 * Math.max(0, Math.sin(this.t * 7)) : 0.04 + 0.03 * Math.sin(this.t * 1.1);
+      this.lift += ((offering ? 1 : 0) - this.lift) * Math.min(1, dt * 4);
       this.jaw.rotation.z = -open;
       this.head.rotation.z = 0.03 + (near ? 0.15 : 0) + 0.3 * this.lift;
 
       // Holding a product: ask main.js for one when the player steps onto the bridge, and for the next every few seconds.
       var now = performance.now();
-      if (onBridge && (!this.showing || now - this.showAt > SHOW_MS)) {
+      if (offering && (!this.showing || now - this.showAt > SHOW_MS)) {
         this.showing = true;
         this.showAt = now;
         this.el.emit('gator-mouth', { open: true });
-      } else if (!onBridge && this.showing) {
+      } else if (!offering && this.showing) {
         this.showing = false;
         this.el.emit('gator-mouth', { open: false });
       }

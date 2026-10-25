@@ -1,13 +1,15 @@
 import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers } from './api.js';
-import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
+import { DEFAULT_CITY, normalizeTypedLocation, formatPrice, formatRating } from './text.js';
 import { fallbackSticker } from './stickerText.js';
 import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
-import { layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
+import { zoneLabelsFor, layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
 import { isClothingSearch, isApparelTitle } from './category.js';
+import { SORTS, normalizeSort } from './sortMode.js';
+import { openAll } from './openAll.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap, labelFor } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
@@ -84,6 +86,11 @@ function applyState(state) {
   if (clerk) clerk.setAttribute('clerk', 'state', state.status);
   const cart3d = document.getElementById('cart3d');
   if (cart3d) cart3d.setAttribute('shopping-cart', 'enabled', CART_ENABLED && cart3dOn && state.phase === 'BROWSING');
+  if (sortBar) sortBar.hidden = state.phase !== 'BROWSING';
+  refreshOpenAll();
+  // Once there are results the castle's gators hold products up wherever they are, not only for a player on a bridge.
+  const offer = state.phase === 'BROWSING' && state.products.length > 0;
+  document.querySelectorAll('[alligator]').forEach((g) => { if (g.getAttribute('alligator')?.offer !== offer) g.setAttribute('alligator', 'offer', offer); });
 }
 
 // The on-screen joystick (phones): shown only on touch devices, only while the player can walk.
@@ -219,8 +226,8 @@ async function runTurn(text) {
 
   await say(res.reply_to_player);
   if (res.ready) {
-    const { query, min_price, max_price, preferences, extra_queries, is_clothing } = res;
-    store.set({ query: { query, min_price, max_price, preferences, extra_queries, is_clothing } });
+    const { query, min_price, max_price, preferences, extra_queries, is_clothing, sort_by } = res;
+    store.set({ query: { query, min_price, max_price, preferences, extra_queries, is_clothing, sort_by: normalizeSort(sort_by) } });
     store.setPhase('SEARCHING');
   }
 }
@@ -308,7 +315,7 @@ function spawnBox(container, slot) {
   const e = document.createElement('a-entity');
   e.setAttribute('product-box', {
     productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.45,
-    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price), rating: formatRating(p.rating),
   });
   boxEls.set(p.id, e);
   puff(slot.position.x, slot.position.y, slot.position.z, { size: 0.9, count: 5, life: 1200 });
@@ -370,7 +377,7 @@ async function spawnClothes(container, rails, live) {
       const g = document.createElement('a-entity');
       g.setAttribute('product-box', {
         productId: p.id, thumb: p.thumbnail ?? '', title: p.title ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
-        sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+        sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price), rating: formatRating(p.rating),
       });
       g.setAttribute('position', `0 ${RAIL_Y - rail.position.y} 0`);
       g.setAttribute('rotation', `0 ${GARMENT_ANGLE} 0`); // turned like clothes on a real rack, so neighbours do not clip into each other
@@ -403,7 +410,7 @@ async function runOpening() {
   const live = () => run === openingRun && store.get().phase === 'OPENING';
   const { products, query, replay } = store.get();
   if (replay) store.set({ replay: null });
-  const saying = clerkSay('Go take a look!');
+  const saying = clerkSay(sortMode === 'price' ? 'Go take a look!' : `Go take a look! I've arranged it by ${sortMode}.`);
   document.getElementById('shelves').setAttribute('visible', 'true');
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
@@ -411,6 +418,9 @@ async function runOpening() {
   stickerTexts.clear();
   const clothes = isClothingSearch(query, products);
   setClothesMode(clothes);
+  sortMode = normalizeSort(query?.sort_by);
+  applyZoneLabels(products);
+  syncSortBar();
   let saved = null;
   if (replay) {
     for (const [id, text] of Object.entries(replay.stickers ?? {})) if (typeof text === 'string' && text) stickerTexts.set(id, text);
@@ -432,7 +442,7 @@ async function runOpening() {
     })
     .catch(() => { /* keep fallbacks */ });
   try {
-    const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null };
+    const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null, sort: sortMode };
     smokeOverShelves();
     await sleep(SHELVES_SMOKE_MS); // let the cloud build before the products appear in it
     if (clothes) {
@@ -448,7 +458,88 @@ async function runOpening() {
     if (live()) store.setPhase('BROWSING');
   }
   await saying;
+  if (!tipShown && store.get().phase === 'BROWSING' && run === openingRun) { tipShown = true; clerkSay(BROWSE_TIP).catch(() => {}); } // once per visit
 }
+// --- Arranging the store: by price (default), rating, store or brand. Bob can set it from the chat; the buttons re-arrange it for free ---
+const BROWSE_TIP = 'Tip: the buttons at the top re-arrange the store, and come see me at the desk when you want everything in your cart opened.';
+let sortMode = 'price';
+let sortRun = 0;
+let tipShown = false;
+const sortBar = document.getElementById('sort-bar');
+
+function syncSortBar() {
+  sortBar?.querySelectorAll('button[data-sort]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sort === sortMode)));
+}
+
+// The zone signs read the groups of the current sort (Top Rated, Amazon, Sony...); with no labels they go back to the map's own.
+function applyZoneLabels(products) {
+  const labels = products?.length ? zoneLabelsFor(products, sortMode) : null;
+  document.querySelectorAll('#shelves [data-zone]').forEach((e) => {
+    const zone = e.dataset.zone;
+    e.setAttribute('zone-banner', 'text', labels?.[zone] ?? labelFor(getMap(mapId), zone));
+  });
+}
+
+// Re-lays the products out in the new arrangement, no search involved (so no credits): the boxes simply pop in again.
+async function resort(next) {
+  const { phase, products, query } = store.get();
+  next = normalizeSort(next);
+  if (phase !== 'BROWSING' || !products.length || next === sortMode) return;
+  sortMode = next;
+  syncSortBar();
+  const run = ++sortRun, opening = openingRun;
+  const live = () => run === sortRun && opening === openingRun && store.get().phase === 'BROWSING';
+  hideProductCard();
+  const container = document.getElementById('products');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  boxEls.clear();
+  applyZoneLabels(products);
+  smokeOverShelves();
+  const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null, sort: sortMode };
+  if (clothesMode) { await spawnClothes(container, layoutClothes(products, opts), live); return; }
+  for (const slot of layoutStore(products, opts)) {
+    if (!live()) return;
+    try { spawnBox(container, slot); } catch (err) { console.error(err); }
+    await sleep(20);
+  }
+}
+sortBar?.addEventListener('click', (e) => {
+  const b = e.target.closest?.('button[data-sort]');
+  if (b && SORTS.includes(b.dataset.sort)) resort(b.dataset.sort);
+});
+
+// --- Open everything in the cart: Bob's desk button (shown when the player stands near him) and a button in the cart panel ---
+function openCartTabs() {
+  const items = cart.items();
+  const res = openAll(items, (...a) => window.open(...a));
+  if (!res.total) { clerkSay("Your cart has nothing with a link to open yet.").catch(() => {}); return; }
+  if (res.opened < res.total) clerkSay(`Your browser only let me open ${res.opened} of ${res.total} tabs. Allow pop-ups for this site and try again.`).catch(() => {});
+  else clerkSay(`Opened ${res.total} ${res.total === 1 ? 'product' : 'products'} for you!`).catch(() => {});
+}
+const deskBtn = document.getElementById('clerk-open-all');
+const cartOpenBtn = document.getElementById('open-all-btn');
+deskBtn?.addEventListener('click', openCartTabs);
+cartOpenBtn?.addEventListener('click', openCartTabs);
+let nearClerk = false;
+function refreshOpenAll() {
+  const n = cart.items().filter((i) => i.link).length;
+  if (cartOpenBtn) { cartOpenBtn.hidden = n === 0; cartOpenBtn.textContent = `Open ${n} ${n === 1 ? 'product' : 'products'} in tabs`; }
+  const show = nearClerk && n > 0 && store.get().phase === 'BROWSING';
+  if (deskBtn) { deskBtn.hidden = !show; deskBtn.textContent = `Open all ${n} cart ${n === 1 ? 'product' : 'products'}`; }
+}
+setInterval(() => { // is the player at Bob's desk?
+  const rig = document.getElementById('rig'), clerk = document.getElementById('clerk');
+  let near = false;
+  if (rig && clerk && store.get().phase === 'BROWSING') {
+    const a = rig.object3D.position, b = clerk.object3D.position;
+    near = Math.hypot(a.x - b.x, a.z - b.z) < 3.2;
+  }
+  if (near === nearClerk) return;
+  nearClerk = near;
+  refreshOpenAll();
+  if (near && cart.items().length) clerkSay('Ready to check out? Press the button and I will open every product in your cart.').catch(() => {});
+}, 300);
+
 // Once per opening, the first walk to the back wall during BROWSING asks Gemini (never SerpApi) for follow-up search
 // ideas and pins them to the corkboard as post-its.
 async function triggerIdeas(run) {
@@ -495,7 +586,7 @@ document.querySelector('a-scene').addEventListener('product-selected', (e) => {
   showProductCard(p);
 });
 
-// The castle's alligator holds up a search result in its open mouth while the player is on a bridge (it asks for one).
+// The castle's alligators hold up a search result in their open mouths once results exist (they ask for one each time).
 let gatorIdx = 0;
 document.querySelector('a-scene').addEventListener('gator-mouth', (e) => {
   if (!e.detail?.open) return;
@@ -505,7 +596,7 @@ document.querySelector('a-scene').addEventListener('gator-mouth', (e) => {
   const p = list[gatorIdx++ % list.length];
   mouth.setAttribute('product-box', {
     productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.4,
-    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
+    sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price), rating: formatRating(p.rating),
   });
 });
 
@@ -537,6 +628,7 @@ onCartRemove((id) => { cart.remove(id); });
 // Re-render the widget on every change (and once at boot). Task 13's 3D cart listens for cart-changed.
 function onCartChanged() {
   renderCart(cart.items(), cart.total());
+  refreshOpenAll();
   if (cardProduct) setCardInCart(cart.has(cardProduct.id));
   // The 3D cart draws each item like its shelf product: a box in the retailer's colour, or a folded garment for clothes.
   scene.emit('cart-changed', { items: cart.items().map((i) => ({ ...i, color: storeColor(i.source), garment: isApparelTitle(i.title) })) });
@@ -578,6 +670,11 @@ function resetStore({ silent = false } = {}) {
   document.getElementById('shelves').setAttribute('visible', 'false');
   hideProductCard();
   cardProduct = null;
+  sortRun++;
+  sortMode = 'price';
+  applyZoneLabels(null);
+  syncSortBar();
+  nearClerk = false;
   store.set({ products: [], extras: [], query: null, messages: [], replay: null });
   if (!silent) say('What else can I find for you?').catch((err) => console.error(err));
 }
