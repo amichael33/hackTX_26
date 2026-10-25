@@ -353,7 +353,7 @@ async function spawnClothes(container, rails, live) {
     rail.items.forEach((p, i) => {
       const g = document.createElement('a-entity');
       g.setAttribute('product-box', {
-        productId: p.id, thumb: p.thumbnail ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
+        productId: p.id, thumb: p.thumbnail ?? '', title: p.title ?? '', color: storeColor(p.source), size: 0.45, kind: 'garment',
         sticker: stickerTexts.get(p.id) ?? fallbackSticker(p.tier, p.id), price: formatPrice(p.extracted_price),
       });
       g.setAttribute('position', `0 ${RAIL_Y - rail.position.y} 0`);

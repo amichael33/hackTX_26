@@ -42,7 +42,7 @@ Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api
 - [ ] **Ask before choosing numbers**: the real limits depend on the SerpApi plan size, so confirm it with the team. This item is design only and spends no credits.
 
 ### Ready to do
-- [ ] **Rethink how clothing photos are shown (paused, design agreed, not started).** Some retailers photograph the garment alone and others show a person wearing it, so on the racks you sometimes see a man in a hoodie hanging from a hanger. Plan:
+- [x] **Rethink how clothing photos are shown (implemented, visually unverified).** Some retailers photograph the garment alone and others show a person wearing it, so on the racks you sometimes see a man in a hoodie hanging from a hanger. Plan:
   - Classify each photo from its pixels, with no extra API call: after the background cut-out, count skin-tone pixels (YCbCr range, about 2 to 50 percent of the figure means a person; above that it is probably a tan garment).
   - Garment-only photo: show it as now (cut-out on the hanger).
   - Photo of a person: draw a garment-shaped model of the right type (hoodie, tee, sweater, jacket, dress, pants, skirt, scarf, chosen from the title) filled with the colours and print from the torso area (or the average non-skin colour), and hang the original photo on the hanger as a small tag.

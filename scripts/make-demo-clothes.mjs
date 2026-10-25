@@ -22,7 +22,21 @@ const svg = (shape, color) =>
   (shape === 'hoodie' ? `<rect x="38" y="76" width="24" height="14" rx="3" fill="#0002"/>` : '') +
   (shape === 'jacket' ? `<path d="M50 16 L50 112" stroke="#0005" stroke-width="2"/>` : '') +
   `</svg>`;
-const dataUrl = (shape, color) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(shape, color));
+// On-model photo: a drawn figure (skin-coloured head, neck and hands) wearing the garment, to try the "person wearing it"
+// path of the store (garment.js) with no credits. Dresses and skirts get bare legs, the rest dark trousers.
+const SKIN = '#e0ac8c';
+const modelSvg = (shape, color) => {
+  const bare = shape === 'dress' || shape === 'skirt';
+  const legs = bare ? SKIN : '#2b3a55';
+  const hands = shape === 'pants' ? '' : `<circle cx="14" cy="68" r="3.6" fill="${SKIN}"/><circle cx="86" cy="68" r="3.6" fill="${SKIN}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130"><rect width="100" height="130" fill="#fff"/>` +
+    `<rect x="36" y="${bare ? 96 : 92}" width="12" height="34" fill="${legs}"/><rect x="52" y="${bare ? 96 : 92}" width="12" height="34" fill="${legs}"/>` +
+    `<rect x="46" y="14" width="8" height="12" fill="${SKIN}"/><circle cx="50" cy="10" r="9" fill="${SKIN}"/>` +
+    `<g transform="translate(15 22) scale(0.7)"><path d="${SHAPES[shape]}" fill="${color}" stroke="#0004" stroke-width="1.5"/>` +
+    (shape === 'hoodie' ? `<rect x="38" y="76" width="24" height="14" rx="3" fill="#0002"/>` : '') +
+    (shape === 'jacket' ? `<path d="M50 16 L50 112" stroke="#0005" stroke-width="2"/>` : '') + `</g>${hands}</svg>`;
+};
+const dataUrl = (shape, color, onModel) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(onModel ? modelSvg(shape, color) : svg(shape, color));
 
 const ITEMS = [
   ['Classic Cotton T-Shirt', 'tee', 'Target', 12.99], ['Relaxed Fit Hoodie', 'hoodie', 'Walmart', 29.99],
@@ -40,10 +54,13 @@ const ITEMS = [
 ];
 const RELATED = [['Wool Scarf', 'scarf', 'Target', 18.0], ['Knit Winter Scarf', 'scarf', 'Walmart', 14.99], ['Plaid Blanket Scarf', 'scarf', 'Macy\'s', 32.0], ['Silk Scarf', 'scarf', 'Amazon', 25.0]];
 
+// Titles shown on a (drawn) person instead of on their own; the rest stay garment-only photos.
+const ON_MODEL = new Set(['Relaxed Fit Hoodie', 'Summer Wrap Dress', 'Merino Crew Sweater', 'Graphic Tee', 'Denim Trucker Jacket', 'Tennis Skirt', 'Everyday Chino Pants']);
+
 const build = (list, related, start) => list.map(([title, shape, source, price], i) => ({
   id: `demo-cl-${String(start + i + 1).padStart(2, '0')}`, title,
   price: `$${price.toFixed(2)}`, extracted_price: price, rating: 4 + ((i * 7) % 10) / 10,
-  source, thumbnail: dataUrl(shape, COLORS[(start + i * 3) % COLORS.length]), link: null,
+  source, thumbnail: dataUrl(shape, COLORS[(start + i * 3) % COLORS.length], ON_MODEL.has(title)), link: null,
   relevance: start + i, related,
 }));
 const main = build(ITEMS, false, 0);
