@@ -10,6 +10,7 @@ import { generateStickers } from './lib/stickers.js';
 import { generateIdeas } from './lib/ideas.js';
 import { isApparelTitle } from '../public/js/category.js';
 import { createCache } from './lib/cache.js';
+import { createBudget } from './lib/budget.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, '..', 'public');
@@ -31,7 +32,7 @@ function pluralize(w) {
   return w + 's';
 }
 
-// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs? }
+// deps: { llm?, fetchImpl?, serpApiKey?, demoMode?, amazon?, serveStatic?, geocodeTimeoutMs?, budget? }
 export function createApp(deps = {}) {
   const app = express();
   app.set('trust proxy', 'loopback'); // Caddy on localhost: honor X-Forwarded-For so limits are per client
@@ -48,6 +49,24 @@ export function createApp(deps = {}) {
   const imgLimit = limit(300);
   app.use(express.json({ limit: '50kb' }));
   const cache = createCache(SEARCH_TTL_MS);
+  // Daily per-client allowance and a shared SerpApi credit ceiling (see lib/budget.js). Tests inject their own.
+  const budget = deps.budget ?? createBudget({
+    perClient: {
+      search: Number(process.env.BUDGET_SEARCHES_PER_DAY) || undefined,
+      chat: Number(process.env.BUDGET_CHATS_PER_DAY) || undefined,
+      ideas: Number(process.env.BUDGET_IDEAS_PER_DAY) || undefined,
+    },
+    serpCredits: Number(process.env.BUDGET_SERP_CREDITS_PER_DAY) || undefined,
+  });
+  // Every real SerpApi call (a cache miss) spends a credit. Throwing here means "treat as a failed call".
+  const spendSerp = () => { if (!budget.takeSerp(1).ok) throw new Error('serpapi credit ceiling reached'); };
+  const dailyLimited = (res, kind, req) => {
+    const r = budget.take(req.ip, kind);
+    if (r.ok) return false;
+    res.set('Retry-After', String(r.retryAfterSec));
+    res.status(429).json({ error: 'daily limit', retryAfterSec: r.retryAfterSec });
+    return true;
+  };
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   // One SerpApi query. A failure (error field, non-2xx, network) with a location is retried once without it.
@@ -69,6 +88,7 @@ export function createApp(deps = {}) {
     const ckey = JSON.stringify(['amazon', q.trim().toLowerCase()]);
     const hit = cache.get(ckey);
     if (hit !== undefined) return hit;
+    spendSerp();
     const json = await searchAmazon({ q }, { apiKey: deps.serpApiKey, fetchImpl });
     if (json?.error) throw new Error(json.error);
     cache.set(ckey, json);
@@ -90,6 +110,7 @@ export function createApp(deps = {}) {
 
   async function fetchQuery(q, location) {
     const attempt = async (loc) => {
+      spendSerp();
       const json = await searchShopping({ q, location: loc }, { apiKey: deps.serpApiKey, fetchImpl });
       if (json?.error && json.error !== NO_RESULTS_MSG) throw new Error(json.error);
       return json ?? {};
@@ -111,6 +132,12 @@ export function createApp(deps = {}) {
     const city = req.body?.city || undefined;
     if (!query.query) return res.status(400).json({ error: 'missing query' });
     if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ products: demoFor(query), demo: true });
+    // Over this client's daily searches, or the shared credit pool is empty: serve showroom stock, no SerpApi call.
+    // Counted per search request (a cache hit still counts, to keep the rule simple to explain).
+    const need = budget.take(req.ip, 'search');
+    if (!need.ok || budget.serpLeft() < 1) {
+      return res.json({ products: demoFor(query), demo: true, limited: true, retryAfterSec: need.retryAfterSec });
+    }
 
     try {
       const extras = (Array.isArray(query.extra_queries) ? query.extra_queries : []).slice(0, 2);
@@ -162,12 +189,14 @@ export function createApp(deps = {}) {
     const query = req.body?.query ?? {};
     if (!query.query) return res.status(400).json({ error: 'missing query' });
     if (deps.demoMode || req.body?.demo === true || !deps.llm) return res.json({ ideas: isClothingQuery(query) ? DEMO_IDEAS_CLOTHES : DEMO_IDEAS, demo: true });
+    if (dailyLimited(res, 'ideas', req)) return;
     const titles = (Array.isArray(req.body?.titles) ? req.body.titles : []).slice(0, 5)
       .filter((t) => typeof t === 'string').map((t) => t.slice(0, 120));
     res.json({ ideas: await generateIdeas({ query, titles }, deps.llm) });
   });
 
   app.post('/api/chat', chatLimit, async (req, res) => {
+    if (dailyLimited(res, 'chat', req)) return;
     res.json(await chatTurn(req.body || {}, deps.llm));
   });
 

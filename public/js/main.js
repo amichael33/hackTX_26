@@ -31,6 +31,8 @@ const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can 
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
 const GREETING = 'Hi! Welcome in. What are you shopping for today?';
 const RATE_LIMITED = 'Whoa, one sec! Ask me again in a moment.';
+const DAILY_LIMIT = "I need to close up for today, you've kept me busy! Come back tomorrow, or open a saved search.";
+const SEARCH_LIMITED = "The back room is closed for the day, so here's what I have on the showroom floor.";
 const CHAT_FALLBACK = "Sorry, I didn't catch that. What are you looking for?";
 
 // --- Maps: picked on the start screen; the store is built from the chosen map ---
@@ -198,7 +200,7 @@ async function runTurn(text) {
     res = await postChat({ messages, location: store.get().location });
   } catch (err) {
     console.warn('chat failed', err);
-    await say(err?.status === 429 ? RATE_LIMITED : CHAT_FALLBACK);
+    await say(err?.code === 'daily limit' ? DAILY_LIMIT : err?.status === 429 ? RATE_LIMITED : CHAT_FALLBACK);
     return;
   }
 
@@ -230,11 +232,12 @@ async function runSearch() {
     const waiting = clerkSay(SEARCH_WAIT);
     document.getElementById('clerk')?.emit('spin');
     let servedDemo = false;
+    let servedLimited = false;
     let extras = [];
     searchWasDemo = false;
     let pending = true;
     const searching = postSearch({ query, city: location?.city }).then(
-      (res) => { servedDemo = res?.demo === true; extras = Array.isArray(res?.extras) ? res.extras : []; return res?.products ?? []; },
+      (res) => { servedDemo = res?.demo === true; servedLimited = res?.limited === true; extras = Array.isArray(res?.extras) ? res.extras : []; return res?.products ?? []; },
       (err) => {
         console.warn('search failed', err);
         return err?.status === 429 ? { limited: true } : null; // null = request failed, distinct from an empty result
@@ -254,7 +257,7 @@ async function runSearch() {
     if (Array.isArray(products) && products.length) {
       store.set({ products, extras });
       searchWasDemo = servedDemo;
-      if (servedDemo && !isDemoPage) await clerkSay(SEARCH_OFFLINE);
+      if (servedDemo && !isDemoPage) await clerkSay(servedLimited ? SEARCH_LIMITED : SEARCH_OFFLINE);
       store.setPhase('OPENING');
       return;
     }
