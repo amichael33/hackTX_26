@@ -1,6 +1,6 @@
 // DOM-free layout: assigns Products to shelf/island slots. Geometry derives from the active map (maps.js).
 import { getMap, DEFAULT_MAP_ID } from './maps.js';
-import { sortPlan } from './sortMode.js';
+import { sortPlan, groupingFor, allocateGroups } from './sortMode.js';
 
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const ROW_TOPS = [0.05, 0.65, 1.25]; // plank top surfaces, local y
@@ -88,8 +88,50 @@ export function assignZones(products, { min_price = null, max_price = null, sort
   return { island, ...assigned };
 }
 
+// Store / brand sorts: the island keeps the best in-budget matches, related items fill the back wall, and every other product group
+// gets its own shelf units, only as many as it needs (centre first, then left, right and any spare back units). `perUnit(zone)` = how
+// many products one unit holds. Returns { island, placements: [{ unit: { index, zone, x, z, rotY }, items, label }] } or null for the other sorts.
+export function layoutGroups(products, opts, islandCap, perUnit, map = activeMap) {
+  const grouping = groupingFor(opts?.sort);
+  if (!grouping || !products?.length) return null;
+  const { min_price = null, max_price = null } = opts;
+  const lo = min_price ?? 0, hi = max_price ?? Infinity;
+  const sorted = [...products].sort(byRelevance);
+  const candidates = sorted.filter((p) => !p.related);
+  const inBudget = candidates.filter((p) => p.extracted_price >= lo && p.extracted_price <= hi);
+  const island = (inBudget.length ? inBudget : candidates).slice(0, islandCap);
+  const islandIds = new Set(island.map((p) => p.id));
+  const rest = sorted.filter((p) => !islandIds.has(p.id));
+  const units = map.units.map((u, index) => ({ index, zone: u.zone, x: u.x, z: u.z, rotY: u.rotY, cap: perUnit(u.zone) }));
+  const placements = [];
+  let related = rest.filter((p) => p.related);
+  const spareBack = [];
+  for (const u of units.filter((x) => x.zone === 'back')) {
+    if (!related.length) { spareBack.push(u); continue; }
+    placements.push({ unit: u, items: related.slice(0, u.cap), label: null });
+    related = related.slice(u.cap);
+  }
+  const free = ['center', 'left', 'right'].flatMap((z) => units.filter((u) => u.zone === z)).concat(spareBack);
+  const main = rest.filter((p) => !p.related).concat(related); // related items that did not fit the back wall join the groups
+  placements.push(...allocateGroups(main, free, grouping));
+  return { island, placements };
+}
+
 export function layoutStore(products, opts = {}) {
   if (!products?.length) return [];
+  const grouped = layoutGroups(products, opts, ZONES.island.capacity, (z) => PER_ROW[z] * 3);
+  if (grouped) {
+    const slots = [];
+    grouped.island.forEach((product, i) => { const s = ZONES.island.slots[i]; slots.push({ product, zone: 'island', position: { ...s.position }, rotation: { ...s.rotation } }); });
+    const unitLabels = new Map();
+    for (const { unit, items, label } of grouped.placements) {
+      unitLabels.set(unit.index, label);
+      const sl = shelfSlots(unit.zone, [{ x: unit.x, z: unit.z, rotY: unit.rotY }]);
+      items.forEach((product, i) => slots.push({ product, zone: unit.zone, position: { ...sl[i].position }, rotation: { ...sl[i].rotation } }));
+    }
+    slots.unitLabels = unitLabels; // unit index -> its sign text (null = the map's own); units not in it are empty
+    return slots;
+  }
   const zones = assignZones(products, opts);
   const slots = [];
   const place = (zone, list) => list.forEach((product, i) => {

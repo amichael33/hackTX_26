@@ -70,3 +70,40 @@ test('every sort places every product exactly once', () => {
   }
   assert.ok(sortPlan(ps, 'brand').compare);
 });
+
+import { allocateGroups, groupingFor } from '../public/js/sortMode.js';
+import { layoutStore, setMap } from '../public/js/layoutStore.js';
+import { layoutClothes } from '../public/js/clothesLayout.js';
+import { MAPS } from '../public/js/maps.js';
+
+const units = (n, cap = 6) => Array.from({ length: n }, (_, i) => ({ i, cap }));
+const store = groupingFor('store');
+
+test('allocateGroups: a group takes only the shelves it needs, one group per shelf', () => {
+  const ps = [...Array(3).keys()].map((i) => mk('a' + i, { source: 'Best Buy', relevance: i }))
+    .concat([...Array(8).keys()].map((i) => mk('b' + i, { source: 'Amazon', relevance: 10 + i })));
+  const out = allocateGroups(ps, units(6), store);
+  assert.deepEqual(out.map((o) => [o.label, o.items.length]), [['Amazon', 6], ['Amazon', 2], ['Best Buy', 3]]);
+  assert.equal(new Set(out.map((o) => o.unit.i)).size, 3, 'no shelf is shared');
+});
+
+test('allocateGroups: when there are more groups than shelves the smallest merge into Other', () => {
+  const ps = ['A', 'A', 'A', 'B', 'B', 'C', 'D', 'E'].map((s, i) => mk('p' + i, { source: s }));
+  const out = allocateGroups(ps, units(3), store);
+  assert.deepEqual(out.map((o) => o.label), ['A', 'B', 'Other Stores']);
+  assert.equal(out.flatMap((o) => o.items).length, 8);
+});
+
+test('store sort on a real map: every product once, a sign per used shelf, no mixed shelves', () => {
+  for (const map of MAPS) {
+    setMap(map);
+    const ps = Array.from({ length: 30 }, (_, i) => mk('p' + i, { source: ['Amazon', 'Target', 'Best Buy', 'Walmart'][i % 4 === 3 ? 2 : i % 3], related: i > 24, relevance: i }));
+    for (const layout of [layoutStore(ps, { sort: 'store' }), layoutClothes(ps, { sort: 'store' }, map)]) {
+      assert.ok(layout.unitLabels instanceof Map, map.id);
+      const items = Array.isArray(layout) && layout[0]?.product ? layout.map((s) => s.product) : layout.flatMap((r) => r.items);
+      assert.equal(new Set(items.map((p) => p.id)).size, items.length, map.id);
+    }
+    const slots = layoutStore(ps, { sort: 'store' });
+    assert.ok(slots.unitLabels.size >= 2, map.id);
+  }
+});

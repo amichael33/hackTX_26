@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { linksOf, openAll } from '../public/js/openAll.js';
 
 const items = [{ link: 'https://a.example/1' }, { link: 'https://a.example/1' }, { link: null }, { link: 'javascript:alert(1)' }, { link: ' http://b.example/2 ' }, {}];
+const shop = (t) => 'https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(t);
 
 test('linksOf keeps only distinct http(s) links', () => {
   assert.deepEqual(linksOf(items), ['https://a.example/1', 'http://b.example/2']);
@@ -21,4 +22,8 @@ test('openAll reports blocked tabs (null or a throw) without failing', () => {
   assert.deepEqual(openAll(items, () => null), { total: 2, opened: 0, skipped: 4 });
   assert.deepEqual(openAll(items, () => { throw new Error('blocked'); }), { total: 2, opened: 0, skipped: 4 });
   assert.deepEqual(openAll([], () => ({})), { total: 0, opened: 0, skipped: 0 });
+});
+
+test('an item with no usable link falls back to a shopping search for its title', () => {
+  assert.deepEqual(linksOf([{ title: 'Red Mug', link: null }, { title: 'Red Mug', link: 'javascript:x' }, { title: 'Blue Cup' }]), [shop('Red Mug'), shop('Blue Cup')]);
 });

@@ -9,7 +9,7 @@ import { storeColor } from './storeColor.js';
 import { zoneLabelsFor, layoutStore, SHELF_UNITS, currentMap } from './layoutStore.js';
 import { isClothingSearch, isApparelTitle } from './category.js';
 import { SORTS, normalizeSort } from './sortMode.js';
-import { openAll } from './openAll.js';
+import { openAll, linksOf } from './openAll.js';
 import { layoutClothes, hangerX, RAIL_Y, RAIL_WINDOW } from './clothesLayout.js';
 import { MAPS, DEFAULT_MAP_ID, getMap, labelFor } from './maps.js';
 import { applyMap, buildShelves } from './sceneMap.js';
@@ -419,7 +419,9 @@ async function runOpening() {
   const clothes = isClothingSearch(query, products);
   setClothesMode(clothes);
   sortMode = normalizeSort(query?.sort_by);
-  applyZoneLabels(products);
+  const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null, sort: sortMode };
+  const layout = clothes ? layoutClothes(products, opts) : layoutStore(products, opts);
+  applyZoneLabels(products, layout);
   syncSortBar();
   let saved = null;
   if (replay) {
@@ -442,13 +444,12 @@ async function runOpening() {
     })
     .catch(() => { /* keep fallbacks */ });
   try {
-    const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null, sort: sortMode };
     smokeOverShelves();
     await sleep(SHELVES_SMOKE_MS); // let the cloud build before the products appear in it
     if (clothes) {
-      await spawnClothes(container, layoutClothes(products, opts), live);
+      await spawnClothes(container, layout, live);
     } else {
-      for (const slot of layoutStore(products, opts)) {
+      for (const slot of layout) {
         if (!live()) return;
         try { spawnBox(container, slot); } catch (err) { console.error(err); }
         await sleep(SPAWN_MS);
@@ -472,11 +473,18 @@ function syncSortBar() {
 }
 
 // The zone signs read the groups of the current sort (Top Rated, Amazon, Sony...); with no labels they go back to the map's own.
-function applyZoneLabels(products) {
+function applyZoneLabels(products, layout = null) {
   const labels = products?.length ? zoneLabelsFor(products, sortMode) : null;
   document.querySelectorAll('#shelves [data-zone]').forEach((e) => {
-    const zone = e.dataset.zone;
-    e.setAttribute('zone-banner', 'text', labels?.[zone] ?? labelFor(getMap(mapId), zone));
+    if (layout?.unitLabels) { // store / brand: a sign per used shelf, none on the empty ones
+      const label = layout.unitLabels.get(Number(e.dataset.unit));
+      e.setAttribute('visible', label !== undefined);
+      if (label) e.setAttribute('zone-banner', 'text', label);
+      else if (label === null) e.setAttribute('zone-banner', 'text', labelFor(getMap(mapId), e.dataset.zone));
+      return;
+    }
+    e.setAttribute('visible', 'true');
+    e.setAttribute('zone-banner', 'text', labels?.[e.dataset.zone] ?? labelFor(getMap(mapId), e.dataset.zone));
   });
 }
 
@@ -493,11 +501,12 @@ async function resort(next) {
   const container = document.getElementById('products');
   while (container.firstChild) container.removeChild(container.firstChild);
   boxEls.clear();
-  applyZoneLabels(products);
-  smokeOverShelves();
   const opts = { min_price: query?.min_price ?? null, max_price: query?.max_price ?? null, sort: sortMode };
-  if (clothesMode) { await spawnClothes(container, layoutClothes(products, opts), live); return; }
-  for (const slot of layoutStore(products, opts)) {
+  const layout = clothesMode ? layoutClothes(products, opts) : layoutStore(products, opts);
+  applyZoneLabels(products, layout);
+  smokeOverShelves();
+  if (clothesMode) { await spawnClothes(container, layout, live); return; }
+  for (const slot of layout) {
     if (!live()) return;
     try { spawnBox(container, slot); } catch (err) { console.error(err); }
     await sleep(20);
@@ -522,7 +531,7 @@ deskBtn?.addEventListener('click', openCartTabs);
 cartOpenBtn?.addEventListener('click', openCartTabs);
 let nearClerk = false;
 function refreshOpenAll() {
-  const n = cart.items().filter((i) => i.link).length;
+  const n = linksOf(cart.items()).length;
   if (cartOpenBtn) { cartOpenBtn.hidden = n === 0; cartOpenBtn.textContent = `Open ${n} ${n === 1 ? 'product' : 'products'} in tabs`; }
   const show = nearClerk && n > 0 && store.get().phase === 'BROWSING';
   if (deskBtn) { deskBtn.hidden = !show; deskBtn.textContent = `Open all ${n} cart ${n === 1 ? 'product' : 'products'}`; }

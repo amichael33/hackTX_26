@@ -58,3 +58,45 @@ export function sortPlan(products, sort = 'price') {
       };
   }
 }
+
+// Store and brand sorts give every group only as many shelves (or rails) as it needs, one group per shelf, each with its own sign
+// (see layoutGroups in layoutStore.js). null for the sorts that use whole zones.
+export function groupingFor(sort) {
+  switch (normalizeSort(sort)) {
+    case 'store': return { keyOf: storeOf, noun: 'Stores' };
+    case 'brand': return { keyOf: brandOf, noun: 'Brands' };
+    default: return null;
+  }
+}
+
+// Deals `items` into `units` (each { cap }, in the order they should fill), one group per unit. Groups are ranked biggest first
+// (ties by name). If the groups do not fit one each, the smallest ones merge into "Other <noun>" until they do.
+// Returns [{ unit, items, label }]; whatever exceeds every unit's capacity is dropped.
+export function allocateGroups(items, units, { keyOf, noun }) {
+  const byKey = new Map();
+  for (const p of items) { const k = keyOf(p); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(p); }
+  const groups = [...byKey.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .map(([label, list]) => ({ label, items: [...list].sort(byRelevance) }));
+  const place = (list) => {
+    const out = [];
+    let u = 0;
+    for (const g of list) {
+      for (let i = 0; i < g.items.length;) {
+        if (u >= units.length) return { out, fits: false };
+        const take = g.items.slice(i, i + units[u].cap);
+        out.push({ unit: units[u], items: take, label: g.label });
+        i += take.length;
+        u++;
+      }
+    }
+    return { out, fits: true };
+  };
+  for (let k = groups.length; k >= 0; k--) {
+    const tail = groups.slice(k);
+    const list = tail.length ? [...groups.slice(0, k), { label: `Other ${noun}`, items: tail.flatMap((g) => g.items).sort(byRelevance) }] : groups.slice(0, k);
+    const res = place(list);
+    if (res.fits || k === 0) return res.out;
+  }
+  return [];
+}
