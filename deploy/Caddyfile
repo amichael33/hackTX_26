@@ -1,0 +1,32 @@
+# One Caddyfile for both ways of deploying (Docker and a plain server); only the environment differs.
+#   SITE_ADDRESS  the domain (HTTPS is automatic), or ":80" for plain HTTP on any address (default)
+#   APP_ROOT      where the repo's public/ folder is (default: where the Docker image keeps it)
+#   APP_UPSTREAM  where the Node server listens (default: the Docker service name)
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# Geolocation and the microphone only work in a secure context (HTTPS or localhost), and only if the page is allowed to ask.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "geolocation=(self), microphone=(self)"
+		-Server
+	}
+
+	# The API goes to the Node server; its own rate limits look at the X-Forwarded-For header that Caddy adds.
+	handle /api/* {
+		reverse_proxy {$APP_UPSTREAM:app:3000}
+	}
+
+	# Everything else is the static site. Pages and scripts are revalidated on every load so a new deploy is never stale.
+	handle {
+		root * {$APP_ROOT:/srv/public}
+		@code path / /index.html *.js *.css
+		header @code Cache-Control "no-cache"
+		file_server
+	}
+
+	log {
+		output stdout
+	}
+}
