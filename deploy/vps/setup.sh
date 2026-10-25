@@ -13,6 +13,25 @@ APP_USER=store
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root (sudo)"; exit 1; }
 
+# Stop before changing anything if this server is already set up by hand (a Caddy config, or something in the app folder).
+# This script replaces /etc/caddy/Caddyfile and turns the firewall on, so it is for a fresh server only. For a server that already
+# has Caddy and a domain working, use "Path C" in deploy/README.md instead. FORCE=1 overrides these checks.
+if [ "${FORCE:-}" != "1" ]; then
+  problems=()
+  if [ -s /etc/caddy/Caddyfile ] && ! cmp -s "$(dirname "$0")/../Caddyfile" /etc/caddy/Caddyfile; then
+    problems+=("/etc/caddy/Caddyfile already exists and is different (this script would replace it)")
+  fi
+  if [ -d "$APP_DIR" ] && [ ! -d "$APP_DIR/.git" ] && [ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+    problems+=("$APP_DIR already exists and is not a git checkout")
+  fi
+  if [ "${#problems[@]}" -gt 0 ]; then
+    echo "This server is not fresh, so setup.sh is stopping before it changes anything:"
+    printf '  - %s\n' "${problems[@]}"
+    echo "Use Path C in deploy/README.md for a server that is already set up, or run with FORCE=1 if you really want to overwrite."
+    exit 1
+  fi
+fi
+
 apt-get update -y
 apt-get install -y curl git ufw ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https
 

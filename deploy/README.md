@@ -32,6 +32,18 @@ SMOKE_URL=https://store.example.com deploy/vps/deploy.sh   # also run the smoke 
 ```
 `setup.sh` installs Node 22, Caddy and pm2, makes a `store` user, opens only SSH, 80 and 443, starts in demo mode, and starts the app on boot. To go live later, edit `/var/www/store/server/.env` and run `deploy.sh` again. Read `setup.sh` before running it on a real machine; it has not been run on one yet.
 
+## Path C: a server that is already set up (Caddy and a domain working)
+Use this when Caddy already serves your domain (as on stor3d.tech): do **not** run `setup.sh`, which would replace the Caddy config and the firewall. The only requirement is a Caddy site that serves `/var/www/store/public` and proxies `/api/*` to `127.0.0.1:3000`; the app then needs to be cloned there and run under pm2. As the user that owns `/var/www/store`:
+```bash
+rmdir /var/www/store/public                  # only if it is an empty folder: this fails safely if it is not
+git clone --branch deploy-test https://github.com/amichael33/hackTX_26.git /var/www/store
+printf 'DEMO_MODE=1\nPORT=3000\nNOMINATIM_CONTACT=https://your-domain\n' > /var/www/store/server/.env && chmod 600 /var/www/store/server/.env
+BRANCH=deploy-test bash /var/www/store/deploy/vps/deploy.sh
+sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$USER" --hp "$HOME"     # start on boot; then: pm2 save
+/var/www/store/deploy/smoke.sh https://your-domain
+```
+Updates and rollbacks are the same `deploy.sh` commands as in Path B. The Caddy config is left exactly as it was.
+
 ## Checking a deployment
 `deploy/smoke.sh <url>` (never spends credits: searches use the demo path). It checks the page, scripts, API health, demo search, demo clothing search, demo ideas, security headers, no-cache on scripts, and HTTPS.
 

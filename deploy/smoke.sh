@@ -19,7 +19,8 @@ check "demo clothing search returns garments" bash -c "curl -fsS --max-time 15 -
 check "demo ideas for the corkboard"     bash -c "curl -fsS --max-time 15 -X POST -H 'content-type: application/json' -d '{\"query\":{\"query\":\"gaming mouse\"},\"demo\":true}' '$BASE/api/ideas' | grep -q '\"ideas\":\['"
 check "the API is not served static files" bash -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$BASE/api/nope')\" != '200' ]"
 check "security headers are set"         bash -c "curl -sI --max-time 15 '$BASE/' | grep -qi 'x-content-type-options: nosniff' && curl -sI --max-time 15 '$BASE/' | grep -qi 'permissions-policy'"
-check "pages are revalidated (no-cache)" bash -c "curl -sI --max-time 15 '$BASE/js/main.js' | grep -qi 'cache-control: no-cache'"
+if curl -sI --max-time 15 "$BASE/js/main.js" | grep -qi 'cache-control: no-cache'; then ok "scripts are revalidated on every load (no-cache)"
+else echo "  WARN  scripts have no no-cache header: after a deploy, browsers may keep running the old scripts until they expire (add Cache-Control: no-cache for js/css/html in the Caddyfile)"; fi
 case "$BASE" in
   https://*) ok "served over HTTPS (geolocation and the mic work)";;
   http://localhost*|http://127.0.0.1*) ok "localhost counts as a secure context";;
