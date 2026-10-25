@@ -28,6 +28,7 @@ export function normalizeShoppingResults(json, { related = false, startRelevance
       source: item.source,
       thumbnail: item.thumbnail ?? null,
       link: item.link ?? item.product_link ?? null,
+      page_token: item.immersive_product_page_token ?? null, // lets /api/merchant find the seller's own page
       relevance: kept.length + startRelevance,
       related,
     });

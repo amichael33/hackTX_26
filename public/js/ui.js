@@ -287,6 +287,10 @@ export function showProductCard(p) {
   store.set({ inputFocused: true }); // keeps WASD from moving the player while the card is open
 }
 
+// The Buy link opens in a new tab as a plain link; a handler may preventDefault to resolve a better address first.
+export function onCardBuy(fn) { cardBuy.addEventListener('click', fn); }
+export function setCardBuyHref(link) { if (typeof link === 'string' && /^https?:\/\//i.test(link)) cardBuy.setAttribute('href', link); }
+
 export function onNewSearch(handler) {
   newSearchBtn.addEventListener('click', handler);
 }

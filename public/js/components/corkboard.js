@@ -164,6 +164,14 @@
       });
       this.owned.push(frameMat);
       this.notes = []; // { mesh, t, delay }
+      // Clicking a note (the board's entity carries the `clickable` class, see sceneMap.js) says which one: 'note-selected' { text }.
+      var board = this;
+      this.onClick = function (e) {
+        var hit = e.detail && e.detail.intersection && e.detail.intersection.object;
+        while (hit && !(hit.userData && hit.userData.noteText)) hit = hit.parent;
+        if (hit) board.el.emit('note-selected', { text: hit.userData.noteText }, true);
+      };
+      this.el.addEventListener('click', this.onClick);
       // Shared dagger parts for the parchment style (disposed with the board).
       this.dagger = {
         blade: new THREE.ConeGeometry(0.024, 0.2, 4), guard: new THREE.BoxGeometry(0.1, 0.018, 0.024),
@@ -208,6 +216,7 @@
         knife.rotation.set(0.55, 0, lean);
         mesh.add(knife);
       }
+      mesh.userData.noteText = text;
       mesh.position.set(s.x, s.y, 0.02);
       mesh.rotation.z = s.rot;
       mesh.scale.setScalar(0.001);
@@ -237,6 +246,7 @@
       }
     },
     remove: function () {
+      this.el.removeEventListener('click', this.onClick);
       this.clearNotes();
       this.owned.forEach(function (o) { o.dispose(); });
       this.el.removeObject3D('corkboard');

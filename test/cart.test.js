@@ -98,3 +98,13 @@ test('change fires once per successful change, after the write, not on rejects',
   c.add(prod('b'));
   assert.equal(n, 2);
 });
+
+test('setLink swaps in a better http(s) link for an item in the cart, and ignores anything else', () => {
+  const c = createCart(memoryStorage());
+  c.add(prod('a'));
+  assert.equal(c.setLink('a', 'https://seller.test/a'), true);
+  assert.equal(c.items()[0].link, 'https://seller.test/a');
+  assert.equal(c.setLink('a', 'https://seller.test/a'), false, 'unchanged');
+  for (const bad of ['javascript:x', '', null]) assert.equal(c.setLink('a', bad), false);
+  assert.equal(c.setLink('missing', 'https://x.test'), false);
+});

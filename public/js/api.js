@@ -24,6 +24,7 @@ export const postChat = (body) => post('/api/chat', body, 20000); // server Gemi
 export const postGeocode = (body, timeoutMs = 6000) => post('/api/geocode', body, timeoutMs);
 export const postSearch = (body) => post('/api/search', DEMO ? { ...body, demo: true } : body, 25000); // server: main + retry, 8 s each
 export const postIdeas = (body) => post('/api/ideas', DEMO ? { ...body, demo: true } : body, 20000); // Gemini only, no SerpApi
+export const postMerchant = (body) => post('/api/merchant', DEMO ? { ...body, demo: true } : body, 12000); // one SerpApi credit, cached server-side
 export const postStickers = (body) => post('/api/stickers', body);
 
 export const imgUrl = (u) => '/api/img?u=' + encodeURIComponent(u);

@@ -11,6 +11,7 @@ import { generateIdeas } from './lib/ideas.js';
 import { isApparelTitle } from '../public/js/category.js';
 import { createCache } from './lib/cache.js';
 import { createBudget } from './lib/budget.js';
+import { fetchImmersive, pickMerchant } from './lib/merchant.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, '..', 'public');
@@ -46,6 +47,7 @@ export function createApp(deps = {}) {
   const searchLimit = limit(10);
   const ideasLimit = limit(10);
   const geocodeLimit = limit(10);
+  const merchantLimit = limit(15);
   const imgLimit = limit(300);
   app.use(express.json({ limit: '50kb' }));
   const cache = createCache(SEARCH_TTL_MS);
@@ -55,6 +57,7 @@ export function createApp(deps = {}) {
       search: Number(process.env.BUDGET_SEARCHES_PER_DAY) || undefined,
       chat: Number(process.env.BUDGET_CHATS_PER_DAY) || undefined,
       ideas: Number(process.env.BUDGET_IDEAS_PER_DAY) || undefined,
+      merchant: Number(process.env.BUDGET_MERCHANT_PER_DAY) || undefined,
     },
     serpCredits: Number(process.env.BUDGET_SERP_CREDITS_PER_DAY) || undefined,
   });
@@ -179,6 +182,31 @@ export function createApp(deps = {}) {
     } catch (err) {
       console.warn('search failed:', err.message);
       res.json({ products: demoFor(query), demo: true });
+    }
+  });
+
+
+  // "Buy" on a Google Shopping product: finds the seller's own page (one SerpApi credit, cached by token). Never spends in demo mode;
+  // any miss answers { link: null } and the client keeps the Google link.
+  const merchantCache = createCache(6 * 60 * 60 * 1000);
+  app.post('/api/merchant', merchantLimit, async (req, res) => {
+    const token = typeof req.body?.page_token === 'string' ? req.body.page_token.slice(0, 2000) : '';
+    const source = typeof req.body?.source === 'string' ? req.body.source.slice(0, 80) : '';
+    if (!token) return res.json({ link: null });
+    if (deps.demoMode || req.body?.demo === true || !deps.serpApiKey) return res.json({ link: null, demo: true });
+    const key = `${token}|${source}`;
+    const hit = merchantCache.get(key);
+    if (hit !== undefined) return res.json(hit);
+    if (budget.serpLeft() < 1 || !budget.take(req.ip, 'merchant').ok) return res.json({ link: null, limited: true });
+    try {
+      spendSerp();
+      const found = pickMerchant(await fetchImmersive({ token }, { apiKey: deps.serpApiKey, fetchImpl }), source);
+      const out = found ?? { link: null };
+      merchantCache.set(key, out);
+      res.json(out);
+    } catch (err) {
+      console.warn('merchant failed:', err.message);
+      res.json({ link: null });
     }
   });
 

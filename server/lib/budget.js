@@ -3,7 +3,7 @@
 //   takeSerp(cost): one shared SerpApi credit ceiling for every client, so a crowd cannot drain the plan.
 // In memory only: a restart resets the counters (cheap, and the per-minute limits still apply).
 export const DAY_MS = 24 * 60 * 60 * 1000;
-export const DEFAULT_LIMITS = { search: 20, chat: 150, ideas: 40 };
+export const DEFAULT_LIMITS = { search: 20, chat: 150, ideas: 40, merchant: 40 };
 const MAX_CLIENTS = 5000;
 
 export function createBudget({ now = Date.now, windowMs = DAY_MS, perClient = DEFAULT_LIMITS, serpCredits = 400 } = {}) {

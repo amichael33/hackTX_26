@@ -162,7 +162,7 @@ button, input { font-family: inherit; }
   background: #0071e3; color: #fff; cursor: pointer;
 }
 #new-search-btn:hover { background: #0077ed; }
-#new-search-btn[hidden], #browse-hint[hidden], #sort-bar[hidden], #clerk-open-all[hidden], #open-all-btn[hidden] { display: none; }
+#new-search-btn[hidden], #browse-hint[hidden], #note-confirm[hidden], #sort-bar[hidden], #clerk-open-all[hidden], #open-all-btn[hidden] { display: none; }
 #sort-bar {
   position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 6;
   display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 980px; max-width: calc(100vw - 24px);
@@ -237,3 +237,14 @@ button, input { font-family: inherit; }
 #searches-label { display: none; }
 body.cart-off #card-cart, body.cart-off #cart-tabs, body.cart-off #cart-pane, body.cart-off #cart-tab > span:not(#searches-label) { display: none; }
 body.cart-off #searches-label { display: inline; }
+
+/* --- Sticky-note search confirm --- */
+#note-confirm {
+  position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 7; max-width: calc(100vw - 24px);
+  padding: 14px 18px; border-radius: 18px; text-align: center; color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+#note-confirm p { margin: 0 0 10px; font-weight: 600; }
+#note-confirm button { font: inherit; font-weight: 600; margin: 0 4px; padding: 8px 16px; border: 0; border-radius: 980px; cursor: pointer; background: #0071e3; color: #fff; }
+#note-confirm #note-cancel { background: rgba(0, 0, 0, 0.08); color: #1d1d1f; }

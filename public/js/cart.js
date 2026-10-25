@@ -39,6 +39,15 @@ export function createCart(storage = safeLocalStorage(), key = 'store.cart.v1') 
       commit();
       return true;
     },
+    // Swaps in a better link (the seller's own page) once one is known; no-op when the item is not in the cart.
+    setLink(id, link) {
+      const k = keyOf(id);
+      const item = list.find((i) => i.id === k);
+      if (!item || typeof link !== 'string' || !/^https?:\/\//i.test(link) || item.link === link) return false;
+      item.link = link;
+      commit();
+      return true;
+    },
     remove(id) {
       const k = keyOf(id);
       const next = list.filter((i) => i.id !== k);

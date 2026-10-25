@@ -1,8 +1,8 @@
 import { store, movementEnabled } from './store.js';
-import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers } from './api.js';
+import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers, postMerchant } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice, formatRating } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore, onCardBuy, setCardBuyHref } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
@@ -549,6 +549,32 @@ setInterval(() => { // is the player at Bob's desk?
   if (near && cart.items().length) clerkSay('Ready to check out? Press the button and I will open every product in your cart.').catch(() => {});
 }, 300);
 
+// --- Clicking a post-it on the corkboard searches for it (asks first: a search costs credits) ---
+const noteConfirm = document.getElementById('note-confirm');
+let pendingNote = null;
+function closeNoteConfirm() { pendingNote = null; if (noteConfirm) noteConfirm.hidden = true; }
+document.querySelector('a-scene').addEventListener('note-selected', (e) => {
+  const text = String(e.detail?.text ?? '').trim();
+  const s = store.get();
+  if (!text || s.phase !== 'BROWSING' || !noteConfirm) return;
+  pendingNote = text;
+  document.getElementById('note-confirm-text').textContent = `Search for \u201c${text}\u201d?`;
+  noteConfirm.hidden = false;
+});
+document.getElementById('note-cancel')?.addEventListener('click', closeNoteConfirm);
+document.getElementById('note-go')?.addEventListener('click', () => {
+  const text = pendingNote;
+  closeNoteConfirm();
+  if (!text || store.get().phase !== 'BROWSING') return;
+  const { query: old } = store.get();
+  const keepSort = sortMode; // a reset puts the arrangement back to price
+  resetStore({ silent: true }); // back to the chat phase with an empty store, then straight into a search for the note
+  store.set({ query: { query: text, min_price: null, max_price: old?.max_price ?? null, preferences: [], extra_queries: [], is_clothing: undefined, sort_by: keepSort } });
+  addLogLine('user', text);
+  store.setPhase('SEARCHING');
+});
+store.on('change', (state) => { if (state.phase !== 'BROWSING') closeNoteConfirm(); });
+
 // Once per opening, the first walk to the back wall during BROWSING asks Gemini (never SerpApi) for follow-up search
 // ideas and pins them to the corkboard as post-its.
 async function triggerIdeas(run) {
@@ -593,6 +619,7 @@ document.querySelector('a-scene').addEventListener('product-selected', (e) => {
   cardProduct = p;
   setCardInCart(cart.has(p.id)); // opening the card always refreshes the button
   showProductCard(p);
+  if (merchantLinks.has(p.id)) setCardBuyHref(merchantLinks.get(p.id));
 });
 
 // The castle's alligators hold up a search result in their open mouths once results exist (they ask for one each time).
@@ -623,6 +650,28 @@ document.addEventListener('keydown', (e) => {
   const s = store.get();
   if (s.inputFocused || s.phase !== 'BROWSING') return;
   setCart3d(!cart3dOn);
+});
+
+// --- Buy: go to the seller's own page instead of Google Shopping. One SerpApi credit per product, and only when Buy is pressed. ---
+const merchantLinks = new Map(); // product id -> the seller's page, once found
+async function resolveMerchant(p) {
+  if (merchantLinks.has(p.id)) return merchantLinks.get(p.id);
+  let link = null;
+  try { link = (await postMerchant({ page_token: p.page_token, source: p.source }))?.link ?? null; } catch (err) { console.warn('merchant lookup failed', err); }
+  if (link) { merchantLinks.set(p.id, link); cart.setLink(p.id, link); }
+  return link ?? p.link ?? null;
+}
+onCardBuy((e) => {
+  const p = cardProduct;
+  if (!p || !p.page_token || isDemoPage || merchantLinks.has(p.id)) return; // nothing to look up: the link's own href is used
+  e.preventDefault();
+  const tab = window.open('about:blank', '_blank'); // opened now, inside the click, so the pop-up blocker allows it
+  resolveMerchant(p).then((link) => {
+    if (link && tab) tab.location.href = link;
+    else if (link) window.open(link, '_blank');
+    else tab?.close();
+    if (link) setCardBuyHref(link);
+  });
 });
 
 onCardCart(() => {
