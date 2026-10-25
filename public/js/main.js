@@ -32,7 +32,7 @@ let peeked = false; // the widget auto-expands once per session, on the first ad
 
 const ASK_LOCATION = "Hi! Welcome in. Mind if I check what's near you, so I can find stuff in your area?";
 const TYPE_INSTEAD = 'No problem, just type your city or ZIP.';
-const GREETING = 'Hi! Welcome in. What are you shopping for today?';
+const GREETING = 'What are you shopping for today?'; // the location question just before already said hi
 const RATE_LIMITED = 'Whoa, one sec! Ask me again in a moment.';
 const DAILY_LIMIT = "I need to close up for today, you've kept me busy! Come back tomorrow, or open a saved search.";
 const SEARCH_LIMITED = "The back room is closed for the day, so here's what I have on the showroom floor.";
@@ -711,8 +711,34 @@ function handlePlayerSubmit(raw) {
 }
 onPlayerSubmit(handlePlayerSubmit);
 
+// --- Immersive mode (phones): optional, chosen on the start screen. Off = drag the screen to look and use the stick to walk.
+// On = fullscreen, and the phone's motion turns the view too (iOS asks for motion permission in its own full-screen prompt).
+const IMMERSIVE_KEY = 'store.immersive.v1';
+const immersiveRow = document.getElementById('immersive-row');
+const immersiveCheck = document.getElementById('immersive-check');
+if (immersiveRow && isTouchDevice()) {
+  immersiveRow.hidden = false;
+  try { immersiveCheck.checked = safeLocalStorage().getItem(IMMERSIVE_KEY) === '1'; } catch (e) { /* default off */ }
+}
+async function enterImmersive() {
+  const doc = document.documentElement;
+  try { (doc.requestFullscreen || doc.webkitRequestFullscreen)?.call(doc); } catch (e) { /* iPhone Safari has no fullscreen: carry on */ }
+  const DOE = window.DeviceOrientationEvent;
+  let granted = true;
+  if (DOE && typeof DOE.requestPermission === 'function') {
+    try { granted = (await DOE.requestPermission()) === 'granted'; } catch (e) { granted = false; }
+  }
+  if (!granted) return; // they said no: touch look still works
+  document.getElementById('rig')?.setAttribute('look-controls', 'magicWindowTrackingEnabled', true);
+  scene.emit('deviceorientationpermissiongranted'); // tells look-controls the sensors may be used
+}
+
 enterBtn.addEventListener('click', () => {
   try { window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) { /* unsupported */ }
+  if (immersiveRow && !immersiveRow.hidden) {
+    try { safeLocalStorage().setItem(IMMERSIVE_KEY, immersiveCheck.checked ? '1' : '0'); } catch (e) { /* not remembered */ }
+    if (immersiveCheck.checked) enterImmersive(); // called inside the click, which iOS requires for its permission prompt
+  }
   intro.classList.add('hidden');
   store.setPhase('LOCATION');
 });

@@ -82,3 +82,8 @@ Today the only protection is per-minute, per-IP limits in `server/app.js` (`/api
 - [x] Arrange the store by price / rating / store / brand: Bob sets it from the chat (`sort_by`), buttons at the top re-arrange for free (`public/js/sortMode.js`).
 - [x] Bob tells the player about re-arranging and "open all": a button near his desk and one in the cart open every cart link in tabs (`public/js/openAll.js`). Demo products have no links, so the button only appears with live data. Not yet tried with real links or pop-up blockers.
 - [x] Warehouse fire-extinguisher z-fighting fixed.
+
+## Phone fixes (not yet tried on a real phone)
+- [x] Immersive mode is an optional checkbox on the start screen (phones only, default off). Off: drag to look, stick to walk, no motion sensors. On: fullscreen plus motion look; iOS shows its own motion-permission prompt.
+- [x] The mic is tap to start, tap again to stop (the hold was being cancelled by the browser's permission prompt, which produced the "just type" message). Needs a real iPhone/Android check: iOS Safari asks for the microphone and Speech Recognition in full-screen prompts, and Dictation must be on in Settings.
+- [x] Bob's second line no longer repeats "Hi! Welcome in."

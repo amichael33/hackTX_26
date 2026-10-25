@@ -36,7 +36,7 @@
   <script type="module" src="js/main.js"></script>
 </head>
 <body>
-  <a-scene vr-mode-ui="enabled:false" renderer="colorManagement:true">
+  <a-scene vr-mode-ui="enabled:false" device-orientation-permission-ui="enabled:false" renderer="colorManagement:true">
     <a-entity light="type:hemisphere; color:#ffffff; groundColor:#8a7a6a; intensity:0.9"></a-entity>
     <a-entity id="light-a" light="type:point; color:#fff4e0; intensity:0.6; distance:30" position="0 3.5 0"></a-entity>
     <a-entity id="light-b" light="type:point; color:#fff4e0; intensity:0.5; distance:20" position="0 3.5 6"></a-entity>
@@ -47,7 +47,7 @@
     <a-entity id="room" room="width:16; depth:20; height:4"></a-entity>
 
     <!-- Rig sits at eye height (y 1.6) so look-controls pitch/yaw pivot at the eyes; camera world y = 1.6. -->
-    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false; touchEnabled:false" joystick-move bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
+    <a-entity id="rig" position="0 1.6 9" wasd-controls="enabled:false" look-controls="pointerLockEnabled:false; touchEnabled:false; magicWindowTrackingEnabled:false" joystick-move bounds="minX:-7.5; maxX:7.5; minZ:-9.5; maxZ:9.5">
       <a-entity camera="near: 0.1; far: 130" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
     </a-entity>
 
@@ -68,6 +68,7 @@
     <h1>Welcome to the Store</h1>
     <p>Chat with our clerk, then browse shelves stocked just for you.</p>
     <div id="map-picker" role="radiogroup" aria-label="Choose a store"></div>
+    <label id="immersive-row" hidden><input id="immersive-check" type="checkbox"> <span><strong>Immersive mode</strong> <small>Goes fullscreen and lets you look around by moving your phone. Off: drag the screen to look, stick to walk.</small></span></label>
     <button id="enter-btn" type="button">Enter store</button>
   </div>
 

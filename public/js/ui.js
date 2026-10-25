@@ -188,7 +188,7 @@ function renderPhase(state) {
   sendBtn.disabled = !chatting;
   renderMic(state);
 }
-// --- Push-to-talk mic (hold to talk; fills the input, never auto-sends) ---
+// --- Mic: tap to start, tap again to stop (a hold would be cancelled by the browser's permission prompt on phones). Fills the input, never auto-sends ---
 let recognizer = null;
 let micBase = ''; // what the player had typed when they pressed the mic
 
@@ -196,6 +196,8 @@ function renderMic(state) {
   const busy = state.status === 'speaking' || state.status === 'thinking' || state.phase !== 'CHATTING';
   micBtn.disabled = busy;
   micBtn.classList.toggle('listening', state.status === 'listening');
+  micBtn.textContent = state.status === 'listening' ? 'Stop' : 'Mic';
+  micBtn.setAttribute('aria-pressed', String(state.status === 'listening'));
   if (state.status !== 'listening') {
     micBase = '';
     recognizer?.stop(); // no-op unless still running
@@ -225,7 +227,9 @@ recognizer = createRecognizer({
     if (code === 'not-allowed' || code === 'service-not-allowed') {
       micIdle();
       hideMic();
-      clerkSay("No problem, just type instead.");
+      clerkSay(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        ? "I couldn't use the microphone. On iPhone, allow the microphone and Speech Recognition for this site (and turn on Dictation in Settings), or just type."
+        : "I couldn't use the microphone. Allow it in your browser's site settings, or just type.");
     } else {
       if (code === 'network') console.warn('speech recognition network error');
       micIdle(); // no-speech, aborted, network, others: back to idle silently
@@ -238,17 +242,21 @@ recognizer = createRecognizer({
   micBtn.hidden = recognizer === null;
 }
 
-micBtn.addEventListener('pointerdown', (e) => {
-  if (!recognizer || micBtn.disabled || e.button > 0) return;
+let micStartedAt = 0;
+micBtn.addEventListener('click', () => {
+  if (!recognizer || micBtn.disabled) return;
   const s = store.get();
+  if (s.status === 'listening') { recognizer.stop(); return; } // second tap: done talking
   if (s.status !== 'idle' || s.phase !== 'CHATTING') return;
   micBase = chatInput.value.trim();
   cancelSpeech(); // nothing should be speaking, but never let TTS feed the mic
-  if (recognizer.start()) store.set({ status: 'listening' });
+  micStartedAt = Date.now();
+  // The first start makes the browser ask for the microphone (full screen on iPhones); we simply stay "listening" while it does.
+  if (recognizer.start()) {
+    store.set({ status: 'listening' });
+    setTimeout(() => { if (store.get().status === 'listening' && Date.now() - micStartedAt >= 19000) recognizer.stop(); }, 20000); // never listens forever
+  }
 });
-for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
-  micBtn.addEventListener(ev, () => recognizer?.stop());
-}
 micBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 renderPhase(store.get());

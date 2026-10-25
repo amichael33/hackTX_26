@@ -12,6 +12,13 @@ button, input { font-family: inherit; }
   color: #1d1d1f; text-align: center; padding: 16px;
 }
 #intro.hidden { display: none; }
+#immersive-row[hidden] { display: none; }
+#immersive-row {
+  display: flex; align-items: flex-start; gap: 10px; max-width: 26rem; padding: 10px 14px; text-align: left; cursor: pointer;
+  border-radius: 14px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); font-size: 0.95rem;
+}
+#immersive-row input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+#immersive-row small { display: block; color: #6e6e73; font-size: 0.8rem; margin-top: 2px; }
 #intro h1 { margin: 0; font-size: 2.6rem; font-weight: 600; letter-spacing: -0.02em; }
 #intro p { margin: 0; color: #6e6e73; max-width: 28rem; }
 #enter-btn {
