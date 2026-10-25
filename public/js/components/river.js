@@ -63,6 +63,7 @@
           this.group.add(rock);
         }, this); // `this` is the component: the callback uses this.group
       }, this);
+      window.StoreMerge.staticMeshes(this.group, null, this.owned); // the banks, rocks and reeds become a few meshes; the water stays on its own
       this.owned.push(wGeo, wMat, this.tex, stone, bGeo, reedMat, headMat, rockMat, stemGeo, headGeo, rockGeo);
     },
     tick: function (time, delta) {
