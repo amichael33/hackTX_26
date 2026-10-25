@@ -310,6 +310,8 @@ const tabCart = $('tab-cart');
 const tabSearches = $('tab-searches');
 const cartPane = $('cart-pane');
 const searchesPane = $('searches-pane');
+const tabMore = $('tab-more');
+const morePane = $('more-pane');
 let removeHandler = null;
 let peekTimer = null;
 
@@ -330,14 +332,18 @@ export function peekCart() {
 }
 
 export function showWidgetTab(name) {
-  const cartOn = name !== 'searches' && !document.body.classList.contains('cart-off');
+  const cartOn = name !== 'searches' && name !== 'more' && !document.body.classList.contains('cart-off');
+  const moreOn = name === 'more' && !tabMore.hidden && !document.body.classList.contains('cart-off');
   cartPane.hidden = !cartOn;
-  searchesPane.hidden = cartOn;
+  morePane.hidden = !moreOn;
+  searchesPane.hidden = cartOn || moreOn;
   tabCart.setAttribute('aria-selected', String(cartOn));
-  tabSearches.setAttribute('aria-selected', String(!cartOn));
+  tabMore.setAttribute('aria-selected', String(moreOn));
+  tabSearches.setAttribute('aria-selected', String(!cartOn && !moreOn));
 }
 tabCart.addEventListener('click', () => showWidgetTab('cart'));
 tabSearches.addEventListener('click', () => showWidgetTab('searches'));
+tabMore.addEventListener('click', () => showWidgetTab('more'));
 
 export function onCartRemove(fn) {
   removeHandler = fn;
@@ -389,6 +395,53 @@ export function renderCart(items, total) {
   cartEmpty.hidden = items.length > 0;
   cartFooter.hidden = items.length === 0;
   cartFooter.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${formatPrice(total)}`;
+}
+
+// --- More finds tab: the leftover results that did not fit on the shelves (no extra API call) ---
+export function renderMore(items) {
+  const list = Array.isArray(items) ? items.filter((it) => it && Number.isFinite(it.extracted_price)) : [];
+  tabMore.hidden = list.length === 0;
+  morePane.textContent = '';
+  if (!list.length) {
+    if (!morePane.hidden) showWidgetTab('cart');
+    return;
+  }
+  const ul = document.createElement('ul');
+  ul.id = 'more-list';
+  for (const it of [...list].sort((a, b) => a.extracted_price - b.extracted_price)) {
+    const li = document.createElement('li');
+    let thumb;
+    if (it.thumbnail) {
+      thumb = document.createElement('img');
+      thumb.src = imgUrl(it.thumbnail);
+      thumb.alt = '';
+      thumb.loading = 'lazy';
+    } else {
+      thumb = document.createElement('div');
+    }
+    thumb.className = 'cart-thumb';
+    const info = document.createElement('div');
+    info.className = 'cart-info';
+    const title = document.createElement('div');
+    title.className = 'cart-title';
+    title.textContent = it.title ?? '';
+    const price = document.createElement('div');
+    price.className = 'cart-price';
+    price.textContent = [formatPrice(it.extracted_price), it.source].filter(Boolean).join(' · ');
+    info.append(title, price);
+    li.append(thumb, info);
+    if (typeof it.link === 'string' && /^https?:\/\//i.test(it.link)) {
+      const buy = document.createElement('a');
+      buy.className = 'cart-buy';
+      buy.href = it.link;
+      buy.target = '_blank';
+      buy.rel = 'noopener';
+      buy.textContent = 'View';
+      li.append(buy);
+    }
+    ul.append(li);
+  }
+  morePane.append(ul);
 }
 
 // --- Past searches tab ---

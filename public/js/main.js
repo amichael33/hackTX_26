@@ -2,7 +2,7 @@ import { store, movementEnabled } from './store.js';
 import { isDemoPage, postChat, postGeocode, postSearch, postIdeas, postStickers } from './api.js';
 import { DEFAULT_CITY, normalizeTypedLocation, formatPrice } from './text.js';
 import { fallbackSticker } from './stickerText.js';
-import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab } from './ui.js';
+import { clerkSay, onPlayerSubmit, addLogLine, onLocationChoice, showLocationPanel, setLocationBusy, showProductCard, hideProductCard, onNewSearch, setCardInCart, onCardCart, renderCart, onCartRemove, peekCart, renderPastSearches, onPastSearchPick, onPastSearchRemove, closeWidget, showWidgetTab, renderMore } from './ui.js';
 import { createCart } from './cart.js';
 import { createSavedSearches } from './savedSearches.js';
 import { storeColor } from './storeColor.js';
@@ -89,6 +89,8 @@ function boot() {
   applyState(store.get());
   onCartChanged(); // the module-load emit can predate the shopping-cart component; re-send now that the scene is loaded
   store.on('change', (state) => applyState(state));
+  let shownExtras = null;
+  store.on('change', (state) => { if (state.extras !== shownExtras) { shownExtras = state.extras; renderMore(state.extras); } });
 }
 
 if (scene.hasLoaded) boot();

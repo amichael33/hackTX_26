@@ -90,6 +90,7 @@
     <div id="cart-panel">
       <div id="cart-tabs" role="tablist">
         <button id="tab-cart" type="button" role="tab" aria-selected="true">Cart</button>
+        <button id="tab-more" type="button" role="tab" aria-selected="false" hidden>More finds</button>
         <button id="tab-searches" type="button" role="tab" aria-selected="false">Searches</button>
       </div>
       <div id="cart-pane">
@@ -97,6 +98,9 @@
         <p id="cart-empty">Click a product and press Add to cart.</p>
         <p id="cart-footer" hidden></p>
         <label id="cart3d-toggle"><input id="cart3d-check" type="checkbox" checked> Show my cart in the store <kbd>C</kbd></label>
+      </div>
+      <div id="more-pane" hidden>
+        <p class="searches-empty">Nothing extra from the back room for this search.</p>
       </div>
       <div id="searches-pane" hidden>
         <p class="searches-empty">No past searches yet.</p>
