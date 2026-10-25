@@ -1,7 +1,7 @@
 # Roadmap and to-do list
 
 The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-ai-lowpoly-store.md](superpowers/plans/2026-10-24-ai-lowpoly-store.md)
-(Tasks 0-15); this file covers what changed since and what is next. Last updated after the four map-polish branches were merged.
+(Tasks 0-15); this file covers what changed since and what is next. Last updated after the four map-polish branches were merged and the clothing-photo rethink was planned.
 
 ## Done since the original plan
 
@@ -27,6 +27,13 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 - [ ] **Check real data end to end** with live keys: clothing photos through the cut-out step (white garments on white backgrounds fall back to the whole photo), Amazon thumbnails in the cart, the `is_clothing` flag from Gemini. Costs credits.
 
 ### Ready to do
+- [ ] **Rethink how clothing photos are shown (paused, design agreed, not started).** Some retailers photograph the garment alone and others show a person wearing it, so on the racks you sometimes see a man in a hoodie hanging from a hanger. Plan:
+  - Classify each photo from its pixels, with no extra API call: after the background cut-out, count skin-tone pixels (YCbCr range, about 2 to 50 percent of the figure means a person; above that it is probably a tan garment).
+  - Garment-only photo: show it as now (cut-out on the hanger).
+  - Photo of a person: draw a garment-shaped model of the right type (hoodie, tee, sweater, jacket, dress, pants, skirt, scarf, chosen from the title) filled with the colours and print from the torso area (or the average non-skin colour), and hang the original photo on the hanger as a small tag.
+  - Put it in a DOM-free `public/js/garment.js` (kind from title, silhouettes, photo analysis) with tests; add a `title` prop to `product-box`.
+  - Add on-model demo images to `scripts/make-demo-clothes.mjs` so the path can be tried with `?demo=1` and no credits.
+  - Unknowns: tan or beige flat-lay garments can look like skin; photos on busy backgrounds fall back to the person path.
 - [ ] Clothing mode on every map: verified on Classic only. Check rails, the island rail and garments on Boutique, Warehouse and Castle.
 - [ ] Castle wood: put the planked grain on the timber shelves, Bob's desk and the ceiling beams. Theme the signs ("Best Matches" and the shelf signs are still shop-white on every map).
 - [ ] Use the stored `extras`: nothing shows them yet (idea: a "show more" rack, or a back-room shelf).
