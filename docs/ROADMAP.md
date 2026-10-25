@@ -28,6 +28,7 @@ The living plan. The original build plan is [docs/superpowers/plans/2026-10-24-a
 - [ ] **Clickable sticky notes**: clicking a note makes Bob search for it. One new search per click, so it costs credits.
 - [ ] **Open the merchant's own site**, not the Google Shopping page: needs one extra SerpApi call per click.
 - [ ] ~~Deploy demo mode~~: **Misha is doing this himself.** Not for anyone else (or their Claude) to pick up. See "Who owns what".
+  - Progress (branch `deploy/demo`, see `deploy/README.md`): Docker and plain-server kits and a smoke test are built and tested locally. Still to do: pick the host and domain, run `deploy/vps/setup.sh` on a real server, issue the HTTPS certificate, vendor A-Frame.
 - [ ] **Check real data end to end** with live keys: clothing photos through the cut-out step (white garments on white backgrounds fall back to the whole photo), Amazon thumbnails in the cart, the `is_clothing` flag from Gemini. Costs credits.
 
 ### Ready to do
